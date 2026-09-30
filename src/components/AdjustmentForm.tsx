@@ -1389,7 +1389,7 @@ export default function AdjustmentForm({
                 </div>
               </div>
 
-              {/* CARD 3: Approved By Finance */}
+              {/* CARD 3: Approved Adjustments */}
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex items-center justify-between">
                 <div>
                   <span className="font-sans text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Approved Adjustments</span>
@@ -1414,7 +1414,66 @@ export default function AdjustmentForm({
               </div>
             </div>
 
-            {/* TABLE & FILTER CARD */}
+            {/* TOP SEARCH & FILTER TOOLBAR CARD (EXACT ALLOCATION & WALKIN REGISTRY MATCH) */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <input 
+                  type="text" 
+                  placeholder="Search partner, code, Hisaab..." 
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 font-sans text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs"
+                />
+              </div>
+
+              <div>
+                <select 
+                  value={filterCity}
+                  onChange={(e) => { setFilterCity(e.target.value); setCurrentPage(1); }}
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3.5 font-sans text-xs text-slate-700 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs cursor-pointer"
+                >
+                  <option value="all">All Cities</option>
+                  <option value="Hyderabad">Hyderabad</option>
+                  <option value="Bangalore">Bangalore</option>
+                  <option value="Mumbai">Mumbai</option>
+                  <option value="Chennai">Chennai</option>
+                  <option value="Delhi">Delhi</option>
+                </select>
+              </div>
+
+              <div>
+                <select 
+                  value={filterAdjType}
+                  onChange={(e) => { setFilterAdjType(e.target.value); setCurrentPage(1); }}
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3.5 font-sans text-xs text-slate-700 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs cursor-pointer"
+                >
+                  <option value="all">All Types</option>
+                  <option value="Credit">Credit</option>
+                  <option value="Debit">Debit</option>
+                  <option value="Rental Waiver">Rental Waiver</option>
+                  <option value="Waiver">Waiver</option>
+                </select>
+              </div>
+
+              <div>
+                <select 
+                  value={filterStatus}
+                  onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3.5 font-sans text-xs text-slate-700 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs cursor-pointer"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Partially Approved">Partially Approved</option>
+                  <option value="Pending">Pending Approval</option>
+                  <option value="Hold">On Hold</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Draft">Draft</option>
+                </select>
+              </div>
+            </div>
+
+            {/* TABLE CARD */}
             <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
               
               <div className="border-b border-slate-200 p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1444,78 +1503,18 @@ export default function AdjustmentForm({
                 </div>
               </div>
 
-              {/* SEARCH & FILTERS BAR */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-b border-slate-200 bg-slate-50/50 p-4">
-                
-                <div className="relative flex items-center">
-                  <Search className="absolute left-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <input 
-                    type="text" 
-                    placeholder="Search partner, code, Hisaab..." 
-                    value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                    className="w-full h-10 rounded-xl border border-slate-200 bg-white pl-10 pr-4 font-sans text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs"
-                  />
-                </div>
-
-                <div className="relative">
-                  <select 
-                    value={filterCity}
-                    onChange={(e) => { setFilterCity(e.target.value); setCurrentPage(1); }}
-                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3.5 font-sans text-xs text-slate-700 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs cursor-pointer"
-                  >
-                    <option value="all">All Cities</option>
-                    <option value="Hyderabad">Hyderabad</option>
-                    <option value="Bangalore">Bangalore</option>
-                    <option value="Mumbai">Mumbai</option>
-                    <option value="Chennai">Chennai</option>
-                    <option value="Delhi">Delhi</option>
-                  </select>
-                </div>
-
-                <div className="relative">
-                  <select 
-                    value={filterAdjType}
-                    onChange={(e) => { setFilterAdjType(e.target.value); setCurrentPage(1); }}
-                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3.5 font-sans text-xs text-slate-700 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs cursor-pointer"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="Credit">Credit</option>
-                    <option value="Debit">Debit</option>
-                    <option value="Rental Waiver">Rental Waiver</option>
-                    <option value="Waiver">Waiver</option>
-                  </select>
-                </div>
-
-                <div className="relative">
-                  <select 
-                    value={filterStatus}
-                    onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3.5 font-sans text-xs text-slate-700 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs cursor-pointer"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Partially Approved">Partially Approved</option>
-                    <option value="Pending">Pending Approval</option>
-                    <option value="Hold">On Hold</option>
-                    <option value="Rejected">Rejected</option>
-                    <option value="Draft">Draft</option>
-                  </select>
-                </div>
-              </div>
-
               {/* TABLE CONTAINER */}
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left w-14 whitespace-nowrap">ID</th>
-                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left">Partner / Hisaab</th>
-                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left">Adjustment Details</th>
-                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left whitespace-nowrap">Amount</th>
+                      <th className="px-3.5 py-3.5 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left w-14 whitespace-nowrap">ID</th>
+                      <th className="px-3.5 py-3.5 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left">Partner / Hisaab</th>
+                      <th className="px-3.5 py-3.5 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left">Adjustment Details</th>
+                      <th className="px-3.5 py-3.5 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left whitespace-nowrap">Amount</th>
                       <th 
                         onClick={() => setSortOrder(prev => prev === "desc" ? "asc" : "desc")}
-                        className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left cursor-pointer hover:bg-slate-100 transition-colors select-none whitespace-nowrap"
+                        className="px-3.5 py-3.5 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left cursor-pointer hover:bg-slate-100 transition-colors select-none whitespace-nowrap"
                         title="Click to sort by Submission Time"
                       >
                         <div className="flex items-center gap-1.5">
@@ -1526,9 +1525,9 @@ export default function AdjustmentForm({
                           </span>
                         </div>
                       </th>
-                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left">Pending With</th>
-                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left whitespace-nowrap">Status</th>
-                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center w-36 whitespace-nowrap">Actions</th>
+                      <th className="px-3.5 py-3.5 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left">Pending With</th>
+                      <th className="px-3.5 py-3.5 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left whitespace-nowrap">Status</th>
+                      <th className="px-3.5 py-3.5 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center whitespace-nowrap w-44">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1573,8 +1572,8 @@ export default function AdjustmentForm({
 
                         return (
                           <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="px-3.5 py-3 font-sans text-xs font-semibold text-slate-700 whitespace-nowrap">#{r.id}</td>
-                            <td className="px-3.5 py-3">
+                            <td className="px-3.5 py-3.5 font-sans text-xs font-semibold text-slate-700 whitespace-nowrap">#{r.id}</td>
+                            <td className="px-3.5 py-3.5">
                               <div className="font-sans text-xs font-bold text-slate-900">{r.partner_name || "—"}</div>
                               <div className="text-[11px] text-slate-500 font-medium mt-0.5">
                                 {r.partner_code ? `${r.partner_code} · ` : ''}{r.adjustment_level || 'Partner'}
@@ -1586,13 +1585,13 @@ export default function AdjustmentForm({
                                 </span>
                               )}
                             </td>
-                            <td className="px-3.5 py-3">
+                            <td className="px-3.5 py-3.5">
                               <span className={`inline-block rounded-md px-2 py-0.5 font-sans text-[11px] font-semibold border whitespace-nowrap ${
                                 r.adjustment_type === "Credit" 
                                    ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
-                                  : r.adjustment_type === "Debit" 
-                                  ? "bg-rose-50 text-rose-800 border-rose-200" 
-                                  : "bg-amber-50 text-amber-800 border-amber-200"
+                                   : r.adjustment_type === "Debit" 
+                                   ? "bg-rose-50 text-rose-800 border-rose-200" 
+                                   : "bg-amber-50 text-amber-800 border-amber-200"
                               }`}>
                                 {r.adjustment_type || "Adjustment"}
                               </span>
@@ -1605,7 +1604,7 @@ export default function AdjustmentForm({
                                 </div>
                               )}
                             </td>
-                            <td className="px-3.5 py-3 whitespace-nowrap">
+                            <td className="px-3.5 py-3.5 whitespace-nowrap">
                               <div className="font-sans text-xs font-bold text-slate-900">
                                 Requested: ₹{reqAmt.toLocaleString("en-IN")}
                               </div>
@@ -1618,11 +1617,11 @@ export default function AdjustmentForm({
                                 Adj Date: {r.adjustment_date_mandatory || r.adjustment_date || "—"}
                               </div>
                             </td>
-                            <td className="px-3.5 py-3 font-sans text-xs text-slate-800 whitespace-nowrap">
+                            <td className="px-3.5 py-3.5 font-sans text-xs text-slate-800 whitespace-nowrap">
                               <span className="font-bold text-slate-900 block">{subTime.date}</span>
                               <span className="text-[10px] text-slate-400 font-medium block">{subTime.time || "—"}</span>
                             </td>
-                            <td className="px-3.5 py-3">
+                            <td className="px-3.5 py-3.5">
                               {finalStatus === "Approved" || finalStatus === "Partially Approved" ? (
                                 <div>
                                   <span className="font-sans text-xs font-bold text-slate-800 block">Completed</span>
@@ -1639,12 +1638,12 @@ export default function AdjustmentForm({
                                 <span className="text-slate-400 text-xs font-medium">—</span>
                               )}
                             </td>
-                            <td className="px-3.5 py-3 whitespace-nowrap">
+                            <td className="px-3.5 py-3.5 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2.5 py-1 rounded-lg border font-semibold text-[11px] whitespace-nowrap ${statusBadgeStyle}`}>
                                 {finalStatus}
                               </span>
                             </td>
-                            <td className="px-3.5 py-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                            <td className="px-3.5 py-3.5 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-center gap-1.5">
                                 <button
                                   type="button"
@@ -1652,27 +1651,27 @@ export default function AdjustmentForm({
                                     setReviewRecord(r);
                                     setApprovedAmountInput(r.approved_amount || r.enter_amount);
                                   }}
-                                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-sans text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
-                                  title="Review &amp; Verify"
+                                  className="h-7 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 font-sans text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                                  title="Review & Verify"
                                 >
-                                  <CheckCircle className="h-3.5 w-3.5" />
+                                  <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
                                   Review
                                 </button>
                                 {isDraft && (
                                   <button
                                     type="button"
                                     onClick={() => handleSendForApproval(r.id)}
-                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-sans text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
+                                    className="h-7 px-2.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 font-sans text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
                                     title="Send for Approval"
                                   >
-                                    <Send className="h-3.5 w-3.5" />
+                                    <Send className="h-3.5 w-3.5 text-blue-600" />
                                     Send
                                   </button>
                                 )}
                                 <button 
                                   type="button"
                                   onClick={() => loadRecordForEdit(r.id)}
-                                  className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
+                                  className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200"
                                   title="Edit Adjustment"
                                 >
                                   <Edit className="h-3.5 w-3.5" />
@@ -1680,7 +1679,7 @@ export default function AdjustmentForm({
                                 <button 
                                   type="button"
                                   onClick={() => handleDelete(r.id, r.partner_name)}
-                                  className="h-7 w-7 rounded-lg flex items-center justify-center text-rose-500 hover:text-rose-700 hover:bg-rose-50 border border-rose-200/60 transition-colors cursor-pointer"
+                                  className="h-7 w-7 rounded-lg flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer border border-rose-200/60"
                                   title="Delete Adjustment"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
