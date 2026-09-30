@@ -226,20 +226,22 @@ export default function TicketsForm({
           </div>
 
 
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             <button
               onClick={() => setActiveTab('list')}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === 'list' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-text-muted hover:bg-slate-100 hover:text-primary' }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === 'list' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-text-muted hover:bg-slate-100 hover:text-primary' }`}
             >
               <TicketIcon className="h-4 w-4" />
-              All Tickets
+              <span className="hidden sm:inline">All Tickets</span>
+              <span className="sm:hidden">Tickets</span>
             </button>
             <button
               onClick={() => setActiveTab('new')}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === 'new' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-text-muted hover:bg-slate-100 hover:text-primary' }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === 'new' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-text-muted hover:bg-slate-100 hover:text-primary' }`}
             >
               <Plus className="h-4 w-4" />
-              Raise Ticket
+              <span className="hidden sm:inline">Raise Ticket</span>
+              <span className="sm:hidden">Raise</span>
             </button>
           </nav>
 
@@ -274,13 +276,13 @@ export default function TicketsForm({
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         {activeTab === "new" ? (
           /* ─────────── NEW TICKET FORM ─────────── */
           <div className="mx-auto max-w-2xl rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
             
             {/* Dark Brand Header */}
-            <div className="relative overflow-hidden bg-primary p-6 text-white md:p-8">
+            <div className="relative overflow-hidden bg-primary p-5 sm:p-8 text-white">
               <div className="absolute inset-0 bg-radial-gradient from-green/10 to-transparent pointer-events-none" />
               
               <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -292,7 +294,7 @@ export default function TicketsForm({
                     <span className="text-white/40 text-xs">•</span>
                     <span className="text-white/60 text-xs font-medium">Operations Portal</span>
                   </div>
-                  <h2 className="font-sans text-2xl font-extrabold tracking-tight">Raise a Ticket</h2>
+                  <h2 className="font-sans text-xl sm:text-2xl font-extrabold tracking-tight">Raise a Ticket</h2>
                   <p className="font-sans text-xs text-white/70 mt-1 max-w-xl leading-relaxed">
                     Log and manage support tickets across Driver, Operator, Vendor, or Internal sources.
                   </p>
@@ -301,7 +303,7 @@ export default function TicketsForm({
             </div>
 
 
-            <form onSubmit={handleCreateTicket} className="p-8 space-y-6">
+            <form onSubmit={handleCreateTicket} className="p-4 sm:p-8 space-y-6">
               <div>
                 <label className="block font-sans text-xs font-bold text-text-muted mb-2">
                   Ticket Title <span className="text-red-500">*</span>

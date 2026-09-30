@@ -427,27 +427,30 @@ export default function RentForm({
           </div>
 
           {/* Tab Navigation */}
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             <button 
               onClick={() => setActiveTab("form")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <FileText className="h-4 w-4" />
-              {editingId ? `Editing #${editingId}` : "New Rent Plan"}
+              <span className="hidden sm:inline">{editingId ? `Editing #${editingId}` : "New Rent Plan"}</span>
+              <span className="sm:hidden">Form</span>
             </button>
             <button 
               onClick={() => { setActiveTab("registry"); fetchData(); }}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <Database className="h-4 w-4" />
-              Rent Registry
+              <span className="hidden sm:inline">Rent Registry</span>
+              <span className="sm:hidden">Registry</span>
             </button>
             <button 
               onClick={() => setActiveTab("ledger")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "ledger" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "ledger" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <History className="h-4 w-4" />
-              Rent Audit Ledger
+              <span className="hidden sm:inline">Rent Audit Ledger</span>
+              <span className="sm:hidden">Ledger</span>
             </button>
           </nav>
 
@@ -476,7 +479,7 @@ export default function RentForm({
         </div>
       </header>
 
-      <main className="flex-grow mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-grow mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
 
         {/* ─────────────────────────────────────────────────────────── */}
         {/* TAB 1: NEW RENT PLAN FORM                                  */}
@@ -486,12 +489,12 @@ export default function RentForm({
             <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-border/60 overflow-hidden">
               
               {/* Card Header (Matches LetzRyd Form Brand Standard) */}
-              <div className="bg-primary px-8 py-6 relative overflow-hidden text-white">
+              <div className="bg-primary px-4 sm:px-8 py-5 sm:py-6 relative overflow-hidden text-white">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-20 -mt-20 pointer-events-none" />
                 <div className="relative z-10 flex items-center gap-3 mb-2">
                   <img 
                     src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" 
-                    className="h-8 brightness-0 invert" 
+                    className="h-7 sm:h-8 brightness-0 invert" 
                     alt="LetzRyd" 
                     referrerPolicy="no-referrer" 
                   />
@@ -499,7 +502,7 @@ export default function RentForm({
                     Rent Configuration
                   </span>
                 </div>
-                <h1 className="relative z-10 font-sans text-2xl font-bold tracking-tight text-white leading-tight">
+                <h1 className="relative z-10 font-sans text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
                   {editingId ? `Edit Rent Plan #${editingId}` : "Create New Rent Plan"}
                 </h1>
                 <p className="text-xs text-white/80 mt-1 max-w-xl">
@@ -508,7 +511,7 @@ export default function RentForm({
               </div>
 
               {editingId && (
-                <div className="bg-amber-50 px-8 py-3 border-b border-amber-200 flex justify-between items-center text-xs text-amber-900">
+                <div className="bg-amber-50 px-4 sm:px-8 py-3 border-b border-amber-200 flex justify-between items-center text-xs text-amber-900">
                   <span className="font-bold flex items-center gap-2">
                     <Edit className="h-4 w-4 text-amber-700" />
                     Editing Rent Plan #{editingId} ({currentOption.title})
@@ -519,7 +522,7 @@ export default function RentForm({
                 </div>
               )}
 
-              <div className="p-8">
+              <div className="p-4 sm:p-8">
                 <form onSubmit={handleSubmit} className="space-y-8">
 
                   {/* 1. PLAN TYPE SELECTOR */}
@@ -885,17 +888,17 @@ export default function RentForm({
                   </div>
 
                   {/* FORM ACTIONS */}
-                  <div className="pt-4 flex items-center justify-between border-t border-border">
+                  <div className="pt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border">
                     <button
                       type="button"
                       onClick={resetForm}
-                      className="text-xs text-text-muted hover:text-text font-semibold px-4 py-2.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                      className="text-xs text-text-muted hover:text-text font-semibold px-4 py-2.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer w-full sm:w-auto text-center"
                     >
                       Clear Form
                     </button>
                     <button
                       type="submit"
-                      className="flex items-center gap-2 bg-primary text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-primary-hover shadow-sm transition-all cursor-pointer active:scale-98"
+                      className="flex items-center justify-center gap-2 bg-primary text-white text-xs sm:text-sm font-bold px-6 py-2.5 sm:py-3 rounded-xl hover:bg-primary-hover shadow-sm transition-all cursor-pointer active:scale-98 w-full sm:w-auto"
                     >
                       <CheckCircle className="h-4 w-4" />
                       {editingId ? "Update Rent Plan" : "Save Rent Plan"}

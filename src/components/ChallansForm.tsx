@@ -312,20 +312,22 @@ export default function ChallansForm({
             </span>
           </div>
 
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             <button
               onClick={() => setActiveTab("form")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <FileText className="h-4 w-4" />
-              Challan Form
+              <span className="hidden sm:inline">Challan Form</span>
+              <span className="sm:hidden">Form</span>
             </button>
             <button
               onClick={() => setActiveTab("registry")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <Database className="h-4 w-4" />
-              Challans Registry
+              <span className="hidden sm:inline">Challans Registry</span>
+              <span className="sm:hidden">Registry</span>
             </button>
           </nav>
 
@@ -359,13 +361,13 @@ export default function ChallansForm({
       </header>
 
       {/* MAIN LAYOUT */}
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
         {activeTab === "form" ? (
           <div className="mx-auto max-w-2xl flex flex-col gap-6">
             
             {/* Banner Header */}
-            <div className="relative overflow-hidden rounded-2xl bg-primary p-6 text-white shadow-sm md:p-8">
+            <div className="relative overflow-hidden rounded-2xl bg-primary p-4 sm:p-8 text-white shadow-sm">
               <div className="absolute inset-0 bg-radial-gradient from-red-600/10 to-transparent pointer-events-none" />
               
               <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -377,7 +379,7 @@ export default function ChallansForm({
                     <span className="text-white/40 text-xs">•</span>
                     <span className="text-white/60 text-xs font-medium">Fine & Recovery Registry</span>
                   </div>
-                  <h1 className="font-sans text-2xl font-bold tracking-tight text-white leading-tight">
+                  <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
                     {editingId ? `Edit Challan Record #${editingId}` : "Log Traffic Challan"}
                   </h1>
                   <p className="font-sans text-xs text-white/70 mt-1 max-w-xl">
@@ -618,12 +620,12 @@ export default function ChallansForm({
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 {editingId && (
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="flex-1 rounded-xl border border-border bg-white py-3.5 font-sans text-sm font-bold text-text shadow-sm hover:bg-slate-50 transition-all cursor-pointer text-center"
+                    className="flex-1 rounded-xl border border-border bg-white py-2.5 sm:py-3.5 font-sans text-xs sm:text-sm font-bold text-text shadow-sm hover:bg-slate-50 transition-all cursor-pointer text-center w-full sm:w-auto"
                   >
                     Cancel Edit
                   </button>
@@ -631,7 +633,7 @@ export default function ChallansForm({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`rounded-xl py-3.5 font-sans text-sm font-bold text-white shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${editingId ? 'flex-1 bg-amber-500 hover:bg-amber-600' : 'w-full bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/10'}`}
+                  className={`rounded-xl py-2.5 sm:py-3.5 font-sans text-xs sm:text-sm font-bold text-white shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 w-full sm:w-auto ${editingId ? 'flex-1 bg-amber-500 hover:bg-amber-600' : 'w-full bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/10'}`}
                 >
                   {isSubmitting ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />

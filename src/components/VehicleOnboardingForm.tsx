@@ -1003,23 +1003,25 @@ export default function VehicleOnboardingForm({
             </span>
           </div>
 
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             {!isReadOnly && (
               <button
                 onClick={() => setActiveTab("form")}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
               >
                 <FileText className="h-4 w-4" />
-                Vehicle Form
+                <span className="hidden sm:inline">Vehicle Form</span>
+                <span className="sm:hidden">Form</span>
               </button>
             )}
             {!isReadOnly && (
               <button
                 onClick={() => setActiveTab("drafts")}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "drafts" ? "bg-amber-600 text-white shadow-sm shadow-amber-600/20" : "text-text-muted hover:bg-slate-100 hover:text-amber-600" }`}
+                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "drafts" ? "bg-amber-600 text-white shadow-sm shadow-amber-600/20" : "text-text-muted hover:bg-slate-100 hover:text-amber-600" }`}
               >
                 <Clock className="h-4 w-4" />
-                Saved Drafts
+                <span className="hidden sm:inline">Saved Drafts</span>
+                <span className="sm:hidden">Drafts</span>
                 {records.filter(r => r.approval_status === "Draft").length > 0 && (
                   <span className="ml-1 px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded-full text-[10px] font-extrabold">
                     {records.filter(r => r.approval_status === "Draft").length}
@@ -1029,10 +1031,11 @@ export default function VehicleOnboardingForm({
             )}
             <button
               onClick={() => setActiveTab("registry")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <Database className="h-4 w-4" />
-              Fleet Registry
+              <span className="hidden sm:inline">Fleet Registry</span>
+              <span className="sm:hidden">Registry</span>
             </button>
           </nav>
 
@@ -1067,24 +1070,24 @@ export default function VehicleOnboardingForm({
         </div>
       </header>
 
-      <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-grow w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
         {/* TAB 1: FORM CHECK-IN */}
         {activeTab === "form" && (
           <div className="w-full flex flex-col gap-6">
             
-            <div className="relative z-30 overflow-visible rounded-2xl bg-primary p-6 text-white shadow-sm md:p-8">
+            <div className="relative z-30 overflow-visible rounded-2xl bg-primary p-4 sm:p-8 text-white shadow-sm">
               <div className="absolute inset-0 bg-radial-gradient from-white/20 to-transparent pointer-events-none" />
               
               <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-7 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
+                    <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-6 sm:h-7 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
                     <span className="px-2 py-0.5 rounded border border-white/30 bg-white/20 text-white text-[10px] font-bold tracking-widest backdrop-blur-sm">
                       LetzRyd Desk
                     </span>
                   </div>
-                  <h1 className="font-sans text-2xl font-bold tracking-tight text-white leading-tight">
+                  <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
                     {editingId ? `Edit Record #${editingId}` : "Vehicle Onboarding Form"}
                   </h1>
                 </div>
@@ -1962,12 +1965,12 @@ export default function VehicleOnboardingForm({
                   * Mandatory fields required for onboarding
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-end">
                   {currentStep > 1 && (
                     <button 
                       type="button" 
                       onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer shadow-xs active:scale-98"
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-border bg-white text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer shadow-xs active:scale-98 w-full sm:w-auto text-center"
                     >
                       <ChevronLeft className="h-4 w-4" /> Previous Step
                     </button>
@@ -1976,7 +1979,7 @@ export default function VehicleOnboardingForm({
                   <button
                     type="button"
                     onClick={(e) => handleSubmit(e, true)}
-                    className="flex items-center justify-center gap-1.5 h-11 rounded-lg border border-border bg-white px-5 font-sans text-sm font-semibold text-text-muted hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer shadow-xs active:scale-98"
+                    className="flex items-center justify-center gap-1.5 h-10 sm:h-11 rounded-xl border border-border bg-white px-5 font-sans text-xs sm:text-sm font-semibold text-text-muted hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer shadow-xs active:scale-98 w-full sm:w-auto"
                   >
                     <Database className="w-4 h-4 text-slate-500" />
                     Save Draft
@@ -1986,7 +1989,7 @@ export default function VehicleOnboardingForm({
                     <button
                       type="button"
                       onClick={() => setCurrentStep(Math.min(5, currentStep + 1))}
-                      className="flex items-center justify-center gap-2 h-11 rounded-lg bg-primary hover:bg-primary-dark text-white px-6 font-sans text-sm font-bold shadow-md shadow-primary/10 transition-all cursor-pointer active:scale-98"
+                      className="flex items-center justify-center gap-2 h-10 sm:h-11 rounded-xl bg-primary hover:bg-primary-dark text-white px-6 font-sans text-xs sm:text-sm font-bold shadow-md shadow-primary/10 transition-all cursor-pointer active:scale-98 w-full sm:w-auto"
                     >
                       Next Step <ChevronRight className="h-4 w-4" />
                     </button>
@@ -1994,9 +1997,9 @@ export default function VehicleOnboardingForm({
                     <button
                       type="button"
                       onClick={(e) => handleSubmit(e, false)}
-                      className="flex items-center justify-center gap-2 h-11 rounded-lg bg-green hover:bg-emerald-600 text-white px-6 font-sans text-sm font-bold shadow-md shadow-green/10 transition-all cursor-pointer active:scale-98"
+                      className="flex items-center justify-center gap-2 h-10 sm:h-11 rounded-xl bg-green hover:bg-emerald-600 text-white px-6 font-sans text-xs sm:text-sm font-bold shadow-md shadow-green/10 transition-all cursor-pointer active:scale-98 w-full sm:w-auto"
                     >
-                      <CheckCircle className="w-4 h-4" />
+                      <CheckCircle className="h-4 w-4" />
                       {approvalStatus === "Changes Requested" ? "Resubmit for Approval" : (editingId ? "Save Changes" : "Submit Vehicle Onboarding")}
                     </button>
                   )}

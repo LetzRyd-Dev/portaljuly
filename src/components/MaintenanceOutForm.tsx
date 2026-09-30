@@ -886,7 +886,7 @@ export default function MaintenanceOutForm({ user, onBackToSelector, onLogout }:
           </div>
 
           {/* Navigation Pills */}
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             <button
               onClick={() => {
                 try {
@@ -895,14 +895,15 @@ export default function MaintenanceOutForm({ user, onBackToSelector, onLogout }:
                   console.error("Error switching to form tab:", err);
                 }
               }}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === "form"
                   ? "bg-primary text-white shadow-sm shadow-primary/20"
                   : "text-text-muted hover:bg-slate-100 hover:text-primary"
               }`}
             >
               <FileText className="h-4 w-4" />
-              Maintenance Out Form
+              <span className="hidden sm:inline">Maintenance Out Form</span>
+              <span className="sm:hidden">Form</span>
             </button>
             <button
               onClick={() => {
@@ -913,14 +914,15 @@ export default function MaintenanceOutForm({ user, onBackToSelector, onLogout }:
                   console.error("Error switching to registry tab:", err);
                 }
               }}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === "registry"
                   ? "bg-primary text-white shadow-sm shadow-primary/20"
                   : "text-text-muted hover:bg-slate-100 hover:text-primary"
               }`}
             >
               <CheckCircle className="h-4 w-4" />
-              Outward Registry
+              <span className="hidden sm:inline">Outward Registry</span>
+              <span className="sm:hidden">Registry</span>
             </button>
           </nav>
 
@@ -1321,7 +1323,7 @@ export default function MaintenanceOutForm({ user, onBackToSelector, onLogout }:
       )}
 
       {/* Main Container */}
-      <main className={`mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 ${activeTab === 'registry' ? 'max-w-7xl' : 'max-w-5xl'}`}>
+      <main className={`mx-auto w-full px-3 sm:px-6 lg:px-8 py-4 sm:py-6 ${activeTab === 'registry' ? 'max-w-7xl' : 'max-w-5xl'}`}>
         {/* Alerts */}
         {submitSuccess && (
           <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-3 shadow-xs">
@@ -1398,7 +1400,7 @@ export default function MaintenanceOutForm({ user, onBackToSelector, onLogout }:
         {activeTab === "form" && (
           <div className="rounded-2xl border border-border bg-white shadow-xl overflow-hidden mb-10">
             {/* Form Hero Header */}
-            <div className="bg-primary text-white px-8 py-6 relative">
+            <div className="bg-primary text-white px-4 sm:px-8 py-5 sm:py-6 relative">
               <div className="flex items-center gap-3 mb-2">
                 <img
                   src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png"
@@ -1410,7 +1412,7 @@ export default function MaintenanceOutForm({ user, onBackToSelector, onLogout }:
                   Maintenance Outward Desk
                 </span>
               </div>
-              <h1 className="font-sans text-2xl font-bold tracking-tight text-white leading-tight">
+              <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
                 Vehicle Maintenance Outward Form
               </h1>
               <p className="text-white/80 text-xs mt-1">
@@ -1418,9 +1420,9 @@ export default function MaintenanceOutForm({ user, onBackToSelector, onLogout }:
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-6 sm:space-y-8">
               {/* Section 1: Vehicle Lookup & Open Ticket Link */}
-              <div className="rounded-2xl border border-border bg-white p-6 shadow-2xs">
+              <div className="rounded-2xl border border-border bg-white p-4 sm:p-6 shadow-2xs">
                 <div className="border-b border-border/80 pb-3 mb-6 flex items-center justify-between">
                   <h3 className="font-sans text-sm font-bold text-primary flex items-center gap-2">
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">1</span>
@@ -2173,7 +2175,7 @@ export default function MaintenanceOutForm({ user, onBackToSelector, onLogout }:
               </div>
 
               {/* Form Action Buttons */}
-              <div className="flex items-center justify-end gap-4 pt-4 border-t border-border">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-4 pt-4 border-t border-border">
                 <button
                   type="button"
                   onClick={editingId ? cancelEdit : () => {
@@ -2195,19 +2197,19 @@ export default function MaintenanceOutForm({ user, onBackToSelector, onLogout }:
                       console.error("Error resetting form:", err);
                     }
                   }}
-                  className="rounded-xl border border-border bg-white px-6 py-3 font-sans text-xs font-semibold text-text-muted hover:bg-slate-100 transition-all cursor-pointer shadow-2xs"
+                  className="w-full sm:w-auto h-11 sm:h-auto justify-center rounded-xl border border-border bg-white px-6 py-3 font-sans text-xs font-semibold text-text-muted hover:bg-slate-100 transition-all cursor-pointer shadow-2xs"
                 >
                   {editingId ? "Cancel Edit" : "Clear Form"}
                 </button>
                 {!editingId && !inwardRecord && (
-                  <span className="text-xs text-rose-600 font-bold mr-auto">
+                  <span className="text-xs text-rose-600 font-bold sm:mr-auto text-center sm:text-left">
                     ⚠️ Active workshop inward ticket required to submit Maintenance Out.
                   </span>
                 )}
                 <button
                   type="submit"
                   disabled={isSubmitting || (!editingId && !inwardRecord)}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3.5 font-sans text-xs font-bold text-white shadow-lg shadow-primary/25 hover:bg-primary-hover transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto h-11 sm:h-auto justify-center flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 font-sans text-xs font-bold text-white shadow-lg shadow-primary/25 hover:bg-primary-hover transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   title={!editingId && !inwardRecord ? "Check and link active inward ticket first" : undefined}
                 >
                   {isSubmitting ? (

@@ -299,13 +299,14 @@ export default function ExpensesForm({
           </div>
 
           {/* Navigation Pills */}
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             <button
               onClick={() => setActiveTab("form")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <FileText className="h-4 w-4" />
-              Expenses Form
+              <span className="hidden sm:inline">Expenses Form</span>
+              <span className="sm:hidden">Form</span>
             </button>
             <button
               onClick={() => {
@@ -313,10 +314,11 @@ export default function ExpensesForm({
                 fetchStats();
                 fetchRecords();
               }}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <Database className="h-4 w-4" />
-              Expenses Registry
+              <span className="hidden sm:inline">Expenses Registry</span>
+              <span className="sm:hidden">Registry</span>
             </button>
           </nav>
 
@@ -352,25 +354,25 @@ export default function ExpensesForm({
       </header>
 
       {/* MAIN CONTAINER */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
         {activeTab === "form" ? (
           <div>
             {/* Form card header */}
             <div className="rounded-2xl border border-border bg-white shadow-xl overflow-hidden mb-10">
               
-              <div className="bg-primary text-white px-8 py-6 relative">
+              <div className="bg-primary text-white px-4 sm:px-8 py-5 sm:py-6 relative">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary-hover via-primary to-primary opacity-60" />
                 <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 overflow-hidden w-full">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-20 -mt-20 pointer-events-none"></div>
                   <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-2">
-                      <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-8 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
+                      <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-7 sm:h-8 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
                       <span className="px-2 py-0.5 rounded border border-white/30 bg-white/20 text-white text-[10px] font-bold tracking-widest backdrop-blur-sm">
                         LetzRyd Expenses
                       </span>
                     </div>
-                    <h1 className="font-sans text-2xl font-bold tracking-tight text-white leading-tight">
+                    <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
                       {editingId ? `Edit Expense Record #${editingId}` : "Expenses Form"}
                     </h1>
                   </div>
@@ -578,21 +580,21 @@ export default function ExpensesForm({
                 </div>
 
                 {/* FORM ACTIONS */}
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-border pt-8">
+                <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 border-t border-border pt-6 sm:pt-8">
                   <div className="flex flex-col gap-1 text-left w-full sm:w-auto">
                     <p className="text-[10px] font-bold text-red-500">* means mandatory</p>
                   </div>
-                  <div className="flex gap-3 w-full sm:w-auto justify-end">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-end">
                     <button 
                       type="button"
                       onClick={resetForm}
-                      className="rounded-xl border border-border bg-white px-6 py-3 font-sans text-xs font-bold text-text hover:bg-bg transition-colors shadow-2xs cursor-pointer"
+                      className="rounded-xl border border-border bg-white px-6 py-2.5 sm:py-3 font-sans text-xs font-bold text-text hover:bg-bg transition-colors shadow-2xs cursor-pointer w-full sm:w-auto text-center"
                     >
                       Reset Form
                     </button>
                     <button 
                       type="submit"
-                      className="rounded-xl bg-primary px-6 py-3 font-sans text-sm font-bold text-white hover:bg-primary-hover shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                      className="rounded-xl bg-primary px-6 py-2.5 sm:py-3 font-sans text-xs sm:text-sm font-bold text-white hover:bg-primary-hover shadow-sm transition-all cursor-pointer disabled:opacity-50 w-full sm:w-auto text-center"
                     >
                       {editingId ? "Save Changes" : "Submit Expense"}
                     </button>

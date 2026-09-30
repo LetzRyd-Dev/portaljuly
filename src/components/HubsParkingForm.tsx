@@ -320,20 +320,22 @@ export default function HubsParkingForm({
           </div>
 
           {/* Navigation Tab Pills */}
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             <button
               onClick={() => setActiveTab("form")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <FileText className="h-4 w-4" />
-              Registration Form
+              <span className="hidden sm:inline">Registration Form</span>
+              <span className="sm:hidden">Form</span>
             </button>
             <button
               onClick={() => setActiveTab("registry")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <Plus className="h-4 w-4" />
-              Hubs Registry
+              <span className="hidden sm:inline">Hubs Registry</span>
+              <span className="sm:hidden">Registry</span>
             </button>
           </nav>
 
@@ -370,14 +372,14 @@ export default function HubsParkingForm({
       </header>
 
       {/* MAIN CONTAINER */}
-      <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-grow w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
         {/* TAB 1: FORM CHECK-IN */}
         {activeTab === "form" && (
           <div className="w-full flex flex-col gap-6">
             
             {/* Dark Brand Header */}
-            <div className="relative overflow-hidden rounded-2xl bg-primary p-6 text-white shadow-sm md:p-8">
+            <div className="relative overflow-hidden rounded-2xl bg-primary p-5 sm:p-8 text-white shadow-sm">
               <div className="absolute inset-0 bg-radial-gradient from-green/10 to-transparent pointer-events-none" />
               
               <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -389,7 +391,7 @@ export default function HubsParkingForm({
                     <span className="text-white/40 text-xs">•</span>
                     <span className="text-white/60 text-xs font-medium">Operations Portal</span>
                   </div>
-                  <h1 className="font-sans text-2xl font-bold tracking-tight text-white leading-tight">
+                  <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
                     {editingId ? `Edit Record #${editingId}` : "Operational Hubs & Parking Lots"}
                   </h1>
                   <p className="font-sans text-xs text-white/70 mt-1 max-w-xl">
@@ -433,7 +435,7 @@ export default function HubsParkingForm({
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="rounded-2xl border border-border bg-white p-6 shadow-xs md:p-8 flex flex-col gap-8">
+            <form onSubmit={handleSubmit} className="rounded-2xl border border-border bg-white p-4 sm:p-8 shadow-xs flex flex-col gap-6 sm:gap-8">
               
               {/* Panel 1: Hub Details */}
               <div className="space-y-4">
@@ -687,21 +689,21 @@ export default function HubsParkingForm({
               </div>
 
               {/* Form Actions Footer */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 border-t border-border/40 pt-6">
-                <div className="flex flex-col gap-1 max-w-sm">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-4 mt-6 border-t border-border/40 pt-6">
+                <div className="flex flex-col gap-1 max-w-sm text-center sm:text-left">
                   <p className="text-[10px] font-bold text-red-500">* means mandatory</p>
                 </div>
-                <div className="flex justify-end gap-3">
+                <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="h-11 rounded-lg border border-border bg-white px-5 font-sans text-sm font-semibold text-text-muted hover:bg-slate-100 transition-colors cursor-pointer"
+                    className="w-full sm:w-auto h-11 justify-center rounded-lg border border-border bg-white px-5 font-sans text-sm font-semibold text-text-muted hover:bg-slate-100 transition-colors cursor-pointer"
                   >
                     Clear Form
                   </button>
                   <button
                     type="submit"
-                    className="h-11 rounded-lg bg-primary hover:bg-primary-hover text-white px-6 font-sans text-sm font-semibold shadow-md shadow-primary/10 transition-colors cursor-pointer"
+                    className="w-full sm:w-auto h-11 justify-center rounded-lg bg-primary hover:bg-primary-hover text-white px-6 font-sans text-sm font-semibold shadow-md shadow-primary/10 transition-colors cursor-pointer"
                   >
                     {editingId ? "Save Changes" : "Register Hub"}
                   </button>

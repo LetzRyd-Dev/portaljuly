@@ -604,29 +604,30 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {pendingItems.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 bg-rose-500 text-white text-xs font-extrabold px-3 py-1 rounded-full shadow-xs">
+              <span className="inline-flex items-center gap-1.5 bg-rose-500 text-white text-[11px] sm:text-xs font-extrabold px-2.5 sm:px-3 py-1 rounded-full shadow-xs">
                 <Inbox className="w-3.5 h-3.5" />
-                {pendingItems.length} Pending
+                <span className="hidden sm:inline">{pendingItems.length} Pending</span>
+                <span className="sm:hidden">{pendingItems.length}</span>
               </span>
             )}
-            {/* User chip — same as home */}
-            <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
+            {/* User chip */}
+            <div className="flex items-center gap-2 sm:gap-3 rounded-lg border border-slate-200 bg-slate-50 px-2 sm:px-3 py-1.5">
+              <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
                 {user.name?.split(" ").map((w: string) => w[0]).join("").substring(0, 2).toUpperCase() || "U"}
               </div>
-              <div className="flex flex-col">
+              <div className="hidden md:flex flex-col">
                 <span className="font-sans text-xs font-semibold text-slate-800 leading-tight">{user.name}</span>
                 <span className="font-mono text-[10px] text-slate-400 mt-0.5 leading-none">{user.role}</span>
               </div>
             </div>
             <button
               onClick={loadAll}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-600 transition-colors shadow-xs"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-600 transition-colors shadow-xs cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </div>
@@ -681,7 +682,7 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
           </div>
 
           {/* Form Modules Filter List */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+          <div className="hidden md:block bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
             <h3 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5" />
               Filter by Form Type

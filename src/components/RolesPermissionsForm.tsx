@@ -197,20 +197,22 @@ export default function RolesPermissionsForm({
           </div>
 
 
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             <button
               onClick={() => setActiveTab('form')}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === 'form' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-text-muted hover:bg-slate-100 hover:text-primary' }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === 'form' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-text-muted hover:bg-slate-100 hover:text-primary' }`}
             >
               <FileText className="h-4 w-4" />
-              Roles & Permissions
+              <span className="hidden sm:inline">Roles & Permissions</span>
+              <span className="sm:hidden">Roles</span>
             </button>
             <button
               onClick={() => setActiveTab('registry')}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === 'registry' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-text-muted hover:bg-slate-100 hover:text-primary' }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === 'registry' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-text-muted hover:bg-slate-100 hover:text-primary' }`}
             >
               <ShieldCheck className="h-4 w-4" />
-              Roles List
+              <span className="hidden sm:inline">Roles List</span>
+              <span className="sm:hidden">List</span>
             </button>
           </nav>
 
@@ -245,12 +247,12 @@ export default function RolesPermissionsForm({
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         {activeTab === "form" ? (
           <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
             
             {/* Dark Brand Header */}
-            <div className="relative overflow-hidden bg-primary p-6 text-white md:p-8">
+            <div className="relative overflow-hidden bg-primary p-5 sm:p-8 text-white">
               <div className="absolute inset-0 bg-radial-gradient from-green/10 to-transparent pointer-events-none" />
               
               <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -262,7 +264,7 @@ export default function RolesPermissionsForm({
                     <span className="text-white/40 text-xs">•</span>
                     <span className="text-white/60 text-xs font-medium">Operations Portal</span>
                   </div>
-                  <h2 className="font-sans text-2xl font-extrabold tracking-tight">Roles & Permissions</h2>
+                  <h2 className="font-sans text-xl sm:text-2xl font-extrabold tracking-tight">Roles & Permissions</h2>
                   <p className="font-sans text-xs text-white/70 mt-1 max-w-xl leading-relaxed">
                     Configure RBAC, roles, and form-level access permissions.
                   </p>
@@ -271,7 +273,7 @@ export default function RolesPermissionsForm({
             </div>
 
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-8">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-6 sm:space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block font-sans text-xs font-bold text-text-muted mb-2">

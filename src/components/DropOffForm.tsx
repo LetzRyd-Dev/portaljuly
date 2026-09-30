@@ -675,22 +675,24 @@ export default function DropOffForm({ user, onBackToSelector, onLogout, initialE
           </div>
 
           {/* Navigation Pills — exact same style as AllocationForm */}
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             <button
               onClick={() => setActiveTab("form")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary"
               }`}>
               <FileText className="h-4 w-4" />
-              Vehicle Drop-Off Form
+              <span className="hidden sm:inline">Vehicle Drop-Off Form</span>
+              <span className="sm:hidden">Form</span>
             </button>
             <button
               onClick={() => { setActiveTab("drafts"); fetchRecords(); }}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === "drafts" ? "bg-amber-600 text-white shadow-sm shadow-amber-600/20" : "text-text-muted hover:bg-slate-100 hover:text-amber-600"
               }`}>
               <Clock className="h-4 w-4" />
-              Saved Drafts
+              <span className="hidden sm:inline">Saved Drafts</span>
+              <span className="sm:hidden">Drafts</span>
               {draftRecords.length > 0 && (
                 <span className="ml-1 px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded-full text-[10px] font-extrabold">
                   {draftRecords.length}
@@ -699,11 +701,12 @@ export default function DropOffForm({ user, onBackToSelector, onLogout, initialE
             </button>
             <button
               onClick={() => { setActiveTab("registry"); fetchRecords(); }}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary"
               }`}>
               <Database className="h-4 w-4" />
-              Drop-Off Registry
+              <span className="hidden sm:inline">Drop-Off Registry</span>
+              <span className="sm:hidden">Registry</span>
             </button>
           </nav>
 
@@ -731,25 +734,25 @@ export default function DropOffForm({ user, onBackToSelector, onLogout, initialE
         </div>
       </header>
 
-      <main className="flex-grow max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="flex-grow max-w-[1400px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-10">
 
         {/* FORM TAB */}
         {activeTab === "form" && (
-          <div className="rounded-2xl border border-border bg-white shadow-xl overflow-hidden mb-10">
-            <div className="bg-primary text-white px-8 py-6 relative">
+          <div className="rounded-2xl border border-border bg-white shadow-xl overflow-hidden mb-6 sm:mb-10">
+            <div className="bg-primary text-white px-4 sm:px-8 py-5 sm:py-6 relative">
               <div className="flex items-center gap-3 mb-2">
-                <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-8 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
+                <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-7 sm:h-8 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
                 <span className="px-2 py-0.5 rounded border border-white/30 bg-white/20 text-white text-[10px] font-bold tracking-widest backdrop-blur-sm">
                   {editingId ? `Editing #${editingId}` : "Drop-Off Desk"}
                 </span>
               </div>
-              <h1 className="font-sans text-2xl font-bold tracking-tight text-white leading-tight">
+              <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
                 {editingId ? `Edit Drop-Off Record #${editingId}` : "Vehicle Drop-Off Form"}
               </h1>
               <p className="text-white/80 text-xs mt-1">Record vehicle return details, meter readings, OLA balances &amp; settlements.</p>
             </div>
 
-            <form onSubmit={(e) => handleSubmit(e, false)} className="p-8 space-y-10">
+            <form onSubmit={(e) => handleSubmit(e, false)} className="p-4 sm:p-8 space-y-6 sm:space-y-10">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
 
                 {/* COL 1: Drop-Off Logistics */}
@@ -1168,28 +1171,28 @@ export default function DropOffForm({ user, onBackToSelector, onLogout, initialE
               </div>
 
               {/* FORM ACTIONS */}
-              <div className="flex items-center justify-between border-t border-border pt-6 mt-8">
-                <p className="text-[10px] font-bold text-red-500">* Mandatory Fields</p>
-                <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border pt-6 mt-8">
+                <p className="text-[10px] font-bold text-red-500 w-full sm:w-auto text-left">* Mandatory Fields</p>
+                <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-end">
                   {editingId ? (
                     <button type="button" onClick={() => { resetForm(); if (onBackToSelector) onBackToSelector(); else setActiveTab("registry"); }}
-                      className="h-11 rounded-lg border border-border bg-white px-5 font-sans text-sm font-semibold text-text-muted hover:bg-slate-100 cursor-pointer transition-colors">
+                      className="w-full sm:w-auto h-10 sm:h-11 rounded-xl border border-border bg-white px-5 font-sans text-xs sm:text-sm font-semibold text-text-muted hover:bg-slate-100 cursor-pointer transition-colors shadow-2xs">
                       Cancel Edit
                     </button>
                   ) : (
                     <button type="button" onClick={resetForm}
-                      className="h-11 rounded-lg border border-border bg-white px-5 font-sans text-sm font-semibold text-text-muted hover:bg-slate-100 cursor-pointer transition-colors">
+                      className="w-full sm:w-auto h-10 sm:h-11 rounded-xl border border-border bg-white px-5 font-sans text-xs sm:text-sm font-semibold text-text-muted hover:bg-slate-100 cursor-pointer transition-colors shadow-2xs">
                       Reset Form
                     </button>
                   )}
                   <button type="button" onClick={(e) => handleSubmit(e, true)}
                     disabled={isSubmitting}
-                    className="h-11 rounded-lg border border-border bg-white px-5 font-sans text-sm font-semibold text-text-muted hover:bg-slate-100 cursor-pointer transition-colors disabled:opacity-50">
+                    className="w-full sm:w-auto h-10 sm:h-11 rounded-xl border border-border bg-white px-5 font-sans text-xs sm:text-sm font-semibold text-text-muted hover:bg-slate-100 cursor-pointer transition-colors disabled:opacity-50 shadow-2xs">
                     {isSubmitting ? "Saving..." : "Save as Draft"}
                   </button>
                   <button type="submit"
                     disabled={isSubmitting}
-                    className={`h-11 rounded-lg px-6 font-sans text-sm font-bold shadow-md cursor-pointer transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
+                    className={`w-full sm:w-auto h-10 sm:h-11 rounded-xl px-6 font-sans text-xs sm:text-sm font-bold shadow-md cursor-pointer transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
                       deltaInfo.isOver48
                         ? "bg-amber-600 hover:bg-amber-700 text-white"
                         : "bg-primary hover:bg-primary-hover text-white"

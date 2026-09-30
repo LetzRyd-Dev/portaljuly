@@ -782,13 +782,14 @@ export default function AdjustmentForm({
           </div>
 
           {/* Navigation Pills */}
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             <button
               onClick={() => setActiveTab("form")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <FileText className="h-4 w-4" />
-              Adjustment Form
+              <span className="hidden sm:inline">Adjustment Form</span>
+              <span className="sm:hidden">Form</span>
             </button>
             <button
               onClick={() => {
@@ -796,10 +797,11 @@ export default function AdjustmentForm({
                 fetchStats();
                 fetchRecords();
               }}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <Settings className="h-4 w-4" />
-              Adjustment Registry
+              <span className="hidden sm:inline">Adjustment Registry</span>
+              <span className="sm:hidden">Registry</span>
             </button>
           </nav>
 
@@ -835,23 +837,23 @@ export default function AdjustmentForm({
       </header>
 
       {/* MAIN CONTAINER */}
-      <main className="flex-grow max-w-[1550px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-grow max-w-[1550px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
         {activeTab === "form" ? (
           <div>
             {/* Form card header */}
-            <div className="rounded-2xl border border-border bg-white shadow-xl overflow-hidden mb-10 transition-all">
-              <div className="bg-primary text-white px-8 py-6 relative">
+            <div className="rounded-2xl border border-border bg-white shadow-xl overflow-hidden mb-6 sm:mb-10 transition-all">
+              <div className="bg-primary text-white px-4 sm:px-8 py-5 sm:py-6 relative">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary-hover via-primary to-primary opacity-60" />
                 <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
                   <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-2">
-                      <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-8 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
+                      <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-7 sm:h-8 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
                       <span className="px-2 py-0.5 rounded border border-white/30 bg-white/20 text-white text-[10px] font-bold tracking-widest backdrop-blur-sm">
                         LetzRyd Desk
                       </span>
                     </div>
-                    <h1 className="font-sans text-2xl font-bold tracking-tight text-white leading-tight">
+                    <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
                       {editingId ? `Edit Adjustment Record #${editingId}` : "Adjustment Form"}
                     </h1>
                   </div>
@@ -869,7 +871,7 @@ export default function AdjustmentForm({
                         className="h-10 w-full rounded-l-xl border border-white/20 bg-white/10 py-2 pl-10 pr-3 text-sm text-white placeholder-white/50 backdrop-blur-md outline-none transition-all focus:border-white focus:bg-white/20 focus:ring-2 focus:ring-white/20"
                       />
                       <button 
-                        type="button"
+                        type="button" 
                         onClick={() => retrieveSearchInput && loadRecordForEdit(parseInt(retrieveSearchInput))}
                         className="h-10 rounded-r-xl border border-white/20 border-l-0 bg-white px-4 text-xs font-bold text-emerald-700 hover:bg-slate-50 transition-colors cursor-pointer"
                       >
@@ -881,8 +883,8 @@ export default function AdjustmentForm({
               </div>
 
               {editingId && (
-                <div className="bg-yellow-50 px-8 py-3 border-b border-yellow-200 flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-yellow-800 text-sm font-semibold">
+                <div className="bg-yellow-50 px-4 sm:px-8 py-3 border-b border-yellow-200 flex justify-between items-center">
+                  <div className="flex items-center gap-2 text-yellow-800 text-xs sm:text-sm font-semibold">
                     <Edit className="h-4 w-4" />
                     Editing Adjustment Record #{editingId}
                   </div>
@@ -893,7 +895,7 @@ export default function AdjustmentForm({
               )}
 
               {/* Form Content */}
-              <form onSubmit={handleSubmit} className="p-8 space-y-10">
+              <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-6 sm:space-y-10">
                 
                 {/* 2 COLUMN GRID */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
@@ -1250,21 +1252,21 @@ export default function AdjustmentForm({
                     </label>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                     {([
                       { slot: 1, val: photo1, setVal: setPhoto1 },
                       { slot: 2, val: photo2, setVal: setPhoto2 },
                       { slot: 3, val: photo3, setVal: setPhoto3 },
                       { slot: 4, val: photo4, setVal: setPhoto4 }
                     ] as const).map(({ slot, val, setVal }) => (
-                      <div key={slot} className="w-full rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-center hover:bg-slate-50 transition-all shadow-2xs flex flex-col items-center justify-between min-h-[160px]">
+                      <div key={slot} className="w-full rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-3 sm:p-4 text-center hover:bg-slate-50 transition-all shadow-2xs flex flex-col items-center justify-between min-h-[150px] sm:min-h-[160px]">
                         <span className="text-[10px] font-bold text-slate-500 uppercase mb-2">Photo {slot}</span>
                         {val ? (
                           <div className="relative inline-block w-full">
                             <img 
                               src={val} 
                               alt={`Proof ${slot}`} 
-                              className="h-28 w-full object-cover rounded-xl border border-slate-200 shadow-xs"
+                              className="h-24 sm:h-28 w-full object-cover rounded-xl border border-slate-200 shadow-xs"
                             />
                             <button 
                               type="button"
@@ -1278,24 +1280,24 @@ export default function AdjustmentForm({
                             </button>
                           </div>
                         ) : (
-                          <div className="space-y-3 w-full my-auto">
-                            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                              <Upload className="h-4 w-4" />
+                          <div className="space-y-2.5 sm:space-y-3 w-full my-auto">
+                            <div className="mx-auto flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                              <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </div>
-                            <p className="font-sans text-[11px] font-medium text-slate-500">No photo uploaded</p>
-                            <div className="flex gap-2 justify-center">
+                            <p className="font-sans text-[10px] sm:text-[11px] font-medium text-slate-500">No photo uploaded</p>
+                            <div className="flex gap-1.5 sm:gap-2 justify-center flex-wrap">
                               <button
                                 type="button"
                                 onClick={() => {
                                   setActivePhotoSlot(slot);
                                   setCameraActive(true);
                                 }}
-                                className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 font-sans text-[11px] font-medium text-white hover:bg-emerald-700 shadow-xs cursor-pointer transition-colors"
+                                className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2 sm:px-2.5 py-1 font-sans text-[10px] sm:text-[11px] font-medium text-white hover:bg-emerald-700 shadow-xs cursor-pointer transition-colors"
                               >
                                 <Camera className="h-3 w-3" />
                                 Camera
                               </button>
-                              <label className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 font-sans text-[11px] font-medium text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors shadow-2xs">
+                              <label className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 sm:px-2.5 py-1 font-sans text-[10px] sm:text-[11px] font-medium text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors shadow-2xs">
                                 <Upload className="h-3 w-3 text-emerald-600" />
                                 File
                                 <input 
@@ -1313,13 +1315,13 @@ export default function AdjustmentForm({
 
                     {/* Additional Unlimited Photos Grid */}
                     {additionalPhotos.map((img, idx) => (
-                      <div key={`extra-${idx}`} className="w-full rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 p-4 text-center transition-all shadow-2xs flex flex-col items-center justify-between min-h-[160px]">
+                      <div key={`extra-${idx}`} className="w-full rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 p-3 sm:p-4 text-center transition-all shadow-2xs flex flex-col items-center justify-between min-h-[150px] sm:min-h-[160px]">
                         <span className="text-[10px] font-bold text-emerald-800 uppercase mb-2">Extra Photo #{idx + 5}</span>
                         <div className="relative inline-block w-full">
                           <img 
                             src={img} 
                             alt={`Extra Proof ${idx + 5}`} 
-                            className="h-28 w-full object-cover rounded-xl border border-emerald-200 shadow-xs"
+                            className="h-24 sm:h-28 w-full object-cover rounded-xl border border-emerald-200 shadow-xs"
                           />
                           <button 
                             type="button"
@@ -1339,18 +1341,18 @@ export default function AdjustmentForm({
                   <div className="flex flex-col gap-1 text-left w-full sm:w-auto">
                     <p className="text-[11px] font-medium text-slate-500">* indicates mandatory field</p>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-end">
+                  <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-end">
                     <button 
                       type="button"
                       onClick={() => handleSaveAndSubmit(false)}
-                      className="h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-5 font-sans text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
+                      className="w-full sm:w-auto h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-5 font-sans text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
                     >
                       Save as Draft
                     </button>
                     <button 
                       type="button"
                       onClick={() => handleSaveAndSubmit(true)}
-                      className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-6 font-sans text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
+                      className="w-full sm:w-auto h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-6 font-sans text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
                     >
                       {editingId ? "Update Adjustment" : "Submit Adjustment"}
                     </button>

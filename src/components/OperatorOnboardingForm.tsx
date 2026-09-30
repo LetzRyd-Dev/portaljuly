@@ -700,20 +700,22 @@ export default function OperatorOnboardingForm({
           </div>
 
           {/* Tab Navigation */}
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             <button 
               onClick={() => setActiveTab("form")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <FileText className="h-4 w-4" />
-              Onboarding Form
+              <span className="hidden sm:inline">Onboarding Form</span>
+              <span className="sm:hidden">Form</span>
             </button>
             <button 
               onClick={() => setActiveTab("registry")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <Database className="h-4 w-4" />
-              Operator Registry
+              <span className="hidden sm:inline">Operator Registry</span>
+              <span className="sm:hidden">Registry</span>
             </button>
           </nav>
 
@@ -744,22 +746,22 @@ export default function OperatorOnboardingForm({
         </div>
       </header>
 
-      <main className="flex-grow mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-grow mx-auto w-full max-w-5xl px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
         {activeTab === "form" && (
           <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-border/40 overflow-hidden relative">
             
             {/* CARD HEADER */}
-            <div className="bg-primary px-8 py-6 flex flex-col relative overflow-hidden text-white">
+            <div className="bg-primary px-4 sm:px-8 py-5 sm:py-6 flex flex-col relative overflow-hidden text-white">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-20 -mt-20 pointer-events-none"></div>
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-2">
-                  <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-8 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
+                  <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-7 sm:h-8 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
                   <span className="px-2 py-0.5 rounded border border-white/30 bg-white/20 text-white text-[10px] font-bold tracking-widest backdrop-blur-sm">
                     Operator Desk
                   </span>
                 </div>
-                <h1 className="font-sans text-2xl font-bold tracking-tight text-white leading-tight">
+                <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
                   Operator Onboarding Form
                 </h1>
               </div>
@@ -813,7 +815,7 @@ export default function OperatorOnboardingForm({
               </div>
             </div>
 
-            <div className="p-8 pb-10">
+            <div className="p-4 sm:p-8 pb-8 sm:pb-10">
               <form onSubmit={handleSubmit} className="space-y-8">
                 
                 {/* STEP 1: OPERATOR PROFILE & ADDRESS */}
@@ -1228,23 +1230,23 @@ export default function OperatorOnboardingForm({
                 )}
 
                 {/* FORM ACTIONS / NAVIGATION */}
-                <div className="pt-6 border-t border-border flex justify-between items-center">
+                <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                   {currentStep > 1 ? (
-                    <button type="button" onClick={() => setCurrentStep(prev => prev - 1)} className="px-6 py-3 border border-border rounded-xl text-sm font-bold text-text hover:bg-slate-50 transition-all cursor-pointer">
+                    <button type="button" onClick={() => setCurrentStep(prev => prev - 1)} className="px-6 py-2.5 sm:py-3 border border-border rounded-xl text-xs sm:text-sm font-bold text-text hover:bg-slate-50 transition-all cursor-pointer w-full sm:w-auto text-center">
                       Back
                     </button>
                   ) : (
-                    <button type="button" onClick={resetOperatorForm} className="px-6 py-3 border border-border rounded-xl text-sm font-bold text-rose-500 hover:bg-rose-50 transition-all cursor-pointer">
+                    <button type="button" onClick={resetOperatorForm} className="px-6 py-2.5 sm:py-3 border border-border rounded-xl text-xs sm:text-sm font-bold text-rose-500 hover:bg-rose-50 transition-all cursor-pointer w-full sm:w-auto text-center">
                       Clear Form
                     </button>
                   )}
 
                   {currentStep < 4 ? (
-                    <button type="button" onClick={() => setCurrentStep(prev => prev + 1)} className="px-8 py-3 bg-text text-white rounded-xl text-sm font-bold hover:bg-black transition-all cursor-pointer shadow-md">
+                    <button type="button" onClick={() => setCurrentStep(prev => prev + 1)} className="px-8 py-2.5 sm:py-3 bg-text text-white rounded-xl text-xs sm:text-sm font-bold hover:bg-black transition-all cursor-pointer shadow-md w-full sm:w-auto text-center">
                       Next Step
                     </button>
                   ) : (
-                    <button type="submit" disabled={!documentsVerified} className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-sm font-bold text-white hover:bg-primary-hover shadow-lg transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button type="submit" disabled={!documentsVerified} className="flex items-center justify-center gap-2 rounded-xl bg-primary px-8 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white hover:bg-primary-hover shadow-lg transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto">
                       <CheckCircle className="h-5 w-5" />
                       {editingId ? "Update Operator Record" : "Submit Operator Onboarding"}
                     </button>

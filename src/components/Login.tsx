@@ -41,7 +41,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   };
 
   return (
-    <div className="min-height-screen w-full flex items-center justify-center bg-bg px-4 py-12 md:py-24">
+    <div className="min-h-screen w-full flex items-center justify-center bg-bg px-4 py-8 sm:py-12 md:py-24">
       <div className="flex w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-white shadow-md md:aspect-16/10">
         
         {/* Left Side: Solid Brand Area */}

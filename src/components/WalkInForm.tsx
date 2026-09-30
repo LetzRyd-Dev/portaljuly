@@ -940,23 +940,25 @@ export default function WalkInForm({
             </span>
           </div>
 
-          <nav className="flex gap-2">
+          <nav className="flex gap-1.5 sm:gap-2">
             {!isReadOnly && (
               <button
                 onClick={() => setActiveTab("form")}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
               >
                 <FileText className="h-4 w-4" />
-                Walkin & Leads Form
+                <span className="hidden sm:inline">Walkin &amp; Leads Form</span>
+                <span className="sm:hidden">Form</span>
               </button>
             )}
 
             <button
               onClick={() => setActiveTab("registry")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <Database className="h-4 w-4" />
-              Walk-In Registry
+              <span className="hidden sm:inline">Walk-In Registry</span>
+              <span className="sm:hidden">Registry</span>
             </button>
           </nav>
 
@@ -984,15 +986,15 @@ export default function WalkInForm({
       </header>
 
       {/* MAIN CONTENT */}
-      <main className="flex-grow w-full max-w-[1650px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-grow w-full max-w-[1650px] mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
         {/* TAB 1: FORM */}
         {activeTab === "form" && !isReadOnly && (
           <div className="mx-auto max-w-5xl flex flex-col gap-6">
             
-            <div className="relative z-30 overflow-visible rounded-2xl bg-primary p-6 text-white shadow-sm md:p-8">
+            <div className="relative z-30 overflow-visible rounded-2xl bg-primary p-4 sm:p-6 md:p-8 text-white shadow-sm">
               <div className="absolute inset-0 bg-radial-gradient from-white/20 to-transparent pointer-events-none" />
-              <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div className="relative z-10 flex flex-col gap-4 sm:gap-6 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
                     <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-7 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
@@ -1000,7 +1002,7 @@ export default function WalkInForm({
                       {isFormReadOnly ? "View Only" : "LetzRyd Desk"}
                     </span>
                   </div>
-                  <h1 className="font-sans text-2xl font-bold tracking-tight text-white">{isFormReadOnly ? `Walk-In Entry #${editingId}` : editingId ? `Edit Walk-in #${editingId}` : "Walkin & Leads Form"}</h1>
+                  <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-white">{isFormReadOnly ? `Walk-In Entry #${editingId}` : editingId ? `Edit Walk-in #${editingId}` : "Walkin & Leads Form"}</h1>
                 </div>
 
                 {isFormReadOnly && (
@@ -1015,7 +1017,7 @@ export default function WalkInForm({
               </div>
             </div>
 
-            <form onSubmit={handleFormSubmit} className={`rounded-2xl border border-border bg-white p-6 shadow-xs md:p-8 flex flex-col gap-8 ${isFormReadOnly ? "opacity-90 bg-slate-50/40" : ""}`}>
+            <form onSubmit={handleFormSubmit} className={`rounded-2xl border border-border bg-white p-4 sm:p-6 md:p-8 shadow-xs flex flex-col gap-6 sm:gap-8 ${isFormReadOnly ? "opacity-90 bg-slate-50/40" : ""}`}>
               
               {/* 1. Candidate Information (Top Section) */}
               <div className="flex flex-col gap-5 bg-slate-50/60 p-5 rounded-2xl border border-border">
@@ -1368,33 +1370,33 @@ export default function WalkInForm({
               )}
 
               {/* Actions */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-2 pt-6 border-t border-border">
-                <p className="text-[10px] font-bold text-red-500">* Mandatory Fields</p>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-2 pt-6 border-t border-border">
+                <p className="text-[10px] font-bold text-red-500 w-full sm:w-auto text-left">* Mandatory Fields</p>
 
                 {/* Duplicate warning banner */}
                 {isDuplicate && !isFormReadOnly && (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs font-bold">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs font-bold w-full sm:w-auto">
                     <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                     <span>{duplicateMsg || "Already filled."}</span>
                   </div>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-end">
                   {isFormReadOnly ? (
                     <button
                       type="button"
                       onClick={() => { resetForm(); setActiveTab("registry"); }}
-                      className="h-11 rounded-lg border border-border bg-slate-900 text-white px-6 font-sans text-xs font-bold hover:bg-slate-800 cursor-pointer shadow-xs transition-colors"
+                      className="w-full sm:w-auto h-10 sm:h-11 rounded-xl border border-border bg-slate-900 text-white px-6 font-sans text-xs font-bold hover:bg-slate-800 cursor-pointer shadow-xs transition-colors"
                     >
                       ← Back to Registry
                     </button>
                   ) : (
                     <>
-                      {editingId && <button type="button" onClick={() => { resetForm(); setActiveTab("registry"); }} className="h-11 rounded-lg border border-border bg-white px-5 font-sans text-sm font-semibold text-text-muted hover:bg-slate-100 cursor-pointer">Cancel Edit</button>}
+                      {editingId && <button type="button" onClick={() => { resetForm(); setActiveTab("registry"); }} className="w-full sm:w-auto h-10 sm:h-11 rounded-xl border border-border bg-white px-5 font-sans text-xs sm:text-sm font-semibold text-text-muted hover:bg-slate-100 cursor-pointer shadow-2xs">Cancel Edit</button>}
 
                       <button 
                         type="submit" 
-                        className="h-11 rounded-lg bg-primary hover:bg-primary-hover text-white px-6 font-sans text-sm font-semibold shadow-md cursor-pointer transition-colors"
+                        className="w-full sm:w-auto h-10 sm:h-11 rounded-xl bg-primary hover:bg-primary-hover text-white px-6 font-sans text-xs sm:text-sm font-semibold shadow-md cursor-pointer transition-colors"
                       >
                         {editingId ? "Update Entry" : "Submit Visit"}
                       </button>

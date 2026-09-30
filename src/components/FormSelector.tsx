@@ -54,14 +54,14 @@ export default function FormSelector({ user, onSelectForm, onLogout }: FormSelec
     <div className="min-h-screen flex flex-col bg-bg text-text">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-white shadow-xs">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
           
           {/* Brand */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <img 
               src="/letzryd_icon.png" 
               alt="LetzRyd logo" 
-              className="h-9 w-auto object-contain"
+              className="h-8 sm:h-9 w-auto object-contain"
             />
             <span className="hidden h-5 border-l border-border sm:inline-block" />
             <span className="hidden font-sans text-xs font-semibold text-text-muted sm:inline-block">
@@ -70,42 +70,44 @@ export default function FormSelector({ user, onSelectForm, onLogout }: FormSelec
           </div>
 
           {/* User Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={() => onSelectForm("approvals" as any)}
-              className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 font-sans text-xs font-bold text-white hover:bg-primary-hover transition-colors shadow-xs cursor-pointer"
+              className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-2.5 sm:px-4 font-sans text-xs font-bold text-white hover:bg-primary-hover transition-colors shadow-xs cursor-pointer"
             >
               <Inbox className="h-3.5 w-3.5" />
-              Approvals & Submissions
+              <span className="hidden sm:inline">Approvals &amp; Submissions</span>
+              <span className="sm:hidden">Approvals</span>
             </button>
-            <div className="flex items-center gap-3 rounded-lg border border-border bg-bg/50 px-3 py-1.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-bold text-white">
+            <div className="flex items-center gap-2 sm:gap-3 rounded-lg border border-border bg-bg/50 px-2 sm:px-3 py-1.5">
+              <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-primary text-xs font-bold text-white shrink-0">
                 {initials}
               </div>
-              <div className="flex flex-col">
+              <div className="hidden md:flex flex-col">
                 <span className="font-sans text-xs font-semibold text-text leading-tight">{user.name || user.username}</span>
                 <span className="font-mono text-[10px] text-text-muted mt-0.5 leading-none">{user.role || "Executive"} · {user.executive_id || "-"}</span>
               </div>
             </div>
             <button 
               onClick={onLogout}
-              className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 font-sans text-xs font-medium text-text-muted hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors shadow-xs cursor-pointer"
+              className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-2.5 sm:px-3 font-sans text-xs font-medium text-text-muted hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors shadow-xs cursor-pointer"
+              title="Sign Out"
             >
               <LogOut className="h-4 w-4" />
-              Sign Out
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* Main Container */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-10">
-          <h1 className="font-sans text-3xl font-extrabold text-gray-900 tracking-tight">Select a Form</h1>
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
+        <div className="mb-6 sm:mb-10">
+          <h1 className="font-sans text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Select a Form</h1>
         </div>
 
         {/* Form Selection Grid */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {CARDS.filter(({ key }) => {
             const role = (user.role || "").toLowerCase();
             const roleCode = (user.role_code || "").toUpperCase();
