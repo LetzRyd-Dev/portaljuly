@@ -1,4 +1,5 @@
-import { ClipboardList, UserCheck, Settings, Key, LogOut, Truck, AlertTriangle, Wrench, MapPin, IndianRupee, Users, ShieldCheck, TicketIcon, UserCircle, Lock, Inbox, CheckCircle } from "lucide-react";
+import React, { useState } from "react";
+import { ClipboardList, UserCheck, Settings, Key, LogOut, Truck, AlertTriangle, Wrench, MapPin, IndianRupee, Users, ShieldCheck, TicketIcon, UserCircle, Lock, Inbox, CheckCircle, ChevronDown, ChevronUp, BarChart3 } from "lucide-react";
 import { User } from "../types";
 
 interface FormSelectorProps {
@@ -37,6 +38,8 @@ const CARDS = [
 ] as const;
 
 export default function FormSelector({ user, onSelectForm, onLogout }: FormSelectorProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   const displayName = user.name || user.username || "User";
   const initials = displayName.split(" ").map((w) => w[0]).join("").substring(0, 2).toUpperCase();
   let currentRoleCode = user.role_code;
@@ -49,6 +52,32 @@ export default function FormSelector({ user, onSelectForm, onLogout }: FormSelec
     else if (roleStr.includes("support")) currentRoleCode = "SP";
     else currentRoleCode = "OB"; // Default Onboarding Exec
   }
+
+  // Filter accessible cards based on RBAC & user.allowed_forms
+  const accessibleCards = CARDS.filter(({ key }) => {
+    const role = (user.role || "").toLowerCase();
+    const roleCode = (user.role_code || "").toUpperCase();
+    const username = (user.username || "").toLowerCase();
+    const name = (user.name || "").toLowerCase();
+    const isAdmin = role.includes("admin") || role.includes("founder") || role.includes("ceo") || role.includes("business head") || roleCode === "SA" || roleCode === "BH" || roleCode === "BH2" || username === "admin" || username.startsWith("bh.") || name.includes("admin");
+
+    if (isAdmin) return true;
+    if (key === "maintenance_in" || key === "maintenance_out") return true;
+
+    if (user.allowed_forms && user.allowed_forms.length > 0) {
+      if (key === "approvals") return true;
+      return user.allowed_forms.includes(key);
+    }
+
+    const isOnboardingExec = roleCode === "OB" || roleCode === "OE" || role.includes("onboarding") || username.includes("onboarding");
+    if (isOnboardingExec) {
+      return ["walkin", "onboarding", "allocation", "dropoff"].includes(key);
+    }
+    return ["walkin", "onboarding", "vehicle_onboarding", "allocation", "dropoff"].includes(key);
+  });
+
+  // Limit default display to 2 rows (8 forms) unless expanded
+  const visibleCards = isExpanded ? accessibleCards : accessibleCards.slice(0, 8);
 
   return (
     <div className="min-h-screen flex flex-col bg-bg text-text">
@@ -108,41 +137,23 @@ export default function FormSelector({ user, onSelectForm, onLogout }: FormSelec
 
       {/* Main Container */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
-        <div className="mb-6 sm:mb-10">
-          <h1 className="font-sans text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Select a Form</h1>
+        
+        {/* Forms Section Header */}
+        <div className="mb-6 flex justify-between items-end">
+          <div>
+            <h1 className="font-sans text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Select a Form</h1>
+            <p className="font-sans text-xs text-slate-500 mt-1">Access operational forms, registries, and administrative tools.</p>
+          </div>
+          {accessibleCards.length > 8 && (
+            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+              Showing {visibleCards.length} of {accessibleCards.length} Forms
+            </span>
+          )}
         </div>
 
-        {/* Form Selection Grid */}
-        <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {CARDS.filter(({ key }) => {
-            const role = (user.role || "").toLowerCase();
-            const roleCode = (user.role_code || "").toUpperCase();
-            const username = (user.username || "").toLowerCase();
-            const name = (user.name || "").toLowerCase();
-            const isAdmin = role.includes("admin") || role.includes("founder") || role.includes("ceo") || role.includes("business head") || roleCode === "SA" || roleCode === "BH" || roleCode === "BH2" || username === "admin" || username.startsWith("bh.") || name.includes("admin");
-
-            // SA & Business Head always see all forms
-            if (isAdmin) return true;
-
-            // Maintenance In & Maintenance Out are accessible to all portal users
-            if (key === "maintenance_in" || key === "maintenance_out") return true;
-
-            // Use per-user allowed_forms from DB if available
-            if (user.allowed_forms && user.allowed_forms.length > 0) {
-              // Always show approvals tab to everyone
-              if (key === "approvals") return true;
-              return user.allowed_forms.includes(key);
-            }
-
-            // Fallback: original role-based logic (for users without DB form access entries)
-            const isOnboardingExec = roleCode === "OB" || roleCode === "OE" || role.includes("onboarding") || username.includes("onboarding");
-            if (isOnboardingExec) {
-              return ["walkin", "onboarding", "allocation", "dropoff"].includes(key);
-            }
-            return ["walkin", "onboarding", "vehicle_onboarding", "allocation", "dropoff"].includes(key);
-
-          }).map(({ key, label, sub, icon: Icon, iconBg, iconColor, hover, isCompleted }) => {
-            
+        {/* Form Selection Grid (4 cards per row) */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {visibleCards.map(({ key, label, sub, icon: Icon, iconBg, iconColor, hover, isCompleted }) => {
             const cardStyle = isCompleted
               ? "bg-green-50/90 border-2 border-green-400 hover:border-green-600 shadow-xs hover:shadow-md cursor-pointer"
               : `bg-white border-border ${hover} hover:shadow-md cursor-pointer`;
@@ -167,6 +178,58 @@ export default function FormSelector({ user, onSelectForm, onLogout }: FormSelec
             );
           })}
         </div>
+
+        {/* Expand / Collapse Action Button */}
+        {accessibleCards.length > 8 && (
+          <div className="mt-8 flex justify-center">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-2 rounded-xl border border-emerald-600 bg-white px-6 py-3 font-sans text-xs font-extrabold text-emerald-700 hover:bg-emerald-50 transition-all shadow-xs cursor-pointer hover:shadow-sm"
+            >
+              {isExpanded ? (
+                <>
+                  <span>Collapse Forms</span>
+                  <ChevronUp className="h-4 w-4 text-emerald-600" />
+                </>
+              ) : (
+                <>
+                  <span>View All Forms ({accessibleCards.length})</span>
+                  <ChevronDown className="h-4 w-4 text-emerald-600" />
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Dashboards & Analytics Section */}
+        <div className="mt-12 mb-6 flex justify-between items-end border-t border-slate-200 pt-8">
+          <div>
+            <h2 className="font-sans text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Dashboards & Analytics</h2>
+            <p className="font-sans text-xs text-slate-500 mt-1">Access operational dashboards, MIS reports, and executive analytics.</p>
+          </div>
+        </div>
+
+        {/* Dashboards Grid (Matching Form Card Box Design) */}
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <button
+            onClick={() => window.open("/?screen=mis_dashboard", "_blank")}
+            className="group relative flex flex-col items-start gap-3 rounded-xl p-6 text-left transition-all duration-200 bg-emerald-50/90 border-2 border-emerald-400 hover:border-emerald-600 shadow-xs hover:shadow-md cursor-pointer"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white group-hover:scale-105 transition-transform duration-200 shadow-xs">
+              <BarChart3 className="h-6 w-6" />
+            </div>
+            <div className="flex-grow">
+              <h3 className="font-sans text-sm font-bold text-slate-900 mb-1 leading-tight">
+                MIS Dashboard
+              </h3>
+              <p className="font-sans text-xs text-slate-500 leading-snug">Fleet & operational metrics</p>
+            </div>
+            <span className="absolute top-4 right-4 rounded-md px-2.5 py-1 text-[10px] font-extrabold bg-emerald-600 text-white shadow-xs">
+              Live
+            </span>
+          </button>
+        </div>
+
       </main>
 
       {/* Footer */}

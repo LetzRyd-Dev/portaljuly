@@ -25,20 +25,20 @@ import MaintenanceInForm from "./components/MaintenanceInForm";
 import MaintenanceOutForm from "./components/MaintenanceOutForm";
 import ChallansForm from "./components/ChallansForm";
 import ApprovalsDesk from "./components/ApprovalsDashboard";
+import MISDashboard from "./components/MISDashboard";
 import { User, CITIES } from "./types";
 
 const LOCAL_STORAGE_TOKEN_KEY = "lr_token";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [screen, setScreen] = useState<"login" | "selector" | "walkin" | "onboarding" | "operator_onboarding" | "adjustment" | "allocation" | "dropoff" | "expenses" | "vehicle_onboarding" | "workshops" | "hubs_parking" | "rents" | "accident" | "inspection" | "users" | "vehicle_models" | "cities" | "roles" | "tickets" | "employees" | "maintenance" | "maintenance_in" | "maintenance_out" | "challans" | "approvals">("login");
+  const [screen, setScreen] = useState<"login" | "selector" | "walkin" | "onboarding" | "operator_onboarding" | "adjustment" | "allocation" | "dropoff" | "expenses" | "vehicle_onboarding" | "workshops" | "hubs_parking" | "rents" | "accident" | "inspection" | "users" | "vehicle_models" | "cities" | "roles" | "tickets" | "employees" | "maintenance" | "maintenance_in" | "maintenance_out" | "challans" | "approvals" | "mis_dashboard">("login");
   const [editTarget, setEditTarget] = useState<{ formType: string; id: number; isReview?: boolean } | null>(null);
   const [activeApprovalsTab, setActiveApprovalsTab] = useState<"pending" | "my-submissions" | "revisions">("pending");
   const [isInitializing, setIsInitializing] = useState(true);
 
   // Load user session from API using token on startup
   useEffect(() => {
-    // Dynamically fetch operational cities and mutate CITIES in-place
     fetch("/api/cities")
       .then(res => {
         if (res.ok) return res.json();
@@ -66,8 +66,14 @@ export default function App() {
       })
       .then(data => {
         setUser(data);
-        const savedScreen = (sessionStorage.getItem("lr_active_screen") as any) || "selector";
-        setScreen(savedScreen);
+        const params = new URLSearchParams(window.location.search);
+        const urlScreen = params.get("screen") || params.get("view");
+        if (urlScreen === "mis_dashboard") {
+          setScreen("mis_dashboard");
+        } else {
+          const savedScreen = (sessionStorage.getItem("lr_active_screen") as any) || "selector";
+          setScreen(savedScreen);
+        }
       })
       .catch(() => {
         localStorage.removeItem(LOCAL_STORAGE_TOKEN_KEY);
@@ -334,6 +340,14 @@ export default function App() {
             else if (module === "tickets_desk") targetScreen = "tickets";
             setScreen(targetScreen as any);
           }}
+        />
+      )}
+
+      {screen === "mis_dashboard" && user && (
+        <MISDashboard 
+          user={user} 
+          onBackToSelector={() => setScreen("selector")} 
+          onLogout={handleLogout} 
         />
       )}
     </div>
