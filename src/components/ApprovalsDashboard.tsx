@@ -575,21 +575,31 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
 
       {/* Top Header — matches home screen exactly */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
-        <div className="mx-auto flex h-16 max-w-[98%] items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex h-16 max-w-[98%] items-center justify-between px-2.5 sm:px-6">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Back chevron */}
             <button
               onClick={onBackToSelector}
-              className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-slate-100 hover:text-primary transition-all cursor-pointer shrink-0"
+              title="Back to Form Selector"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
 
-            {/* Brand — same as home */}
+            {/* Mobile icon (compact) */}
             <img
               src="/letzryd_icon.png"
+              alt="LetzRyd"
+              className="h-7 w-7 object-contain sm:hidden cursor-pointer shrink-0"
+              onClick={onBackToSelector}
+            />
+            {/* Desktop logo */}
+            <img
+              src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png"
               alt="LetzRyd logo"
-              className="h-9 w-auto object-contain"
+              className="hidden sm:block h-8 w-auto object-contain cursor-pointer shrink-0"
+              onClick={onBackToSelector}
+              referrerPolicy="no-referrer"
             />
             <span className="hidden h-5 border-l border-slate-200 sm:inline-block" />
             <span className="hidden font-sans text-xs font-semibold text-slate-500 sm:inline-block">
@@ -598,22 +608,22 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
 
             {/* Divider + page title */}
             <span className="hidden h-5 border-l border-slate-200 sm:inline-block" />
-            <div>
-              <h1 className="text-sm font-extrabold text-slate-900 tracking-tight">Approvals &amp; Submissions</h1>
-              <p className="text-[10px] text-slate-400">{user.name} · <span className="font-semibold text-emerald-600">{user.role}</span></p>
+            <div className="min-w-0">
+              <h1 className="text-xs sm:text-sm font-extrabold text-slate-900 tracking-tight truncate">Approvals &amp; Submissions</h1>
+              <p className="hidden sm:block text-[10px] text-slate-400">{user.name} · <span className="font-semibold text-emerald-600">{user.role}</span></p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {pendingItems.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 bg-rose-500 text-white text-[11px] sm:text-xs font-extrabold px-2.5 sm:px-3 py-1 rounded-full shadow-xs">
+              <span className="inline-flex items-center gap-1.5 bg-rose-500 text-white text-[11px] sm:text-xs font-extrabold px-2 sm:px-3 py-1 rounded-full shadow-xs shrink-0">
                 <Inbox className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{pendingItems.length} Pending</span>
                 <span className="sm:hidden">{pendingItems.length}</span>
               </span>
             )}
             {/* User chip */}
-            <div className="flex items-center gap-2 sm:gap-3 rounded-lg border border-slate-200 bg-slate-50 px-2 sm:px-3 py-1.5">
+            <div className="flex items-center gap-1.5 sm:gap-3 rounded-lg border border-slate-200 bg-slate-50 px-1.5 sm:px-3 py-1 sm:py-1.5 shrink-0">
               <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-emerald-600 text-xs font-bold text-white">
                 {user.name?.split(" ").map((w: string) => w[0]).join("").substring(0, 2).toUpperCase() || "U"}
               </div>

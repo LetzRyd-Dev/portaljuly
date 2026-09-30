@@ -884,8 +884,8 @@ export default function MaintenanceInForm({ user, onBackToSelector, onLogout }: 
     <div className="min-h-screen bg-bg text-text pb-16">
       {/* HEADER */}
       <header className="sticky top-0 z-50 border-b border-border bg-white shadow-xs">
-        <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-2.5 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -895,15 +895,29 @@ export default function MaintenanceInForm({ user, onBackToSelector, onLogout }: 
                   console.error("Error clicking Back to Form Selector", err);
                 }
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-slate-100 hover:text-primary transition-all cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-slate-100 hover:text-primary transition-all cursor-pointer shrink-0"
               title="Back to Form Selector"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
+            {/* Mobile icon (compact, prevents truncation) */}
+            <img 
+              src="/letzryd_icon.png" 
+              alt="LetzRyd" 
+              className="h-7 w-7 object-contain sm:hidden cursor-pointer shrink-0"
+              onClick={() => {
+                try {
+                  onBackToSelector();
+                } catch (err) {
+                  console.error("Error clicking LetzRyd logo", err);
+                }
+              }}
+            />
+            {/* Desktop logo */}
             <img
               src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png"
               alt="LetzRyd logo"
-              className="h-8 w-auto object-contain cursor-pointer"
+              className="hidden sm:block h-8 w-auto object-contain cursor-pointer shrink-0"
               onClick={() => {
                 try {
                   onBackToSelector();
@@ -920,7 +934,7 @@ export default function MaintenanceInForm({ user, onBackToSelector, onLogout }: 
           </div>
 
           {/* Navigation Pills */}
-          <nav className="flex gap-1.5 sm:gap-2">
+          <nav className="flex items-center gap-1 sm:gap-2 shrink-0">
             <button
               onClick={() => {
                 try {

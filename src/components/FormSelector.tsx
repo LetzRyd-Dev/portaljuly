@@ -57,11 +57,17 @@ export default function FormSelector({ user, onSelectForm, onLogout }: FormSelec
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
           
           {/* Brand */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <img 
               src="/letzryd_icon.png" 
+              alt="LetzRyd" 
+              className="h-7 w-7 object-contain sm:hidden shrink-0"
+            />
+            <img 
+              src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" 
               alt="LetzRyd logo" 
-              className="h-8 sm:h-9 w-auto object-contain"
+              className="hidden sm:block h-8 w-auto object-contain shrink-0"
+              referrerPolicy="no-referrer"
             />
             <span className="hidden h-5 border-l border-border sm:inline-block" />
             <span className="hidden font-sans text-xs font-semibold text-text-muted sm:inline-block">

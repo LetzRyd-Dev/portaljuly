@@ -16,7 +16,7 @@ export default function CameraCapture({ onCapture, onClose, title }: CameraCaptu
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
 
   useEffect(() => {
     startCamera();
@@ -38,15 +38,26 @@ export default function CameraCapture({ onCapture, onClose, title }: CameraCaptu
     stopCamera();
 
     try {
-      const constraints = {
-        video: {
-          facingMode: facingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      };
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      let mediaStream: MediaStream | null = null;
+      try {
+        // Attempt with environment (rear) camera preference on mobile
+        const constraints = {
+          video: {
+            facingMode: { ideal: facingMode },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
+        };
+        mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (modeErr) {
+        console.warn("Retrying camera with generic constraints fallback:", modeErr);
+        // Fallback for laptops/desktops with a single webcam
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
       setStream(mediaStream);
     } catch (err: any) {
       console.error("Camera access error:", err);

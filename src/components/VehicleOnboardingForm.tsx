@@ -979,35 +979,43 @@ export default function VehicleOnboardingForm({
     <div className="min-h-screen flex flex-col bg-bg text-text">
       
       <header className="sticky top-0 z-40 border-b border-border bg-white shadow-xs">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-2.5 sm:px-6 lg:px-8">
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button 
               type="button" 
               onClick={onBackToSelector}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-slate-100 hover:text-primary transition-all cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-slate-100 hover:text-primary transition-all cursor-pointer shrink-0"
               title="Back to Form Selector"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
+            {/* Mobile icon (compact, prevents truncation) */}
+            <img 
+              src="/letzryd_icon.png" 
+              alt="LetzRyd" 
+              className="h-7 w-7 object-contain sm:hidden cursor-pointer shrink-0"
+              onClick={onBackToSelector}
+            />
+            {/* Desktop logo */}
             <img 
               src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" 
               alt="LetzRyd" 
-              className="h-7 w-auto object-contain cursor-pointer"
+              className="hidden sm:block h-8 w-auto object-contain cursor-pointer shrink-0"
               onClick={onBackToSelector}
               referrerPolicy="no-referrer"
             />
             <span className="hidden h-5 border-l border-border sm:inline-block" />
-            <span className="hidden font-sans text-xs font-medium text-text-muted sm:inline-block">
+            <span className="hidden font-sans text-xs font-semibold text-text-muted sm:inline-block">
               Vehicle Onboarding
             </span>
           </div>
 
-          <nav className="flex gap-1.5 sm:gap-2">
+          <nav className="flex items-center gap-1 sm:gap-2">
             {!isReadOnly && (
               <button
                 onClick={() => setActiveTab("form")}
-                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer shrink-0 ${ activeTab === "form" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
               >
                 <FileText className="h-4 w-4" />
                 <span className="hidden sm:inline">Vehicle Form</span>
@@ -1017,13 +1025,13 @@ export default function VehicleOnboardingForm({
             {!isReadOnly && (
               <button
                 onClick={() => setActiveTab("drafts")}
-                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "drafts" ? "bg-amber-600 text-white shadow-sm shadow-amber-600/20" : "text-text-muted hover:bg-slate-100 hover:text-amber-600" }`}
+                className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer shrink-0 ${ activeTab === "drafts" ? "bg-amber-600 text-white shadow-sm shadow-amber-600/20" : "text-text-muted hover:bg-slate-100 hover:text-amber-600" }`}
               >
                 <Clock className="h-4 w-4" />
                 <span className="hidden sm:inline">Saved Drafts</span>
                 <span className="sm:hidden">Drafts</span>
                 {records.filter(r => r.approval_status === "Draft").length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded-full text-[10px] font-extrabold">
+                  <span className="ml-0.5 px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded-full text-[10px] font-extrabold">
                     {records.filter(r => r.approval_status === "Draft").length}
                   </span>
                 )}
@@ -1031,7 +1039,7 @@ export default function VehicleOnboardingForm({
             )}
             <button
               onClick={() => setActiveTab("registry")}
-              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
+              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer shrink-0 ${ activeTab === "registry" ? "bg-primary text-white shadow-sm shadow-primary/20" : "text-text-muted hover:bg-slate-100 hover:text-primary" }`}
             >
               <Database className="h-4 w-4" />
               <span className="hidden sm:inline">Fleet Registry</span>
