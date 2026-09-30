@@ -838,23 +838,44 @@ export default function AdjustmentForm({
       <main className="flex-grow max-w-[1550px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {activeTab === "form" ? (
-          <div className="max-w-5xl mx-auto">
+          <div>
             {/* Form card header */}
             <div className="rounded-2xl border border-border bg-white shadow-xl overflow-hidden mb-10 transition-all">
               <div className="bg-primary text-white px-8 py-6 relative">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary-hover via-primary to-primary opacity-60" />
-                <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 overflow-hidden w-full">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-20 -mt-20 pointer-events-none"></div>
+                <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
                   <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-2">
                       <img src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" className="h-8 brightness-0 invert" alt="LetzRyd" referrerPolicy="no-referrer" />
                       <span className="px-2 py-0.5 rounded border border-white/30 bg-white/20 text-white text-[10px] font-bold tracking-widest backdrop-blur-sm">
-                        Hisaab Management
+                        LetzRyd Desk
                       </span>
                     </div>
                     <h1 className="font-sans text-2xl font-bold tracking-tight text-white leading-tight">
-                      {editingId ? `Edit Adjustment Record #${editingId}` : "Hisaab Adjustments Application"}
+                      {editingId ? `Edit Adjustment Record #${editingId}` : "Adjustment Form"}
                     </h1>
+                  </div>
+
+                  {/* Header Search bar */}
+                  <div className="relative z-10 flex w-full sm:w-auto mt-2 sm:mt-0">
+                    <div className="relative flex w-full sm:w-72 items-center">
+                      <Search className="absolute left-3 h-4 w-4 text-white/60" />
+                      <input 
+                        type="number" 
+                        placeholder="Edit existing record (ID)..." 
+                        value={retrieveSearchInput}
+                        onChange={(e) => setRetrieveSearchInput(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && retrieveSearchInput && loadRecordForEdit(parseInt(retrieveSearchInput))}
+                        className="h-10 w-full rounded-l-xl border border-white/20 bg-white/10 py-2 pl-10 pr-3 text-sm text-white placeholder-white/50 backdrop-blur-md outline-none transition-all focus:border-white focus:bg-white/20 focus:ring-2 focus:ring-white/20"
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => retrieveSearchInput && loadRecordForEdit(parseInt(retrieveSearchInput))}
+                        className="h-10 rounded-r-xl border border-white/20 border-l-0 bg-white px-4 text-xs font-bold text-emerald-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        Retrieve
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -871,25 +892,6 @@ export default function AdjustmentForm({
                 </div>
               )}
 
-              {/* Approval Workflow Progress Banner */}
-              <div className="bg-slate-50 border-b border-border px-8 py-3.5">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Approval Workflow</span>
-                    <h3 className="text-xs font-bold text-slate-800">Two-Level Verification Hierarchy</h3>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
-                    <span className="flex items-center gap-1 text-slate-700 font-bold">1. Draft</span>
-                    <ArrowRight className="w-3 h-3 text-slate-300" />
-                    <span className="flex items-center gap-1 text-blue-600 font-bold">2. L1 (Manager)</span>
-                    <ArrowRight className="w-3 h-3 text-slate-300" />
-                    <span className="flex items-center gap-1 text-purple-600 font-bold">3. L2 (City Head)</span>
-                    <ArrowRight className="w-3 h-3 text-slate-300" />
-                    <span className="flex items-center gap-1 text-emerald-600 font-bold">4. Approved</span>
-                  </div>
-                </div>
-              </div>
-
               {/* Form Content */}
               <form onSubmit={handleSubmit} className="p-8 space-y-10">
                 
@@ -898,22 +900,21 @@ export default function AdjustmentForm({
                   
                   {/* COLUMN 1: TARGET DETAILS */}
                   <div className="space-y-6">
-                    <div className="border-b border-border pb-3">
-                      <h3 className="font-sans text-sm font-bold text-primary flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">1</span>
-                        Target & Entity Details
+                    <div className="border-b border-slate-200 pb-2.5">
+                      <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">1</span>
+                        Target &amp; Entity Details
                       </h3>
                     </div>
 
                     <div className="space-y-4">
-                      {/* FEEDBACK POINT 1: Adjustment Level * (Remove Driver. Add Drive to Own, Individual Driver, LetzOwn. Keep Operator) */}
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block font-sans text-xs font-bold text-text-muted mb-2">Adjustment Level <span className="text-red-500">*</span></label>
+                          <label className="block font-sans text-xs font-medium text-slate-700 mb-1">Adjustment Level <span className="text-red-500">*</span></label>
                           <select 
                             value={adjustmentLevel}
                             onChange={(e) => setAdjustmentLevel(e.target.value as any)}
-                            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:outline-none transition-all shadow-2xs cursor-pointer"
+                            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs cursor-pointer"
                           >
                             <option value="Operator">Operator</option>
                             <option value="Drive to Own">Drive to Own</option>
@@ -923,12 +924,12 @@ export default function AdjustmentForm({
                         </div>
 
                         <div>
-                          <label className="block font-sans text-xs font-bold text-text-muted mb-2">City Name <span className="text-red-500">*</span></label>
+                          <label className="block font-sans text-xs font-medium text-slate-700 mb-1">City Name <span className="text-red-500">*</span></label>
                           <select 
                             value={cityName}
                             onChange={(e) => setCityName(e.target.value)}
                             required
-                            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:outline-none transition-all shadow-2xs cursor-pointer"
+                            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs cursor-pointer"
                           >
                             {CITIES.map((c) => (
                               <option key={c.value} value={c.value}>{c.text}</option>
@@ -938,61 +939,60 @@ export default function AdjustmentForm({
                       </div>
 
                       <div>
-                        <label className="block font-sans text-xs font-bold text-text-muted mb-2">Partner / Driver Name <span className="text-red-500">*</span></label>
+                        <label className="block font-sans text-xs font-medium text-slate-700 mb-1">Partner / Driver Name <span className="text-red-500">*</span></label>
                         <input 
                           type="text" 
                           placeholder="Enter full name..."
                           value={partnerName}
                           onChange={(e) => setPartnerName(e.target.value)}
                           required
-                          className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs"
+                          className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs"
                         />
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block font-sans text-xs font-bold text-text-muted mb-2">Partner Code / ID</label>
+                          <label className="block font-sans text-xs font-medium text-slate-700 mb-1">Partner Code / ID</label>
                           <input 
                             type="text" 
                             placeholder="Unique Partner ID..."
                             value={partnerCode}
                             onChange={(e) => setPartnerCode(e.target.value)}
-                            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs"
+                            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs"
                           />
                         </div>
 
                         <div>
-                          <label className="block font-sans text-xs font-bold text-text-muted mb-2">Partner Contact Number</label>
+                          <label className="block font-sans text-xs font-medium text-slate-700 mb-1">Partner Contact Number</label>
                           <input 
                             type="tel" 
                             placeholder="Mobile phone..."
                             value={partnerNumber}
                             onChange={(e) => setPartnerNumber(e.target.value)}
-                            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs"
+                            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block font-sans text-xs font-bold text-text-muted mb-2">Vehicle Number</label>
+                          <label className="block font-sans text-xs font-medium text-slate-700 mb-1">Vehicle Number</label>
                           <input 
                             type="text" 
                             placeholder="e.g. TS09 EA 1111..."
                             value={vehicleNumber}
-                            onChange={(e) => setVehicleNumber(e.target.value)}
-                            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs uppercase"
+                            onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
+                            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs uppercase"
                           />
                         </div>
 
-                        {/* FEEDBACK POINT 2: Hisaab Number * - Automated date/week selector (Restricted to 2 recent available Hisaabs as requested) */}
                         <div>
-                          <label className="block font-sans text-xs font-bold text-text-muted mb-2">Hisaab Number / Week <span className="text-red-500">*</span></label>
+                          <label className="block font-sans text-xs font-medium text-slate-700 mb-1">Hisaab Number / Week <span className="text-red-500">*</span></label>
                           <select 
                             value={hisaabNumber}
                             onChange={(e) => setHisaabNumber(e.target.value)}
                             required
-                            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:outline-none transition-all shadow-2xs cursor-pointer font-mono font-medium"
+                            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs cursor-pointer font-mono"
                           >
                             {generateHisaabWeeks().map((w) => (
                               <option key={w.code} value={w.code}>{w.label}</option>
@@ -1006,47 +1006,47 @@ export default function AdjustmentForm({
 
                   {/* COLUMN 2: ADJUSTMENT DETAILS */}
                   <div className="space-y-6">
-                    <div className="border-b border-border pb-3">
-                      <h3 className="font-sans text-sm font-bold text-primary flex items-center gap-2">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">2</span>
-                        Adjustment Details
+                    <div className="border-b border-slate-200 pb-2.5">
+                      <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">2</span>
+                        Adjustment Details &amp; Approval
                       </h3>
                     </div>
 
                     <div className="space-y-4">
-                      {/* FEEDBACK POINT 3: Adjustment Details - Adjustment Type * (Remove Credit/Debit/Waiver. Add Rental Waiver, Penalty, Maintenance) */}
                       <div>
-                        <label className="block font-sans text-xs font-bold text-text-muted mb-2">Adjustment Type <span className="text-red-500">*</span></label>
+                        <label className="block font-sans text-xs font-medium text-slate-700 mb-1">Adjustment Type <span className="text-red-500">*</span></label>
                         <div className="grid grid-cols-3 gap-2">
                           {(["Rental Waiver", "Penalty", "Maintenance"] as const).map((type) => (
-                            <label key={type} className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-bold hover:bg-bg cursor-pointer transition-all shadow-2xs ${adjustmentType === type ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-white text-text-muted'}`}>
-                              <input 
-                                type="radio" 
-                                name="adjustmentType" 
-                                checked={adjustmentType === type}
-                                onChange={() => {
-                                  setAdjustmentType(type);
-                                  setAdjustmentSubType("");
-                                  setAdjustmentSubTypeOther("");
-                                }}
-                                className="text-primary focus:ring-primary cursor-pointer"
-                              />
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => {
+                                setAdjustmentType(type);
+                                setAdjustmentSubType("");
+                                setAdjustmentSubTypeOther("");
+                              }}
+                              className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold cursor-pointer transition-all shadow-2xs ${
+                                adjustmentType === type 
+                                  ? 'border-emerald-600 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 font-bold' 
+                                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
                               {type}
-                            </label>
+                            </button>
                           ))}
                         </div>
                       </div>
 
-                      {/* FEEDBACK POINT 4: Sub Point – Adjustment Details – Adjustment Type * */}
                       <div>
-                        <label className="block font-sans text-xs font-bold text-text-muted mb-2">
+                        <label className="block font-sans text-xs font-medium text-slate-700 mb-1">
                           Sub Point – {adjustmentType} Details <span className="text-red-500">*</span>
                         </label>
                         <select 
                           value={adjustmentSubType}
                           onChange={(e) => setAdjustmentSubType(e.target.value)}
                           required
-                          className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:outline-none transition-all shadow-2xs cursor-pointer font-medium"
+                          className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs cursor-pointer"
                         >
                           <option value="">-- Select {adjustmentType} Sub-Category --</option>
                           {(SUB_TYPE_OPTIONS[adjustmentType] || []).map((sub) => (
@@ -1058,95 +1058,93 @@ export default function AdjustmentForm({
                       {/* Other Details Input if 'Other' selected */}
                       {adjustmentSubType === "Other" && (
                         <div>
-                          <label className="block font-sans text-xs font-bold text-text-muted mb-2">Enter Details for Other <span className="text-red-500">*</span></label>
+                          <label className="block font-sans text-xs font-medium text-slate-700 mb-1">Enter Details for Other <span className="text-red-500">*</span></label>
                           <input 
                             type="text" 
                             placeholder="Specify other reason/details..."
                             value={adjustmentSubTypeOther}
                             onChange={(e) => setAdjustmentSubTypeOther(e.target.value)}
                             required
-                            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs"
+                            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs"
                           />
                         </div>
                       )}
 
-                      {/* FEEDBACK POINT: Reason for Penalty (Mandatory open-ended field when Penalty is selected) */}
+                      {/* Reason for Penalty */}
                       {adjustmentType === "Penalty" && (
-                        <div className="bg-red-50/70 p-4 rounded-xl border border-red-200">
-                          <label className="block font-sans text-xs font-bold text-red-900 mb-2">Reason for Penalty <span className="text-red-500">*</span></label>
+                        <div className="bg-rose-50/70 p-3.5 rounded-xl border border-rose-200">
+                          <label className="block font-sans text-xs font-bold text-rose-900 mb-1">Reason for Penalty <span className="text-red-500">*</span></label>
                           <textarea 
-                            placeholder="Specify exact mandatory open-ended reason for issuing this penalty..."
+                            placeholder="Specify exact mandatory reason for issuing this penalty..."
                             value={reasonForPenalty}
                             onChange={(e) => setReasonForPenalty(e.target.value)}
                             required
                             rows={2}
-                            className="w-full rounded-xl border border-red-300 bg-white px-4 py-2 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs resize-none"
+                            className="w-full rounded-xl border border-rose-300 bg-white px-3 py-2 font-sans text-xs font-medium focus:border-rose-500 focus:ring-1 focus:ring-rose-500/20 outline-none transition-all shadow-2xs resize-none"
                           />
                         </div>
                       )}
 
-                      {/* FEEDBACK POINT: Maintenance Link (Mandatory when Maintenance is selected) */}
+                      {/* Maintenance Link */}
                       {adjustmentType === "Maintenance" && (
-                        <div className="bg-amber-50/70 p-4 rounded-xl border border-amber-200 space-y-3">
-                          <div>
-                            <label className="block font-sans text-xs font-bold text-amber-900 mb-2">Link Maintenance Record / ID <span className="text-red-500">*</span></label>
-                            <input 
-                              type="text"
-                              placeholder="e.g. MAINT-9012 or Select Maintenance Date..."
-                              value={maintenanceId}
-                              onChange={(e) => setMaintenanceId(e.target.value)}
-                              required
-                              className="w-full rounded-xl border border-amber-300 bg-white px-4 py-2 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs font-mono"
-                            />
-                            <p className="text-[10px] text-amber-700 mt-1">Links directly to Maintenance module record to prevent duplicate entries.</p>
-                          </div>
+                        <div className="bg-amber-50/70 p-3.5 rounded-xl border border-amber-200 space-y-1.5">
+                          <label className="block font-sans text-xs font-bold text-amber-900 mb-1">Link Maintenance Record / ID <span className="text-red-500">*</span></label>
+                          <input 
+                            type="text"
+                            placeholder="e.g. MAINT-9012 or Select Maintenance Date..."
+                            value={maintenanceId}
+                            onChange={(e) => setMaintenanceId(e.target.value)}
+                            required
+                            className="w-full h-10 rounded-xl border border-amber-300 bg-white px-3 font-sans text-xs font-mono font-medium focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20 outline-none transition-all shadow-2xs"
+                          />
+                          <p className="text-[10px] text-amber-700">Links directly to Maintenance module record to prevent duplicate entries.</p>
                         </div>
                       )}
 
                       {/* Amount Field (₹) */}
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <label className="block font-sans text-xs font-bold text-slate-900 mb-2">Requested Amount (₹) <span className="text-red-500">*</span></label>
+                      <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
+                        <label className="block font-sans text-xs font-medium text-slate-800 mb-1">Requested Amount (₹) <span className="text-red-500">*</span></label>
                         <div className="relative">
-                          <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-600" />
+                          <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                           <input 
                             type="number" 
                             placeholder="0.00"
                             value={enterAmount}
                             onChange={(e) => setEnterAmount(e.target.value)}
                             required
-                            className="w-full pl-9 rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs font-bold text-slate-900"
+                            className="w-full pl-9 h-10 rounded-xl border border-slate-300 bg-white px-3 font-sans text-xs font-bold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs"
                           />
                         </div>
                       </div>
 
-                      {/* 2 Clean Date Fields: Adjustment Date & Application Date */}
+                      {/* 2 Clean Date Fields */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block font-sans text-xs font-bold text-text-muted mb-2">Adjustment Date <span className="text-red-500">*</span></label>
+                          <label className="block font-sans text-xs font-medium text-slate-700 mb-1">Adjustment Date <span className="text-red-500">*</span></label>
                           <input 
                             type="date" 
                             value={adjustmentDateMandatory}
                             onChange={(e) => setAdjustmentDateMandatory(e.target.value)}
                             required
-                            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm outline-none focus:border-primary transition-all shadow-2xs cursor-pointer font-medium"
+                            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs cursor-pointer"
                           />
                         </div>
 
                         <div>
-                          <label className="block font-sans text-xs font-bold text-text-muted mb-2">Application Date <span className="text-red-500">*</span></label>
+                          <label className="block font-sans text-xs font-medium text-slate-700 mb-1">Application Date <span className="text-red-500">*</span></label>
                           <input 
                             type="date" 
                             value={hisaabDate}
                             onChange={(e) => setHisaabDate(e.target.value)}
                             required
-                            className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm outline-none focus:border-primary transition-all shadow-2xs cursor-pointer font-medium"
+                            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs cursor-pointer"
                           />
                         </div>
                       </div>
 
                       {/* Submitter Comments & Justification */}
                       <div>
-                        <label className="block font-sans text-xs font-bold text-text-muted mb-2">
+                        <label className="block font-sans text-xs font-medium text-slate-700 mb-1">
                           Submitter Comments &amp; Justification <span className="text-red-500">*</span>
                         </label>
                         <textarea 
@@ -1154,14 +1152,14 @@ export default function AdjustmentForm({
                           value={submitterComments}
                           onChange={(e) => setSubmitterComments(e.target.value)}
                           required
-                          rows={3}
-                          className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs resize-none"
+                          rows={2}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs resize-none"
                         />
                       </div>
 
-                      {/* Single Approver Selection (Level 1) */}
-                      <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200">
-                        <label className="block font-sans text-xs font-bold text-slate-800 mb-2">
+                      {/* Single Approver Selection */}
+                      <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
+                        <label className="block font-sans text-xs font-medium text-slate-800 mb-1">
                           Select First Approver <span className="text-red-500">*</span>
                         </label>
                         <select 
@@ -1180,7 +1178,7 @@ export default function AdjustmentForm({
                             }
                           }}
                           required
-                          className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-sans text-xs outline-none focus:border-primary cursor-pointer font-medium"
+                          className="w-full h-10 rounded-xl border border-slate-300 bg-white px-3 font-sans text-xs font-medium text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600/20 outline-none transition-all shadow-2xs cursor-pointer"
                         >
                           <option value="">-- Select First Approver --</option>
                           {cityName && (
@@ -1225,16 +1223,17 @@ export default function AdjustmentForm({
                   </div>
                 </div>
 
-                {/* FEEDBACK POINT 8: Attachments & Proof (Unlimited Photos Supported) */}
-                <div className="border-t border-border pt-10">
-                  <div className="flex justify-between items-center border-b border-border pb-3 mb-6">
+                {/* SECTION 3: Attachments & Proof (Unlimited Photos) */}
+                <div className="border-t border-slate-200 pt-8">
+                  <div className="flex justify-between items-center border-b border-slate-200 pb-2.5 mb-6">
                     <div>
-                      <h3 className="font-sans text-sm font-bold text-primary flex items-center gap-2">
-                        <span>4. Attachments & Proof (Unlimited Photos)</span>
+                      <h3 className="font-sans text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">3</span>
+                        Attachments &amp; Proof (Unlimited Photos)
                       </h3>
-                      <p className="font-sans text-xs text-text-muted mt-1">Upload or capture receipts, bills, or proof photos related to this adjustment. No upload limit.</p>
+                      <p className="font-sans text-xs text-slate-500 mt-1">Upload or capture receipts, bills, or proof photos related to this adjustment. No upload limit.</p>
                     </div>
-                    <label className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white hover:bg-primary-hover shadow-xs cursor-pointer">
+                    <label className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white shadow-xs cursor-pointer transition-colors">
                       <Plus className="h-4 w-4" />
                       Add Extra Photo
                       <input 
@@ -1258,14 +1257,14 @@ export default function AdjustmentForm({
                       { slot: 3, val: photo3, setVal: setPhoto3 },
                       { slot: 4, val: photo4, setVal: setPhoto4 }
                     ] as const).map(({ slot, val, setVal }) => (
-                      <div key={slot} className="w-full rounded-2xl border border-dashed border-border bg-bg/30 p-4 text-center hover:bg-bg/50 transition-all shadow-2xs flex flex-col items-center justify-between min-h-[160px]">
+                      <div key={slot} className="w-full rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-center hover:bg-slate-50 transition-all shadow-2xs flex flex-col items-center justify-between min-h-[160px]">
                         <span className="text-[10px] font-bold text-slate-500 uppercase mb-2">Photo {slot}</span>
                         {val ? (
                           <div className="relative inline-block w-full">
                             <img 
                               src={val} 
                               alt={`Proof ${slot}`} 
-                              className="h-28 w-full object-cover rounded-xl border border-border shadow-xs"
+                              className="h-28 w-full object-cover rounded-xl border border-slate-200 shadow-xs"
                             />
                             <button 
                               type="button"
@@ -1273,17 +1272,17 @@ export default function AdjustmentForm({
                                 setVal(null);
                                 if (slot === 1) setPhoto(null);
                               }}
-                              className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white border border-white hover:bg-red-700 shadow-xs cursor-pointer"
+                              className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-white border border-white hover:bg-rose-700 shadow-xs cursor-pointer"
                             >
                               <X className="h-3 w-3" />
                             </button>
                           </div>
                         ) : (
                           <div className="space-y-3 w-full my-auto">
-                            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
                               <Upload className="h-4 w-4" />
                             </div>
-                            <p className="font-sans text-[11px] font-bold text-text-muted">No photo uploaded</p>
+                            <p className="font-sans text-[11px] font-medium text-slate-500">No photo uploaded</p>
                             <div className="flex gap-2 justify-center">
                               <button
                                 type="button"
@@ -1291,13 +1290,13 @@ export default function AdjustmentForm({
                                   setActivePhotoSlot(slot);
                                   setCameraActive(true);
                                 }}
-                                className="flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 font-sans text-[11px] font-bold text-white hover:bg-primary-hover shadow-xs cursor-pointer"
+                                className="flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 font-sans text-[11px] font-medium text-white hover:bg-emerald-700 shadow-xs cursor-pointer transition-colors"
                               >
                                 <Camera className="h-3 w-3" />
                                 Camera
                               </button>
-                              <label className="flex items-center gap-1 rounded-lg border border-border bg-white px-2.5 py-1 font-sans text-[11px] font-bold text-text-muted hover:bg-bg cursor-pointer transition-colors shadow-2xs">
-                                <Upload className="h-3 w-3" />
+                              <label className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 font-sans text-[11px] font-medium text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors shadow-2xs">
+                                <Upload className="h-3 w-3 text-emerald-600" />
                                 File
                                 <input 
                                   type="file" 
@@ -1314,18 +1313,18 @@ export default function AdjustmentForm({
 
                     {/* Additional Unlimited Photos Grid */}
                     {additionalPhotos.map((img, idx) => (
-                      <div key={`extra-${idx}`} className="w-full rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-4 text-center transition-all shadow-2xs flex flex-col items-center justify-between min-h-[160px]">
-                        <span className="text-[10px] font-bold text-primary uppercase mb-2">Extra Photo #{idx + 5}</span>
+                      <div key={`extra-${idx}`} className="w-full rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 p-4 text-center transition-all shadow-2xs flex flex-col items-center justify-between min-h-[160px]">
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase mb-2">Extra Photo #{idx + 5}</span>
                         <div className="relative inline-block w-full">
                           <img 
                             src={img} 
                             alt={`Extra Proof ${idx + 5}`} 
-                            className="h-28 w-full object-cover rounded-xl border border-primary/20 shadow-xs"
+                            className="h-28 w-full object-cover rounded-xl border border-emerald-200 shadow-xs"
                           />
                           <button 
                             type="button"
                             onClick={() => setAdditionalPhotos(prev => prev.filter((_, i) => i !== idx))}
-                            className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white border border-white hover:bg-red-700 shadow-xs cursor-pointer"
+                            className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-white border border-white hover:bg-rose-700 shadow-xs cursor-pointer"
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -1336,24 +1335,24 @@ export default function AdjustmentForm({
                 </div>
 
                 {/* FORM ACTIONS */}
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-border pt-8">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-slate-200 pt-6">
                   <div className="flex flex-col gap-1 text-left w-full sm:w-auto">
-                    <p className="text-[10px] font-bold text-red-500">* means mandatory</p>
+                    <p className="text-[11px] font-medium text-slate-500">* indicates mandatory field</p>
                   </div>
                   <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-end">
                     <button 
                       type="button"
                       onClick={() => handleSaveAndSubmit(false)}
-                      className="rounded-xl border border-slate-300 bg-white hover:bg-slate-50 px-5 py-2.5 font-sans text-xs font-bold text-slate-700 shadow-2xs transition-all cursor-pointer"
+                      className="h-10 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-5 font-sans text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
                     >
                       Save as Draft
                     </button>
                     <button 
                       type="button"
                       onClick={() => handleSaveAndSubmit(true)}
-                      className="rounded-xl bg-primary hover:bg-primary-hover px-6 py-2.5 font-sans text-xs font-bold text-white shadow-sm transition-all cursor-pointer"
+                      className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-6 font-sans text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
                     >
-                      {editingId ? "Update & Send for Approval" : "Submit & Send for Approval"}
+                      {editingId ? "Update Adjustment" : "Submit Adjustment"}
                     </button>
                   </div>
                 </div>
