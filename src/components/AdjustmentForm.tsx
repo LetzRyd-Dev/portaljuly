@@ -3,7 +3,7 @@ import React, { useState, useMemo } from "react";
 import { 
   Calendar, MapPin, User, Phone, FileText, CheckCircle, 
   Clock, ArrowLeft, Download, Search, Trash2, Edit, Camera, 
-  Upload, X, RefreshCw, AlertTriangle, ShieldCheck, Filter, Plus, ChevronLeft, IndianRupee, Settings, DollarSign
+  Upload, X, RefreshCw, AlertTriangle, ShieldCheck, Filter, Plus, ChevronLeft, ChevronRight, IndianRupee, Settings, DollarSign, Send, ArrowRight, ArrowUpDown
 } from "lucide-react";
 import { AdjustmentRecord, User as UserSession, CITIES } from "../types";
 import CameraCapture from "./CameraCapture";
@@ -113,6 +113,82 @@ export default function AdjustmentForm({
   const [approverSearchQuery, setApproverSearchQuery] = useState("");
   const [isApproverDropdownOpen, setIsApproverDropdownOpen] = useState(false);
 
+  // Partial Approval & Review modal state
+  const [reviewRecord, setReviewRecord] = useState<any | null>(null);
+  const [approvedAmountInput, setApprovedAmountInput] = useState<string>("");
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const normCity = (s?: string) => {
+    if (!s) return "";
+    const v = s.trim().toLowerCase();
+    if (["bangalore", "bengaluru", "blr"].includes(v)) return "bangalore";
+    if (["hyderabad", "hyd"].includes(v)) return "hyderabad";
+    if (["mumbai", "bom"].includes(v)) return "mumbai";
+    if (["delhi", "del"].includes(v)) return "delhi";
+    if (["chennai", "maa"].includes(v)) return "chennai";
+    return v;
+  };
+
+  React.useEffect(() => {
+    if (cityName && approversList.length > 0) {
+      const target = normCity(cityName);
+      const match = (target === "mumbai"
+        ? approversList.find(a => normCity(a.city) === "mumbai" && (a.name?.toLowerCase().includes("tapan") || a.username?.toLowerCase().includes("tapan")))
+        : null
+      ) || approversList.find(a => normCity(a.city) === target && (a.role?.toLowerCase().includes("city manager") || a.role?.toLowerCase().includes("manager") || ["CM", "GM", "BH", "DM"].includes(a.role_code)))
+        || approversList.find(a => normCity(a.city) === target);
+      
+      if (match) {
+        setApprover1Id(String(match.id));
+        setApprover1Name(match.name);
+        setEscalateTo(String(match.id));
+      }
+    }
+  }, [cityName, approversList]);
+
+  const handleReviewStatusUpdate = async (action: "APPROVE" | "REJECT") => {
+    if (!reviewRecord) return;
+    try {
+      setActionLoading(true);
+      const token = localStorage.getItem("lr_token");
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      };
+      const reqAmount = parseFloat(reviewRecord.enter_amount) || 0;
+      const appAmount = parseFloat(approvedAmountInput) || 0;
+
+      let targetStatus = "Approved";
+      if (action === "REJECT") {
+        targetStatus = "Rejected";
+      } else if (appAmount < reqAmount) {
+        targetStatus = "Partially Approved";
+      }
+
+      const res = await fetch(`/api/adjustment/${reviewRecord.id}/status`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          status: targetStatus,
+          approved_amount: action === "REJECT" ? "0" : approvedAmountInput
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Failed to update approval status");
+      }
+
+      alert(`Adjustment #${reviewRecord.id} updated to ${targetStatus} (Approved: ₹${action === "REJECT" ? 0 : approvedAmountInput})`);
+      setReviewRecord(null);
+      fetchData();
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Dynamic Sub Point Options based on Feedback
   const SUB_TYPE_OPTIONS: Record<string, string[]> = {
     "Rental Waiver": [
@@ -201,7 +277,51 @@ export default function AdjustmentForm({
   const [filterCity, setFilterCity] = useState("all");
   const [filterAdjType, setFilterAdjType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const PAGE_SIZE = 10;
   
+  const getSubmissionTimestamp = (r: any): number => {
+    const raw = r.approval_submitted_at || r.created_at || r.updated_at;
+    if (!raw) return 0;
+    try {
+      let str = String(raw).trim();
+      if (str.includes(" ") && !str.includes("T")) str = str.replace(" ", "T");
+      if (!str.endsWith("Z") && !/[+-]\d{2}:?\d{2}$/.test(str)) str += "Z";
+      const t = new Date(str).getTime();
+      return isNaN(t) ? 0 : t;
+    } catch {
+      return 0;
+    }
+  };
+
+  const getSubmissionTimeComponents = (r: any) => {
+    const rawDate = r.approval_submitted_at || r.created_at || r.updated_at;
+    if (!rawDate) return { date: "—", time: "" };
+    try {
+      let str = String(rawDate).trim();
+      if (str.includes(" ") && !str.includes("T")) str = str.replace(" ", "T");
+      if (!str.endsWith("Z") && !/[+-]\d{2}:?\d{2}$/.test(str)) str += "Z";
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return { date: String(rawDate), time: "" };
+      const date = d.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Kolkata"
+      });
+      const time = d.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata"
+      }).toLowerCase();
+      return { date, time };
+    } catch {
+      return { date: String(rawDate), time: "" };
+    }
+  };
+
   const [retrieveSearchInput, setRetrieveSearchInput] = useState("");
 
   const displayName = user.name || user.username || "User";
@@ -486,9 +606,9 @@ export default function AdjustmentForm({
           const sendErr = await sendRes.json();
           throw new Error(sendErr.detail || "Saved as draft, but failed to send for approval");
         }
-        alert("🚀 Hisaab Adjustment Submitted & Sent for Approval Successfully!");
+        alert("Hisaab adjustment submitted and sent for approval successfully.");
       } else {
-        alert("💾 Hisaab Adjustment Draft Saved Successfully!");
+        alert("Hisaab adjustment draft saved successfully.");
       }
 
       resetForm();
@@ -496,7 +616,7 @@ export default function AdjustmentForm({
       fetchRecords();
       setActiveTab("registry");
     } catch (err: any) {
-      alert("❌ Error: " + err.message);
+      alert("Error: " + err.message);
     }
   };
 
@@ -533,55 +653,95 @@ export default function AdjustmentForm({
         const sendErr = await sendRes.json();
         throw new Error(sendErr.detail || "Failed to send for approval");
       }
-      alert("🚀 Sent for approval successfully!");
+      alert("Sent for approval successfully.");
       fetchStats();
       fetchRecords();
     } catch (err: any) {
-      alert("❌ Error: " + err.message);
+      alert("Error: " + err.message);
     }
   };
 
   // Filter and Search logic
   const filteredRecords = useMemo(() => {
-    return records.filter((r) => {
+    const list = records.filter((r) => {
+      const q = searchQuery.toLowerCase().trim();
       const matchesSearch = 
-        !searchQuery ||
-        r.partner_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.partner_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.hisaab_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.driver_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        String(r.id).includes(searchQuery);
+        !q ||
+        r.partner_name?.toLowerCase().includes(q) ||
+        r.partner_code?.toLowerCase().includes(q) ||
+        r.hisaab_number?.toLowerCase().includes(q) ||
+        r.driver_id?.toLowerCase().includes(q) ||
+        r.city_name?.toLowerCase().includes(q) ||
+        String(r.id).includes(q);
 
       const matchesCity = filterCity === "all" || r.city_name === filterCity;
       const matchesType = filterAdjType === "all" || r.adjustment_type === filterAdjType;
-      const matchesStatus = filterStatus === "all" || r.status === filterStatus;
+      
+      const effAppStatus = (r.approval_status || "").trim();
+      const effStatus = (r.status || "").trim();
+      const matchesStatus = 
+        filterStatus === "all" || 
+        effStatus === filterStatus || 
+        effAppStatus === filterStatus ||
+        (filterStatus === "Partially Approved" && (effStatus === "Partially Approved" || effAppStatus === "Partially Approved")) ||
+        (filterStatus === "Approved" && (effStatus === "Approved" || effAppStatus === "Approved" || effStatus === "Completed")) ||
+        (filterStatus === "Pending" && (effStatus.includes("Pending") || effAppStatus.includes("Pending"))) ||
+        (filterStatus === "Hold" && (effStatus === "Hold" || effStatus === "On Hold")) ||
+        (filterStatus === "Rejected" && (effStatus === "Declined" || effStatus === "Rejected" || effAppStatus === "Rejected")) ||
+        (filterStatus === "Draft" && (effStatus === "Draft" || effAppStatus === "Draft" || (!effAppStatus && effStatus === "Draft")));
 
       return matchesSearch && matchesCity && matchesType && matchesStatus;
     });
-  }, [records, searchQuery, filterCity, filterAdjType, filterStatus]);
+
+    return list.sort((a, b) => {
+      const timeA = getSubmissionTimestamp(a);
+      const timeB = getSubmissionTimestamp(b);
+      if (timeA !== timeB) {
+        return sortOrder === "desc" ? timeB - timeA : timeA - timeB;
+      }
+      return sortOrder === "desc" ? b.id - a.id : a.id - b.id;
+    });
+  }, [records, searchQuery, filterCity, filterAdjType, filterStatus, sortOrder]);
+
+  const totalPages = Math.ceil(filteredRecords.length / PAGE_SIZE) || 1;
+  const paginatedRecords = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredRecords.slice(start, start + PAGE_SIZE);
+  }, [filteredRecords, currentPage]);
 
   // CSV Export
   const handleExportCSV = () => {
     if (records.length === 0) return alert("No data available to export");
-    const headers = ["ID", "City", "Partner Name", "Partner Code", "Driver ID", "Vehicle No", "Hisaab No", "Hisaab Date", "Adj Level", "Adj Type", "Sub Type", "Amount", "Mandatory Date", "Optional Date", "Approval Status", "Status"];
-    const rows = records.map(r => [
-      r.id,
-      r.city_name,
-      `"${r.partner_name || ""}"`,
-      r.partner_code || "",
-      r.driver_id || "",
-      r.vehicle_number || "",
-      r.hisaab_number || "",
-      r.hisaab_date || "",
-      r.adjustment_level,
-      r.adjustment_type,
-      r.adjustment_sub_type || "",
-      r.enter_amount,
-      r.adjustment_date_mandatory || r.adjustment_date || "",
-      r.adjustment_date_optional || "",
-      r.approval_status || "Draft",
-      r.status
-    ]);
+    const headers = [
+      "ID", "City", "Partner Name", "Partner Code", "Driver ID", "Vehicle No", 
+      "Hisaab No", "Hisaab Date", "Adj Level", "Adj Type", "Sub Type", "Requested Amount", 
+      "Approved Amount", "Submission Time", "Mandatory Date", "Optional Date", 
+      "Approval Status", "Status"
+    ];
+    const rows = records.map(r => {
+      const subTime = getSubmissionTimeComponents(r);
+      const subTimeStr = subTime.time ? `${subTime.date} ${subTime.time}` : subTime.date;
+      return [
+        r.id,
+        r.city_name,
+        `"${r.partner_name || ""}"`,
+        r.partner_code || "",
+        r.driver_id || "",
+        r.vehicle_number || "",
+        r.hisaab_number || "",
+        r.hisaab_date || "",
+        r.adjustment_level,
+        r.adjustment_type,
+        r.adjustment_sub_type || "",
+        r.enter_amount,
+        r.approved_amount || "",
+        `"${subTimeStr}"`,
+        r.adjustment_date_mandatory || r.adjustment_date || "",
+        r.adjustment_date_optional || "",
+        r.approval_status || "Draft",
+        r.status
+      ];
+    });
 
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -598,7 +758,7 @@ export default function AdjustmentForm({
       
       {/* APP BAR HEADER */}
       <header className="sticky top-0 z-40 border-b border-border bg-white/90 backdrop-blur-md shadow-2xs">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-[1550px] items-center justify-between px-4 sm:px-6 lg:px-8">
           
           {/* Logo & Navigation */}
           <div className="flex items-center gap-4">
@@ -675,10 +835,10 @@ export default function AdjustmentForm({
       </header>
 
       {/* MAIN CONTAINER */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="flex-grow max-w-[1550px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {activeTab === "form" ? (
-          <div>
+          <div className="max-w-5xl mx-auto">
             {/* Form card header */}
             <div className="rounded-2xl border border-border bg-white shadow-xl overflow-hidden mb-10 transition-all">
               <div className="bg-primary text-white px-8 py-6 relative">
@@ -720,11 +880,11 @@ export default function AdjustmentForm({
                   </div>
                   <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
                     <span className="flex items-center gap-1 text-slate-700 font-bold">1. Draft</span>
-                    <span className="text-slate-300">➔</span>
+                    <ArrowRight className="w-3 h-3 text-slate-300" />
                     <span className="flex items-center gap-1 text-blue-600 font-bold">2. L1 (Manager)</span>
-                    <span className="text-slate-300">➔</span>
+                    <ArrowRight className="w-3 h-3 text-slate-300" />
                     <span className="flex items-center gap-1 text-purple-600 font-bold">3. L2 (City Head)</span>
-                    <span className="text-slate-300">➔</span>
+                    <ArrowRight className="w-3 h-3 text-slate-300" />
                     <span className="flex items-center gap-1 text-emerald-600 font-bold">4. Approved</span>
                   </div>
                 </div>
@@ -1023,30 +1183,41 @@ export default function AdjustmentForm({
                           className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-sans text-xs outline-none focus:border-primary cursor-pointer font-medium"
                         >
                           <option value="">-- Select First Approver --</option>
-                          <optgroup label="Primary Approvers">
+                          {cityName && (
+                            <optgroup label={`City Approvers (${cityName})`}>
+                              {approversList
+                                .filter(a => normCity(a.city) === normCity(cityName))
+                                .map(a => (
+                                  <option key={`city-${a.id}`} value={String(a.id)}>
+                                    {a.name} ({a.role || 'City Manager'} - {a.city || cityName})
+                                  </option>
+                                ))}
+                            </optgroup>
+                          )}
+                          <optgroup label="Primary Management">
                             {["Mohan Kumar", "Sarvagna", "Ravi"].map(name => {
                               const matchedUser = approversList.find(a => a.name?.toLowerCase().includes(name.toLowerCase()));
                               const idVal = matchedUser ? String(matchedUser.id) : name;
                               const displayName = matchedUser ? matchedUser.name : name;
                               const displayRole = matchedUser?.role || matchedUser?.email || 'Management';
+                              const displayCity = matchedUser?.city ? ` - ${matchedUser.city}` : '';
                               return (
                                 <option key={name} value={idVal}>
-                                  {displayName} ({displayRole})
+                                  {displayName} ({displayRole}{displayCity})
                                 </option>
                               );
                             })}
                           </optgroup>
-                          {approversList.filter(a => !["mohan", "sarvagna", "ravi"].some(k => a.name?.toLowerCase().includes(k))).length > 0 && (
-                            <optgroup label="Other Approvers">
-                              {approversList
-                                .filter(a => !["mohan", "sarvagna", "ravi"].some(k => a.name?.toLowerCase().includes(k)))
-                                .map(a => (
-                                  <option key={a.id} value={String(a.id)}>
-                                    {a.name} ({a.role || a.email || 'Approver'})
-                                  </option>
-                                ))}
-                            </optgroup>
-                          )}
+                          <optgroup label="Other Approvers">
+                            {approversList
+                              .filter(a => !cityName || normCity(a.city) !== normCity(cityName))
+                              .filter(a => !["mohan", "sarvagna", "ravi"].some(k => a.name?.toLowerCase().includes(k)))
+                              .map(a => (
+                                <option key={a.id} value={String(a.id)}>
+                                  {a.name} ({a.role || 'Approver'}{a.city ? ` - ${a.city}` : ''})
+                                </option>
+                              ))}
+                          </optgroup>
                         </select>
                       </div>
 
@@ -1190,76 +1361,75 @@ export default function AdjustmentForm({
             </div>
           </div>
         ) : (
-          /* REGISTRY REGISTRATION */
-          <div className="space-y-10">
+          <div className="space-y-6">
             
             {/* 4 STATS CARDS */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               
               {/* CARD 1: Total Adjustments */}
-              <div className="rounded-2xl border border-border bg-white p-6 shadow-sm flex items-center justify-between">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <span className="font-sans text-[10px] font-bold text-text-muted tracking-widest block">Total Adjustments</span>
-                  <span className="font-sans text-3xl font-extrabold text-primary tracking-tight block mt-1">{stats.total_adjustments}</span>
-                  <span className="font-sans text-[10px] text-text-muted block mt-0.5">Requests processed</span>
+                  <span className="font-sans text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Adjustments</span>
+                  <span className="font-sans text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight block mt-1">{stats.total_adjustments}</span>
+                  <span className="font-sans text-[11px] text-slate-400 font-medium block mt-0.5">Requests processed</span>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-primary">
-                  <Settings className="h-6 w-6" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-700">
+                  <FileText className="h-5 w-5 text-slate-600" />
                 </div>
               </div>
 
               {/* CARD 2: Total Amount */}
-              <div className="rounded-2xl border border-border bg-white p-6 shadow-sm flex items-center justify-between">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <span className="font-sans text-[10px] font-bold text-text-muted tracking-widest block">Total Amount</span>
-                  <span className="font-sans text-3xl font-extrabold text-amber-600 tracking-tight block mt-1">₹{stats.total_amount.toLocaleString("en-IN")}</span>
-                  <span className="font-sans text-[10px] text-text-muted block mt-0.5">Net adjustment value</span>
+                  <span className="font-sans text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Amount</span>
+                  <span className="font-sans text-2xl sm:text-3xl font-extrabold text-amber-600 tracking-tight block mt-1">₹{stats.total_amount.toLocaleString("en-IN")}</span>
+                  <span className="font-sans text-[11px] text-slate-400 font-medium block mt-0.5">Net adjustment value</span>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-50 text-amber-600">
-                  <DollarSign className="h-6 w-6" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 border border-amber-200 text-amber-600">
+                  <IndianRupee className="h-5 w-5" />
                 </div>
               </div>
 
               {/* CARD 3: Approved By Finance */}
-              <div className="rounded-2xl border border-border bg-white p-6 shadow-sm flex items-center justify-between">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <span className="font-sans text-[10px] font-bold text-text-muted tracking-widest block">Approved By Finance</span>
-                  <span className="font-sans text-3xl font-extrabold text-green tracking-tight block mt-1">{stats.approved_count}</span>
-                  <span className="font-sans text-[10px] text-text-muted block mt-0.5">Ready for settlement</span>
+                  <span className="font-sans text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Approved Adjustments</span>
+                  <span className="font-sans text-2xl sm:text-3xl font-extrabold text-emerald-600 tracking-tight block mt-1">{stats.approved_count}</span>
+                  <span className="font-sans text-[11px] text-slate-400 font-medium block mt-0.5">Ready for settlement</span>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green/10 text-green">
-                  <CheckCircle className="h-6 w-6" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600">
+                  <CheckCircle className="h-5 w-5" />
                 </div>
               </div>
 
               {/* CARD 4: Completed Status */}
-              <div className="rounded-2xl border border-border bg-white p-6 shadow-sm flex items-center justify-between">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex items-center justify-between">
                 <div>
-                  <span className="font-sans text-[10px] font-bold text-text-muted tracking-widest block">Completed Status</span>
-                  <span className="font-sans text-3xl font-extrabold text-indigo-600 tracking-tight block mt-1">{stats.completed_count}</span>
-                  <span className="font-sans text-[10px] text-text-muted block mt-0.5">Fully closed adjustments</span>
+                  <span className="font-sans text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Completed Status</span>
+                  <span className="font-sans text-2xl sm:text-3xl font-extrabold text-indigo-600 tracking-tight block mt-1">{stats.completed_count}</span>
+                  <span className="font-sans text-[11px] text-slate-400 font-medium block mt-0.5">Fully closed adjustments</span>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                  <ShieldCheck className="h-6 w-6" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600">
+                  <ShieldCheck className="h-5 w-5" />
                 </div>
               </div>
             </div>
 
             {/* TABLE & FILTER CARD */}
-            <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
               
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border bg-white px-6 py-5">
+              <div className="border-b border-slate-200 p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="font-sans text-lg font-extrabold text-text tracking-tight">Adjustment Registry</h2>
-                  <p className="font-sans text-xs text-text-muted mt-0.5">Audit log of all adjustment requests, approval states, and proofs.</p>
+                  <h3 className="font-sans text-xl font-bold text-slate-900 tracking-tight">Adjustment Registry</h3>
+                  <p className="font-sans text-xs text-slate-500 mt-1">Audit log of all adjustment requests, approval status, and proofs</p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <button 
                     onClick={handleExportCSV}
-                    className="flex items-center gap-1.5 rounded-xl border border-border bg-white px-4 py-2 font-sans text-xs font-bold text-text hover:bg-bg transition-colors shadow-2xs cursor-pointer"
+                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-4 font-sans text-xs font-semibold text-slate-700 transition-colors cursor-pointer shadow-2xs"
                   >
-                    <Download className="h-3.5 w-3.5" />
+                    <Download className="h-4 w-4" />
                     Export CSV
                   </button>
                   <button 
@@ -1267,33 +1437,33 @@ export default function AdjustmentForm({
                       resetForm();
                       setActiveTab("form");
                     }}
-                    className="flex items-center gap-1.5 rounded-xl bg-green px-4 py-2 font-sans text-xs font-bold text-white hover:bg-green/90 transition-colors shadow-xs cursor-pointer"
+                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 font-sans text-xs font-semibold text-white transition-colors cursor-pointer shadow-xs"
                   >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus className="h-4 w-4" />
                     Add Adjustment
                   </button>
                 </div>
               </div>
 
               {/* SEARCH & FILTERS BAR */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-b border-border bg-bg/30 px-6 py-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-b border-slate-200 bg-slate-50/50 p-4">
                 
                 <div className="relative flex items-center">
-                  <Search className="absolute left-3.5 h-4 w-4 text-text-muted pointer-events-none" />
+                  <Search className="absolute left-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
                   <input 
                     type="text" 
-                    placeholder="Search name, code, Hisaab..." 
+                    placeholder="Search partner, code, Hisaab..." 
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-white pl-10 pr-4 py-2 font-sans text-xs focus:border-primary focus:outline-none transition-all shadow-2xs"
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                    className="w-full h-10 rounded-xl border border-slate-200 bg-white pl-10 pr-4 font-sans text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs"
                   />
                 </div>
 
                 <div className="relative">
                   <select 
                     value={filterCity}
-                    onChange={(e) => setFilterCity(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-white px-4 py-2 font-sans text-xs focus:border-primary focus:outline-none transition-all shadow-2xs cursor-pointer"
+                    onChange={(e) => { setFilterCity(e.target.value); setCurrentPage(1); }}
+                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3.5 font-sans text-xs text-slate-700 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs cursor-pointer"
                   >
                     <option value="all">All Cities</option>
                     <option value="Hyderabad">Hyderabad</option>
@@ -1307,12 +1477,13 @@ export default function AdjustmentForm({
                 <div className="relative">
                   <select 
                     value={filterAdjType}
-                    onChange={(e) => setFilterAdjType(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-white px-4 py-2 font-sans text-xs focus:border-primary focus:outline-none transition-all shadow-2xs cursor-pointer"
+                    onChange={(e) => { setFilterAdjType(e.target.value); setCurrentPage(1); }}
+                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3.5 font-sans text-xs text-slate-700 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs cursor-pointer"
                   >
                     <option value="all">All Types</option>
                     <option value="Credit">Credit</option>
                     <option value="Debit">Debit</option>
+                    <option value="Rental Waiver">Rental Waiver</option>
                     <option value="Waiver">Waiver</option>
                   </select>
                 </div>
@@ -1320,107 +1491,197 @@ export default function AdjustmentForm({
                 <div className="relative">
                   <select 
                     value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-white px-4 py-2 font-sans text-xs focus:border-primary focus:outline-none transition-all shadow-2xs cursor-pointer"
+                    onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3.5 font-sans text-xs text-slate-700 focus:border-emerald-600 focus:outline-none transition-all shadow-2xs cursor-pointer"
                   >
-                    <option value="all">All Outcomes</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Hold">Hold</option>
-                    <option value="Declined">Declined</option>
+                    <option value="all">All Statuses</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Partially Approved">Partially Approved</option>
+                    <option value="Pending">Pending Approval</option>
+                    <option value="Hold">On Hold</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Draft">Draft</option>
                   </select>
                 </div>
               </div>
 
               {/* TABLE CONTAINER */}
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-border bg-bg/50 select-none">
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted text-left w-16">ID</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted text-left">Partner / Hisaab</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted text-left">Adj. Details</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted text-left">Amount & Type</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted text-left">Approvals</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted text-left">Status</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted text-left">Approval Status</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted text-right w-32">Actions</th>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left w-14 whitespace-nowrap">ID</th>
+                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left">Partner / Hisaab</th>
+                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left">Adjustment Details</th>
+                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left whitespace-nowrap">Amount</th>
+                      <th 
+                        onClick={() => setSortOrder(prev => prev === "desc" ? "asc" : "desc")}
+                        className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left cursor-pointer hover:bg-slate-100 transition-colors select-none whitespace-nowrap"
+                        title="Click to sort by Submission Time"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Submission Time</span>
+                          <ArrowUpDown className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600" />
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700">
+                            {sortOrder === "desc" ? "Newest" : "Oldest"}
+                          </span>
+                        </div>
+                      </th>
+                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left">Pending With</th>
+                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-left whitespace-nowrap">Status</th>
+                      <th className="px-3.5 py-3 font-sans text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center w-36 whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border bg-white">
+                  <tbody className="divide-y divide-slate-100">
                     {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-6 py-12 text-center text-text-muted font-sans text-xs">
+                        <td colSpan={8} className="px-6 py-12 text-center text-slate-500 font-sans text-xs bg-slate-50/50">
                           No matching adjustment records found in the database.
                         </td>
                       </tr>
                     ) : (
-                      filteredRecords.map((r) => {
-                        const appStatus = r.approval_status || "Draft";
-                        const isDraft = appStatus === "Draft" || !appStatus;
-                        let appBadge = <span className="inline-block rounded-full px-2 py-0.5 text-[9px] font-extrabold bg-slate-100 text-slate-600 border border-slate-200">Draft</span>;
-                        if (appStatus.includes("Pending")) {
-                          appBadge = <span className="inline-block rounded-full px-2 py-0.5 text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">⏳ {appStatus}</span>;
-                        } else if (appStatus.includes("Approved")) {
-                          appBadge = <span className="inline-block rounded-full px-2 py-0.5 text-[9px] font-extrabold bg-green-100 text-green-800 border border-green-200">✅ Approved</span>;
-                        } else if (appStatus.includes("Reject")) {
-                          appBadge = <span className="inline-block rounded-full px-2 py-0.5 text-[9px] font-extrabold bg-red-100 text-red-800 border border-red-200">❌ Rejected</span>;
+                      paginatedRecords.map((r) => {
+                        const rawStatus = r.status || "Draft";
+                        const rawAppStatus = r.approval_status || "";
+                        const isDraft = (rawStatus === "Draft" || rawAppStatus === "Draft") && !rawAppStatus.includes("Pending") && !rawAppStatus.includes("Approved");
+                        const reqAmt = parseFloat(r.enter_amount) || 0;
+                        const appAmt = r.approved_amount ? parseFloat(r.approved_amount) : reqAmt;
+                        const isPartial = r.approved_amount && appAmt > 0 && appAmt < reqAmt;
+                        const subTime = getSubmissionTimeComponents(r);
+
+                        let finalStatus = "Draft";
+                        let statusBadgeStyle = "bg-slate-100 text-slate-700 border-slate-200";
+
+                        if (rawAppStatus === "Partially Approved" || rawStatus === "Partially Approved" || isPartial) {
+                          finalStatus = "Partially Approved";
+                          statusBadgeStyle = "bg-amber-50 text-amber-800 border-amber-300";
+                        } else if (rawAppStatus === "Approved" || rawStatus === "Approved" || rawStatus === "Completed") {
+                          finalStatus = "Approved";
+                          statusBadgeStyle = "bg-emerald-50 text-emerald-800 border-emerald-300";
+                        } else if (rawAppStatus === "Rejected" || rawStatus === "Declined" || rawStatus === "Rejected") {
+                          finalStatus = "Rejected";
+                          statusBadgeStyle = "bg-rose-50 text-rose-800 border-rose-300";
+                        } else if (rawStatus === "Hold" || rawStatus === "On Hold") {
+                          finalStatus = "On Hold";
+                          statusBadgeStyle = "bg-amber-50 text-amber-800 border-amber-300";
+                        } else if (rawAppStatus.includes("Pending") || rawStatus === "Pending Approval") {
+                          finalStatus = rawAppStatus || "Pending Approval";
+                          statusBadgeStyle = "bg-amber-50 text-amber-700 border-amber-200/80";
+                        } else {
+                          finalStatus = "Draft";
+                          statusBadgeStyle = "bg-slate-100 text-slate-700 border-slate-200";
                         }
+
                         return (
-                          <tr key={r.id} className="hover:bg-bg/10 transition-colors">
-                            <td className="px-6 py-4 font-mono text-xs font-bold text-primary">#{r.id}</td>
-                            <td className="px-6 py-4">
-                              <div className="font-sans text-xs font-bold text-text">{r.partner_name}</div>
-                              <div className="font-mono text-[10px] text-text-muted mt-0.5">{r.partner_code} · {r.adjustment_level}</div>
-                              {r.hisaab_number && <div className="font-mono text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded w-max mt-1 text-bold">Hisaab: {r.hisaab_number}</div>}
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="font-sans text-[10px] font-bold text-text">Severity: {r.severity_level || "N/A"}</div>
-                              {r.driver_id && <div className="font-mono text-[10px] text-text-muted mt-0.5">Driver ID: #{r.driver_id}</div>}
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="font-sans text-xs font-extrabold text-primary">₹{parseFloat(r.enter_amount).toLocaleString("en-IN")}</div>
-                              <span data-name="hisaab_line_items" className={`inline-block rounded-md px-1.5 py-0.5 font-mono text-[9px] font-bold mt-1 ${ r.adjustment_type === "Credit" ? "bg-green/10 text-green" : r.adjustment_type === "Debit" ? "bg-red-50 text-red-600 border border-red-100" : "bg-amber-50 text-amber-600 border border-amber-100" }`}>
-                                {r.adjustment_type}
-                              </span>
-                              <div className="font-sans text-[9px] text-text-muted mt-1">{r.adjustment_date}</div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span data-name="sent_for_approval" className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-extrabold ${ r.finance_team_status === "Approved" ? "bg-green/10 text-green" : r.finance_team_status === "Rejected" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700" }`}>
-                                {r.finance_team_status}
-                              </span>
-                              {r.escalate_to && (
-                                <div className="font-sans text-[9px] text-text-muted mt-1">To: {r.escalate_to}</div>
+                          <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-3.5 py-3 font-sans text-xs font-semibold text-slate-700 whitespace-nowrap">#{r.id}</td>
+                            <td className="px-3.5 py-3">
+                              <div className="font-sans text-xs font-bold text-slate-900">{r.partner_name || "—"}</div>
+                              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                {r.partner_code ? `${r.partner_code} · ` : ''}{r.adjustment_level || 'Partner'}
+                                {r.city_name ? ` (${r.city_name})` : ''}
+                              </div>
+                              {r.hisaab_number && (
+                                <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-md mt-1 whitespace-nowrap">
+                                  Hisaab: {r.hisaab_number}
+                                </span>
                               )}
                             </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-extrabold ${ r.status === "Completed" ? "bg-green-500 text-white" : r.status === "Declined" ? "bg-red-600 text-white" : "bg-yellow-500 text-white" }`}>
-                                {r.status}
+                            <td className="px-3.5 py-3">
+                              <span className={`inline-block rounded-md px-2 py-0.5 font-sans text-[11px] font-semibold border whitespace-nowrap ${
+                                r.adjustment_type === "Credit" 
+                                   ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
+                                  : r.adjustment_type === "Debit" 
+                                  ? "bg-rose-50 text-rose-800 border-rose-200" 
+                                  : "bg-amber-50 text-amber-800 border-amber-200"
+                              }`}>
+                                {r.adjustment_type || "Adjustment"}
+                              </span>
+                              <div className="text-[11px] text-slate-600 font-medium mt-1">
+                                {r.adjustment_reason || r.contested_item || (r.severity_level ? `Severity: ${r.severity_level}` : "Standard")}
+                              </div>
+                              {r.driver_id && (
+                                <div className="font-mono text-[10px] text-slate-400 mt-0.5">
+                                  Driver ID: #{r.driver_id}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-3.5 py-3 whitespace-nowrap">
+                              <div className="font-sans text-xs font-bold text-slate-900">
+                                Requested: ₹{reqAmt.toLocaleString("en-IN")}
+                              </div>
+                              {(r.approved_amount || isPartial || finalStatus === "Approved" || finalStatus === "Partially Approved") && r.approved_amount && (
+                                <div className="inline-flex items-center gap-1 font-sans text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-md mt-0.5">
+                                  Approved: ₹{parseFloat(r.approved_amount).toLocaleString("en-IN")}
+                                </div>
+                              )}
+                              <div className="text-[10px] text-slate-400 font-medium mt-1">
+                                Adj Date: {r.adjustment_date_mandatory || r.adjustment_date || "—"}
+                              </div>
+                            </td>
+                            <td className="px-3.5 py-3 font-sans text-xs text-slate-800 whitespace-nowrap">
+                              <span className="font-bold text-slate-900 block">{subTime.date}</span>
+                              <span className="text-[10px] text-slate-400 font-medium block">{subTime.time || "—"}</span>
+                            </td>
+                            <td className="px-3.5 py-3">
+                              {finalStatus === "Approved" || finalStatus === "Partially Approved" ? (
+                                <div>
+                                  <span className="font-sans text-xs font-bold text-slate-800 block">Completed</span>
+                                  <span className="text-[10px] text-slate-400 font-medium block">Ready for settlement</span>
+                                </div>
+                              ) : r.approver_1_name || r.escalate_to || r.current_approver_name ? (
+                                <div>
+                                  <span className="font-sans text-xs font-bold text-slate-800 block">
+                                    {r.approver_1_name || r.escalate_to || r.current_approver_name}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-medium block">Assigned Approver</span>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 text-xs font-medium">—</span>
+                              )}
+                            </td>
+                            <td className="px-3.5 py-3 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-lg border font-semibold text-[11px] whitespace-nowrap ${statusBadgeStyle}`}>
+                                {finalStatus}
                               </span>
                             </td>
-                            <td className="px-6 py-4">
-                              {appBadge}
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
+                            <td className="px-3.5 py-3 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setReviewRecord(r);
+                                    setApprovedAmountInput(r.approved_amount || r.enter_amount);
+                                  }}
+                                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-sans text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
+                                  title="Review &amp; Verify"
+                                >
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                  Review
+                                </button>
                                 {isDraft && (
                                   <button
+                                    type="button"
                                     onClick={() => handleSendForApproval(r.id)}
-                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-sans text-[10px] font-bold transition-colors cursor-pointer"
+                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-sans text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
                                     title="Send for Approval"
                                   >
-                                    ✉ Send
+                                    <Send className="h-3.5 w-3.5" />
+                                    Send
                                   </button>
                                 )}
                                 <button 
+                                  type="button"
                                   onClick={() => loadRecordForEdit(r.id)}
-                                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-bg hover:bg-primary hover:text-white transition-colors cursor-pointer"
+                                  className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
                                   title="Edit Adjustment"
                                 >
                                   <Edit className="h-3.5 w-3.5" />
                                 </button>
                                 <button 
+                                  type="button"
                                   onClick={() => handleDelete(r.id, r.partner_name)}
-                                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-bg text-red-600 hover:bg-red-600 hover:text-white transition-colors cursor-pointer"
+                                  className="h-7 w-7 rounded-lg flex items-center justify-center text-rose-500 hover:text-rose-700 hover:bg-rose-50 border border-rose-200/60 transition-colors cursor-pointer"
                                   title="Delete Adjustment"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -1435,11 +1696,54 @@ export default function AdjustmentForm({
                 </table>
               </div>
 
-              {/* FOOTER STATS */}
-              <div className="flex items-center justify-between border-t border-border bg-bg/20 px-6 py-4 font-sans text-xs text-text-muted">
-                <span>Showing {filteredRecords.length} of {records.length} database entries</span>
-                <span className="font-mono">Database Engine: PostgreSQL</span>
+              {/* PAGINATION FOOTER */}
+              <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 font-sans text-xs text-slate-500">
+                <span>
+                  Showing {filteredRecords.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredRecords.length)} of {filteredRecords.length} records
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="h-8 px-3 rounded-lg border border-slate-200 bg-white disabled:opacity-40 flex items-center gap-1 cursor-pointer hover:bg-slate-100 transition-colors text-slate-600"
+                  >
+                    <ChevronLeft className="w-3 h-3" /> Prev
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                    .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((p, i) =>
+                      typeof p === "string" ? (
+                        <span key={`ellipsis-${i}`} className="px-1 text-slate-400">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          onClick={() => setCurrentPage(p as number)}
+                          className={`h-8 w-8 rounded-lg border text-xs font-semibold transition-colors cursor-pointer ${
+                            currentPage === p
+                              ? "border-emerald-600 bg-emerald-600 text-white"
+                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )
+                  }
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages || filteredRecords.length === 0}
+                    className="h-8 px-3 rounded-lg border border-slate-200 bg-white disabled:opacity-40 flex items-center gap-1 cursor-pointer hover:bg-slate-100 transition-colors text-slate-600"
+                  >
+                    Next <ChevronRight className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
+
             </div>
           </div>
         )}
@@ -1459,9 +1763,118 @@ export default function AdjustmentForm({
         />
       )}
 
+      {/* Partial Approval Review Modal */}
+      {reviewRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl space-y-5 border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">Review Adjustment #{reviewRecord.id}</h3>
+                <p className="text-[11px] text-slate-500">{reviewRecord.partner_name} · {reviewRecord.city_name || "City N/A"}</p>
+              </div>
+              <button 
+                onClick={() => setReviewRecord(null)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl space-y-2 border border-slate-200 text-xs">
+              <div className="flex justify-between">
+                <span className="font-medium text-slate-600">Adjustment Type:</span>
+                <span className="font-bold text-slate-800">{reviewRecord.adjustment_type} ({reviewRecord.adjustment_level})</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-medium text-slate-600">Requested Amount:</span>
+                <span className="font-mono font-extrabold text-emerald-700 text-sm">₹{parseFloat(reviewRecord.enter_amount || 0).toLocaleString("en-IN")}</span>
+              </div>
+              {reviewRecord.remarks && (
+                <div className="pt-2 border-t border-slate-200/60 text-slate-600 italic text-[11px]">
+                  "{reviewRecord.remarks}"
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-800">
+                Approved Amount (₹) <span className="text-slate-500 font-normal">(Edit for partial approval)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 font-bold text-slate-400 text-sm">₹</span>
+                <input 
+                  type="number"
+                  value={approvedAmountInput}
+                  onChange={(e) => setApprovedAmountInput(e.target.value)}
+                  placeholder="Enter approved amount"
+                  className="w-full h-10 pl-7 pr-4 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 outline-none focus:border-emerald-600 shadow-xs"
+                />
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-[10px] text-slate-500 font-medium">Quick preset:</span>
+                <button
+                  type="button"
+                  onClick={() => setApprovedAmountInput(reviewRecord.enter_amount)}
+                  className="px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 font-mono text-[10px] font-bold border border-slate-200 cursor-pointer"
+                >
+                  Full (₹{reviewRecord.enter_amount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setApprovedAmountInput(String(Math.round((parseFloat(reviewRecord.enter_amount || 0) / 2))))}
+                  className="px-2 py-0.5 rounded bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 font-mono text-[10px] font-bold border border-slate-200 cursor-pointer"
+                >
+                  Half (₹{Math.round((parseFloat(reviewRecord.enter_amount || 0) / 2))})
+                </button>
+              </div>
+
+              {/* Status Preview */}
+              <div className="pt-2 flex items-center justify-between text-xs">
+                <span className="text-slate-500 text-[11px]">Outcome:</span>
+                {parseFloat(approvedAmountInput || "0") <= 0 ? (
+                  <span className="font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 text-[11px]">Rejected (₹0)</span>
+                ) : parseFloat(approvedAmountInput || "0") < parseFloat(reviewRecord.enter_amount || "0") ? (
+                  <span className="font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-300 text-[11px]">Partially Approved (₹{approvedAmountInput} of ₹{reviewRecord.enter_amount})</span>
+                ) : (
+                  <span className="font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-300 text-[11px]">Fully Approved (₹{approvedAmountInput})</span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setReviewRecord(null)}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleReviewStatusUpdate("REJECT")}
+                disabled={actionLoading}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              >
+                Reject
+              </button>
+              <button
+                type="button"
+                onClick={() => handleReviewStatusUpdate("APPROVE")}
+                disabled={actionLoading}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              >
+                {parseFloat(approvedAmountInput || "0") < parseFloat(reviewRecord.enter_amount || "0") ? "Approve Partial Amount" : "Approve Full Amount"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* FOOTER SECTION */}
       <footer className="bg-primary py-8 text-center text-xs text-white border-t border-primary-hover font-sans mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="max-w-[1550px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <img 
             src="/letzryd_logo.png" 
             alt="LetzRyd" 

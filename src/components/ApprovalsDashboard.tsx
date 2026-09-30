@@ -106,6 +106,7 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
   const [suggestedRent, setSuggestedRent] = useState("");
   const [suggestedDeposit, setSuggestedDeposit] = useState("");
   const [revisionComment, setRevisionComment] = useState("");
+  const [partialApprovedAmount, setPartialApprovedAmount] = useState("");
 
   // Dedicated Revision Instructions View Modal state
   const [viewInstructionsModalText, setViewInstructionsModalText] = useState<{ title: string; subtitle: string; remarks: string } | null>(null);
@@ -196,7 +197,14 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
       const res = await fetch(`/api/july/record-details/${module}/${id}`, {
         headers: { Authorization: `Bearer ${token()}` },
       });
-      if (res.ok) setRecordDetails(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setRecordDetails(data);
+        if (["adjustment_form", "adjustment"].includes(module)) {
+          const amt = data.approved_amount || data.enter_amount || "";
+          setPartialApprovedAmount(String(amt));
+        }
+      }
     } catch (e) {
       showToast("Failed to load form details", "error");
     } finally {
@@ -209,6 +217,12 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
   const openRecord = (rec: any) => {
     setSelectedRecord(rec);
     setApprovalLogs([]);
+    if (["adjustment_form", "adjustment"].includes(rec.module)) {
+      const amt = rec.approved_amount || rec.enter_amount || rec.subtitle?.split("₹")[1]?.split(" ")[0]?.replace(/,/g, "") || "";
+      setPartialApprovedAmount(String(amt));
+    } else {
+      setPartialApprovedAmount("");
+    }
     loadLogs(rec.module, rec.id);
     loadDetails(rec.module, rec.id);
     setActionModal({ type: null });
@@ -225,6 +239,7 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
     }
     setActionLoading(true);
     try {
+      const isAdj = ["adjustment_form", "adjustment"].includes(forwardModalItem.module);
       const res = await fetch(`/api/july/approval/${forwardModalItem.module}/${forwardModalItem.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
@@ -232,6 +247,7 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
           action: "FORWARD",
           remarks: forwardComment.trim() || "Forwarded for approval",
           forward_to_user_id: forwardToId,
+          approved_amount: isAdj ? (partialApprovedAmount || undefined) : undefined,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -329,7 +345,11 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
   };
 
   // Direct Row Action (e.g. Approve)
-  const handleDirectApprove = async (module: string, id: number) => {
+  const handleDirectApprove = async (module: string, id: number, item?: any) => {
+    if (["adjustment_form", "adjustment"].includes(module) && item) {
+      openRecord(item);
+      return;
+    }
     setActionLoading(true);
     try {
       const res = await fetch(`/api/july/approval/${module}/${id}`, {
@@ -345,7 +365,7 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
       showToast("Approved successfully!");
       loadAll();
     } catch (e: any) {
-      showToast(e.message || "Approval failed", "error");
+      showToast(formatErrorMessage(e, "Approval failed"), "error");
     } finally {
       setActionLoading(false);
     }
@@ -384,15 +404,27 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
           action: actionName,
           remarks: finalRemarks || null,
           forward_to_user_id: forwardToId,
+          approved_amount: ["adjustment_form", "adjustment"].includes(selectedRecord.module) ? (partialApprovedAmount || undefined) : undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Action failed");
-      showToast(`${actType === "APPROVE" ? "Approved" : actType === "REJECT" ? "Rejected" : actType === "HOLD" ? "Placed on hold" : actType === "SUGGEST" ? "Rent/Deposit suggestion submitted" : "Updated"} successfully!`);
+      const isPartial = ["adjustment_form", "adjustment"].includes(selectedRecord.module) && 
+        parseFloat(partialApprovedAmount || "0") < parseFloat(recordDetails?.enter_amount || selectedRecord.subtitle?.split("₹")[1]?.split(" ")[0]?.replace(/,/g, "") || "0");
+      
+      const successMsg = actType === "APPROVE"
+        ? (isPartial ? `Partially Approved with ₹${partialApprovedAmount} successfully!` : "Approved successfully!")
+        : actType === "REJECT" ? "Rejected successfully!"
+        : actType === "HOLD" ? "Placed on hold successfully!"
+        : actType === "SUGGEST" ? "Rent/Deposit suggestion submitted successfully!"
+        : "Updated successfully!";
+
+      // Immediately close modal & reset form
       setActionModal({ type: null });
       setRemarks("");
       setSelectedRecord(null);
-      loadAll();
+      showToast(successMsg, "success");
+      await loadAll();
     } catch (err: any) {
       showToast(err.message || "Action failed", "error");
     } finally {
@@ -434,6 +466,9 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
 
   const getStatusBadge = (statusStr: string) => {
     const s = (statusStr || "").toLowerCase();
+    if (s.includes("partially approved")) {
+      return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-300">Partially Approved</span>;
+    }
     if (s.includes("approved") || s.includes("completed")) {
       return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80">Approved</span>;
     }
@@ -637,7 +672,7 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
             >
               <div className="flex items-center gap-2">
                 <ClipboardList className="w-4 h-4" />
-                <span>My Submissions</span>
+                <span>My Submissions &amp; Tracked</span>
               </div>
               <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === "my-submissions" ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"}`}>
                 {mySubmissions.length}
@@ -773,6 +808,20 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
                 <span>Vehicle Drop-Off</span>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] ${selectedCategory === "dropoff" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"}`}>
                   {getCategoryCount("dropoff")}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedCategory("adjustment_form")}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                  selectedCategory === "adjustment_form" ? "bg-emerald-600 text-white shadow-xs" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                <IndianRupee className="w-3.5 h-3.5" />
+                <span>Adjustments</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] ${selectedCategory === "adjustment_form" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"}`}>
+                  {getCategoryCount("adjustment_form")}
                 </span>
               </button>
             </div>
@@ -999,12 +1048,12 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
                               <>
                                 <button
                                   type="button"
-                                  onClick={() => handleDirectApprove(item.module, item.id)}
+                                  onClick={() => handleDirectApprove(item.module, item.id, item)}
                                   disabled={actionLoading}
-                                  className="h-8 w-8 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200/80 flex items-center justify-center transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                                  className="h-8 w-8 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200/80 flex items-center justify-center transition-all shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                   title="Quick Approve Application"
                                 >
-                                  <CheckCircle className="w-4 h-4" />
+                                  {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                                 </button>
                                 <button
                                   type="button"
@@ -1649,19 +1698,32 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
       {/* Extended Record Detail Modal */}
       {selectedRecord && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-5xl h-[85vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-5xl h-[88vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0 bg-slate-50/50">
-              <div>
-                <span className="text-[10px] font-extrabold tracking-wide px-2.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
-                  {selectedRecord.module_label || MODULE_CONFIG[selectedRecord.module]?.label}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/80 shrink-0 bg-white">
+              <div className="flex items-center gap-3">
+                <span className={`text-[10px] font-extrabold tracking-wide px-2.5 py-0.5 rounded-full border ${
+                  ["adjustment_form", "adjustment"].includes(selectedRecord.module)
+                    ? "bg-amber-50 text-amber-800 border-amber-300"
+                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                }`}>
+                  {selectedRecord.module_label || MODULE_CONFIG[selectedRecord.module]?.label || "Record"}
                 </span>
-                <h3 className="text-lg font-extrabold text-slate-900 mt-1">{selectedRecord.title}</h3>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 leading-tight">
+                    {selectedRecord.title}
+                    {recordDetails?.driver_name && recordDetails.driver_name !== selectedRecord.title ? ` · ${recordDetails.driver_name}` : ""}
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    {selectedRecord.subtitle || selectedRecord.city}
+                    {recordDetails?.hisaab_number ? ` · Hisaab: ${recordDetails.hisaab_number}` : ""}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => { setSelectedRecord(null); setActionModal({ type: null }); }}
-                className="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1672,7 +1734,16 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
               
               {/* Left Column: Full Form Details */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-2">FULL FORM FIELDS & SUBMISSION CONTENT</h4>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                    Submission Details &amp; Fields
+                  </h4>
+                  {["adjustment_form", "adjustment"].includes(selectedRecord.module) && recordDetails?.adjustment_nature && (
+                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                      Nature: {recordDetails.adjustment_nature}
+                    </span>
+                  )}
+                </div>
                 
                 {detailsLoading ? (
                   <div className="flex items-center justify-center py-20">
@@ -1683,12 +1754,20 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
                     {Object.keys(recordDetails).map(key => {
                       const val = recordDetails[key];
                       
-                      // Skip only internal keys (keep driver_id, phone, dl, aadhaar, etc.!)
-                      const isInternalKey = ["onboarding_id", "vehicle_id", "ticket_id", "created_by", "current_approver_id", "approved_by", "approval_remarks", "password_hash"].includes(key);
-                      if (isInternalKey || val === null || val === "") return null;
+                      // Skip internal technical keys and empty values
+                      const isInternalKey = [
+                        "onboarding_id", "vehicle_id", "ticket_id", "created_by", "current_approver_id",
+                        "approved_by", "approval_remarks", "password_hash", "updated_by", "approver_1_id",
+                        "approver_2_id", "approval_submitted_at", "last_edited_at", "updated_at",
+                        "first_level_approval_by", "sent_for_approval", "status_val"
+                      ].includes(key);
+                      if (isInternalKey || val === null || val === "" || val === "[]" || val === "null" || (Array.isArray(val) && val.length === 0)) return null;
                       
                       const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
                       const isPhoto = (typeof val === "string" && (val.startsWith("data:image") || val.includes(".png") || val.includes(".jpg") || val.includes(".jpeg") || val.includes("/uploads/")));
+
+                      const isIsoDate = typeof val === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val);
+                      const displayVal = isIsoDate ? formatDateTime(val) : val.toString();
 
                       return (
                         <div key={key} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -1706,7 +1785,7 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
                               </a>
                             </div>
                           ) : (
-                            <p className="text-xs font-semibold text-slate-800 break-words">{val.toString()}</p>
+                            <p className="text-xs font-semibold text-slate-800 break-words">{displayVal}</p>
                           )}
                         </div>
                       );
@@ -1718,225 +1797,370 @@ export default function ApprovalsDesk({ user, onBackToSelector, onLogout, onEdit
               </div>
 
               {/* Right Column: Approval timeline logs + actions */}
-              <div className="w-full lg:w-96 shrink-0 bg-slate-50/30 overflow-y-auto p-6 flex flex-col justify-between">
-                <div className="space-y-4">
-                  {/* Summary Overview */}
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs space-y-2">
-                    <p className="text-xs text-slate-500 flex justify-between"><span>City:</span> <strong className="text-slate-800">{selectedRecord.city}</strong></p>
-                    <p className="text-xs text-slate-500 flex justify-between"><span>Status:</span> <strong className="text-slate-800">{selectedRecord.approval_status}</strong></p>
-                    <p className="text-xs text-slate-500 flex justify-between"><span>Submitted By:</span> <strong className="text-slate-800">{selectedRecord.submitted_by_name}</strong></p>
-                    <p className="text-xs text-slate-500 flex justify-between">
-                      <span>{selectedRecord.module === "dropoff" ? "Drop-Off Date:" : selectedRecord.module === "allocation" ? "Allocation Date:" : "Submitted At:"}</span> 
-                      <strong className="text-slate-800">
-                        {formatDateTimeComponents(selectedRecord.event_date_time || selectedRecord.allocation_date || selectedRecord.dropoff_date || selectedRecord.created_at).date}{" "}
-                        {formatDateTimeComponents(selectedRecord.event_date_time || selectedRecord.allocation_date || selectedRecord.dropoff_date || selectedRecord.created_at).time}
-                      </strong>
-                    </p>
-                  </div>
-
-                  {/* History timeline */}
-                  <div>
-                    <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-2">Approval Chain Logs</h4>
-                    {logsLoading ? (
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading logs...
+              <div className="w-full lg:w-[420px] shrink-0 bg-slate-50/50 overflow-y-auto p-5 space-y-4">
+                
+                {/* 1. TOP BLOCK: Financial Amount & Partial Approval for Adjustments */}
+                {["adjustment_form", "adjustment"].includes(selectedRecord.module) && (
+                  <div className="bg-gradient-to-br from-amber-50/90 via-white to-emerald-50/40 border-2 border-amber-300/80 rounded-2xl p-4 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <IndianRupee className="w-4 h-4 text-amber-700" />
+                        <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+                          Adjustment Amount Review
+                        </span>
                       </div>
-                    ) : approvalLogs.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic">No timeline history recorded.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {approvalLogs.map((log, i) => {
-                          const { date: lDate, time: lTime } = formatDateTimeComponents(log.action_at);
-                          return (
-                            <div key={i} className="bg-white p-3 rounded-xl border border-slate-200/60 text-xs shadow-xs">
-                              <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
-                                <span className="font-bold uppercase tracking-wider">{log.action}</span>
-                                <span>{lDate} {lTime}</span>
+                      {recordDetails?.approved_amount && parseFloat(recordDetails.approved_amount) < parseFloat(recordDetails.enter_amount || "0") && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                          Modified by Prev. Approver
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 2-box comparison */}
+                    <div className="grid grid-cols-2 gap-2.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Original Requested
+                        </span>
+                        <span className="font-mono font-black text-slate-900 text-sm">
+                          ₹{parseFloat(recordDetails?.enter_amount || selectedRecord.subtitle?.split("₹")[1]?.split(" ")[0]?.replace(/,/g, "") || "0").toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                          Approved Amount
+                        </span>
+                        <span className="font-mono font-black text-emerald-700 text-sm">
+                          ₹{parseFloat(partialApprovedAmount || "0").toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Editable Amount Input (only if pending and not my submission) */}
+                    {!selectedRecord.isMySubmission && selectedRecord.approval_status?.startsWith("Pending") && (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-extrabold text-slate-700">
+                            Approved Amount (₹)
+                          </label>
+                          <span className="text-[10px] text-slate-400 font-medium">Edit to partially approve</span>
+                        </div>
+                        
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 font-bold text-slate-400 text-sm">₹</span>
+                          <input
+                            type="number"
+                            value={partialApprovedAmount}
+                            onChange={(e) => setPartialApprovedAmount(e.target.value)}
+                            placeholder="Enter approved amount"
+                            className="w-full h-9 pl-7 pr-3 bg-white border border-slate-300 rounded-xl text-xs font-mono font-black text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 shadow-2xs"
+                          />
+                        </div>
+
+                        {/* Dynamic Partial status note */}
+                        {(() => {
+                          const req = parseFloat(recordDetails?.enter_amount || selectedRecord.subtitle?.split("₹")[1]?.split(" ")[0]?.replace(/,/g, "") || "0");
+                          const cur = parseFloat(partialApprovedAmount || "0");
+                          if (cur > 0 && cur < req) {
+                            return (
+                              <div className="flex items-center gap-1.5 text-[11px] text-amber-800 font-semibold bg-amber-100/70 border border-amber-200/80 px-2.5 py-1 rounded-lg">
+                                <span>⚠️ Partial Approval: ₹{cur.toLocaleString("en-IN")} (₹{(req - cur).toLocaleString("en-IN")} reduction)</span>
                               </div>
-                              <p className="font-semibold text-slate-800">
-                                {log.from_name || "System"} {log.action.toLowerCase()} {log.to_name && `to ${log.to_name}`}
-                              </p>
-                              {log.remarks && <p className="text-[11px] text-slate-500 italic mt-1 font-medium">"{log.remarks}"</p>}
-                            </div>
-                          );
-                        })}
+                            );
+                          } else if (cur > req) {
+                            return (
+                              <div className="flex items-center gap-1.5 text-[11px] text-rose-700 font-semibold bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg">
+                                <span>⚠️ Amount exceeds requested amount (₹{req.toLocaleString("en-IN")})</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+
+                        {/* Quick Presets */}
+                        <div className="flex items-center gap-1.5 pt-0.5">
+                          <span className="text-[10px] text-slate-400 font-bold">Presets:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const req = recordDetails?.enter_amount || selectedRecord.subtitle?.split("₹")[1]?.split(" ")[0]?.replace(/,/g, "") || "";
+                              setPartialApprovedAmount(String(req));
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 text-slate-700 font-mono text-[10px] font-bold border border-slate-200 cursor-pointer shadow-2xs transition-colors"
+                          >
+                            Full
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const req = parseFloat(recordDetails?.enter_amount || selectedRecord.subtitle?.split("₹")[1]?.split(" ")[0]?.replace(/,/g, "") || "0");
+                              setPartialApprovedAmount(String(Math.round(req / 2)));
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-blue-50 text-slate-700 font-mono text-[10px] font-bold border border-slate-200 cursor-pointer shadow-2xs transition-colors"
+                          >
+                            Half (50%)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const req = parseFloat(recordDetails?.enter_amount || selectedRecord.subtitle?.split("₹")[1]?.split(" ")[0]?.replace(/,/g, "") || "0");
+                              setPartialApprovedAmount(String(Math.round(req * 0.75)));
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-purple-50 text-slate-700 font-mono text-[10px] font-bold border border-slate-200 cursor-pointer shadow-2xs transition-colors"
+                          >
+                            75%
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
+                )}
 
-                  {/* Highlight Manager's Return Reason if Changes Requested */}
-                  {selectedRecord.approval_status?.includes("Requested") && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 shadow-xs mt-4">
-                      <p className="text-[10px] font-extrabold text-orange-800 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
-                        <AlertTriangle className="w-3 h-3" /> Reason for Return
-                      </p>
-                      <p className="text-xs text-orange-900 font-medium italic">
-                        "{selectedRecord.approval_remarks || approvalLogs[0]?.remarks || "Please review and resubmit."}"
-                      </p>
-                      {onEditRecord && (
-                        <button
-                          onClick={() => onEditRecord(selectedRecord.module, selectedRecord.id)}
-                          className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors shadow-xs"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" /> Edit Form &amp; Resubmit
-                        </button>
-                      )}
+                {/* 2. Summary Overview Card — No Overlaps */}
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-2 text-xs">
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span className="font-semibold text-slate-500">City:</span>
+                    <span className="font-bold text-slate-900">{selectedRecord.city || "—"}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span className="font-semibold text-slate-500">Status:</span>
+                    <div>{getStatusBadge(selectedRecord.approval_status)}</div>
+                  </div>
+                  <div className="border-t border-slate-100 pt-2 space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Submitted By</span>
+                    <p className="font-bold text-slate-800 text-xs leading-snug break-words">
+                      {selectedRecord.submitted_by_name || "—"}
+                    </p>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500 border-t border-slate-100 pt-2">
+                    <span className="font-semibold text-slate-500">
+                      {selectedRecord.module === "dropoff" ? "Drop-Off Date:" : selectedRecord.module === "allocation" ? "Allocation Date:" : "Submitted At:"}
+                    </span>
+                    <span className="font-bold text-slate-800">
+                      {formatDateTime(selectedRecord.event_date_time || selectedRecord.allocation_date || selectedRecord.dropoff_date || selectedRecord.created_at)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3. Approval Chain Logs */}
+                <div>
+                  <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-2">Approval Chain Logs</h4>
+                  {logsLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading logs...
+                    </div>
+                  ) : approvalLogs.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No timeline history recorded.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {approvalLogs.map((log, i) => {
+                        const { date: lDate, time: lTime } = formatDateTimeComponents(log.action_at);
+                        return (
+                          <div key={i} className="bg-white p-3 rounded-xl border border-slate-200/60 text-xs shadow-2xs">
+                            <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+                              <span className="font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                {log.action}
+                              </span>
+                              <span>{lDate} {lTime}</span>
+                            </div>
+                            <p className="font-semibold text-slate-800">
+                              {log.from_name || "System"} {log.action.toLowerCase()} {log.to_name && `to ${log.to_name}`}
+                            </p>
+                            {log.remarks && <p className="text-[11px] text-slate-500 italic mt-1 font-medium bg-slate-50 p-2 rounded-lg border border-slate-100">"{log.remarks}"</p>}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
 
-                {/* Message & Action trigger buttons */}
-                <div className="mt-6 border-t border-slate-200/80 pt-4 space-y-3">
-                  
-                  {/* Action Message/Remarks text box */}
-                  {!selectedRecord.isMySubmission && selectedRecord.approval_status?.startsWith("Pending") && (
+                {/* Highlight Manager's Return Reason if Changes Requested */}
+                {selectedRecord.approval_status?.includes("Requested") && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 shadow-xs">
+                    <p className="text-[10px] font-extrabold text-orange-800 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                      <AlertTriangle className="w-3 h-3" /> Reason for Return
+                    </p>
+                    <p className="text-xs text-orange-900 font-medium italic">
+                      "{selectedRecord.approval_remarks || approvalLogs[0]?.remarks || "Please review and resubmit."}"
+                    </p>
+                    {onEditRecord && (
+                      <button
+                        onClick={() => onEditRecord(selectedRecord.module, selectedRecord.id)}
+                        className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition-colors shadow-xs cursor-pointer"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" /> Edit Form &amp; Resubmit
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 4. Action Area */}
+                {actionModal.type === "FORWARD" ? (
+                  <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs space-y-2 animate-in slide-in-from-bottom-2">
+                    <p className="text-[11px] font-bold text-slate-700">Forward Approval Request To:</p>
+                    <select
+                      value={forwardToId || ""}
+                      onChange={e => setForwardToId(Number(e.target.value))}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-emerald-600 font-medium"
+                    >
+                      <option value="">Select approver...</option>
+                      {approvers.map(a => (
+                        <option key={a.id} value={a.id}>
+                          {a.name} ({a.role}) — {a.city}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex gap-1.5 pt-1">
+                      <button
+                        onClick={() => handleAction("FORWARD")}
+                        disabled={actionLoading}
+                        className="flex-1 py-1.5 bg-emerald-600 text-white font-bold text-[11px] rounded-lg hover:bg-emerald-700 cursor-pointer"
+                      >
+                        Confirm Forward
+                      </button>
+                      <button
+                        onClick={() => setActionModal({ type: null })}
+                        className="px-3 py-1.5 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : !selectedRecord.isMySubmission && selectedRecord.approval_status?.startsWith("Pending") ? (
+                  <div className="space-y-3 pt-2 border-t border-slate-200">
+                    {/* Approval / Rejection Message */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Approval / Rejection Message</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Approval / Forwarding Message (Optional)</label>
                       <textarea
                         value={remarks}
                         onChange={(e) => setRemarks(e.target.value)}
-                        placeholder="Add comments, suggestions, or reason for action..."
+                        placeholder="Add comments, notes, or reason for action..."
                         rows={2}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-600 resize-none shadow-inner"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-600 resize-none shadow-2xs font-medium"
                       />
                     </div>
-                  )}
 
-                  {/* Actions wrapper */}
-                  {actionModal.type === "FORWARD" ? (
-                    <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-xs space-y-2 animate-in slide-in-from-bottom-2">
-                      <p className="text-[11px] font-bold text-slate-700">Forward Approval Request To:</p>
-                      <select
-                        value={forwardToId || ""}
-                        onChange={e => setForwardToId(Number(e.target.value))}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-emerald-600"
-                      >
-                        <option value="">Select approver...</option>
-                        {approvers.map(a => (
-                          <option key={a.id} value={a.id}>
-                            {a.name} ({a.role}) — {a.city}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="flex gap-1.5 pt-1">
-                        <button
-                          onClick={handleAction}
-                          disabled={actionLoading}
-                          className="flex-1 py-1.5 bg-emerald-600 text-white font-bold text-[11px] rounded-lg hover:bg-emerald-700"
-                        >
-                          Confirm Forward
-                        </button>
-                        <button
-                          onClick={() => setActionModal({ type: null })}
-                          className="px-3 py-1.5 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg hover:bg-slate-50"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : !selectedRecord.isMySubmission && selectedRecord.approval_status?.startsWith("Pending") ? (
-                    <div className="space-y-2">
-                      {actionModal.type === "SUGGEST" && (
-                        <div className="bg-blue-50/50 border border-blue-200 p-3 rounded-xl space-y-2 animate-in slide-in-from-bottom-2">
-                          <p className="text-[11px] font-bold text-blue-900 flex items-center gap-1.5">
-                            <DollarSign className="w-4 h-4 text-blue-600" /> Suggest Rent or Security Deposit Amount
-                          </p>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Recommended Rent (₹/day)</label>
-                              <input
-                                type="number"
-                                value={suggestedRent}
-                                onChange={(e) => setSuggestedRent(e.target.value)}
-                                placeholder="e.g. 750"
-                                className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-600"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Recommended Deposit (₹)</label>
-                              <input
-                                type="number"
-                                value={suggestedDeposit}
-                                onChange={(e) => setSuggestedDeposit(e.target.value)}
-                                placeholder="e.g. 5000"
-                                className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-600"
-                              />
-                            </div>
+                    {/* Inline Suggest Rent/Deposit Modal if clicked (Only for Vehicle Onboarding) */}
+                    {actionModal.type === "SUGGEST" && (selectedRecord.module === "vehicle_onboarding" || selectedRecord.module === "onboarding") && (
+                      <div className="bg-blue-50/50 border border-blue-200 p-3 rounded-xl space-y-2 animate-in slide-in-from-bottom-2">
+                        <p className="text-[11px] font-bold text-blue-900 flex items-center gap-1.5">
+                          <DollarSign className="w-4 h-4 text-blue-600" /> Suggest Rent or Security Deposit Amount
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Recommended Rent (₹/day)</label>
+                            <input
+                              type="number"
+                              value={suggestedRent}
+                              onChange={(e) => setSuggestedRent(e.target.value)}
+                              placeholder="e.g. 750"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-600 font-medium"
+                            />
                           </div>
-                          <div className="flex justify-end gap-1.5 pt-1">
-                            <button
-                              onClick={() => handleAction("FORWARD")}
-                              disabled={actionLoading}
-                              className="px-4 py-1.5 bg-blue-600 text-white font-bold text-[11px] rounded-lg hover:bg-blue-700 transition-colors"
-                            >
-                              Submit Suggestion
-                            </button>
-                            <button
-                              onClick={() => setActionModal({ type: null })}
-                              className="px-3 py-1.5 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg hover:bg-slate-50"
-                            >
-                              Cancel
-                            </button>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-0.5">Recommended Deposit (₹)</label>
+                            <input
+                              type="number"
+                              value={suggestedDeposit}
+                              onChange={(e) => setSuggestedDeposit(e.target.value)}
+                              placeholder="e.g. 5000"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-600 font-medium"
+                            />
                           </div>
                         </div>
-                      )}
-
-                      <div className="grid grid-cols-3 gap-2">
-                        <button
-                          onClick={() => handleAction("APPROVE")}
-                          disabled={actionLoading}
-                          className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-all shadow-xs disabled:opacity-50"
-                        >
-                          <CheckCircle className="w-4 h-4" /> Approve
-                        </button>
-                        <button
-                          onClick={() => handleAction("HOLD")}
-                          disabled={actionLoading}
-                          className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 transition-all shadow-xs disabled:opacity-50"
-                        >
-                          <PauseCircle className="w-4 h-4" /> Hold
-                        </button>
-                        <button
-                          onClick={() => setActionModal({ type: "REJECT" })}
-                          disabled={actionLoading}
-                          className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-rose-200 text-rose-600 font-bold text-xs hover:bg-rose-50 transition-all disabled:opacity-50"
-                        >
-                          <XCircle className="w-4 h-4" /> Reject
-                        </button>
+                        <div className="flex justify-end gap-1.5 pt-1">
+                          <button
+                            onClick={() => handleAction("FORWARD")}
+                            disabled={actionLoading}
+                            className="px-4 py-1.5 bg-blue-600 text-white font-bold text-[11px] rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                          >
+                            Submit Suggestion
+                          </button>
+                          <button
+                            onClick={() => setActionModal({ type: null })}
+                            className="px-3 py-1.5 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
+                    )}
 
+                    {/* 3 Main Action Buttons */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => handleAction("APPROVE")}
+                        disabled={actionLoading}
+                        className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-all shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {actionLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-white" />
+                            <span>Processing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4" />
+                            <span>
+                              {["adjustment_form", "adjustment"].includes(selectedRecord.module) &&
+                               parseFloat(partialApprovedAmount || "0") < parseFloat(recordDetails?.enter_amount || selectedRecord.subtitle?.split("₹")[1]?.split(" ")[0]?.replace(/,/g, "") || "0")
+                                ? `Partially Approve (₹${partialApprovedAmount || "0"})`
+                                : "Approve"}
+                            </span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleAction("HOLD")}
+                        disabled={actionLoading}
+                        className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 transition-all shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <PauseCircle className="w-4 h-4" /> Hold
+                      </button>
+                      <button
+                        onClick={() => setActionModal({ type: "REJECT" })}
+                        disabled={actionLoading}
+                        className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-rose-200 text-rose-600 font-bold text-xs hover:bg-rose-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <XCircle className="w-4 h-4" /> Reject
+                      </button>
+                    </div>
+
+                    {/* Vehicle Onboarding Only: Suggest Rent & Suggest Deposit */}
+                    {(selectedRecord.module === "vehicle_onboarding" || selectedRecord.module === "onboarding") && (
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => setActionModal({ type: "SUGGEST" })}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-blue-600 text-blue-600 font-semibold text-[11px] hover:bg-blue-50 transition-all"
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-blue-600 text-blue-600 font-semibold text-[11px] hover:bg-blue-50 transition-all cursor-pointer"
                         >
                           <IndianRupee className="w-3.5 h-3.5" /> Suggest Rent
                         </button>
                         <button
                           onClick={() => setActionModal({ type: "SUGGEST" })}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-indigo-600 text-indigo-600 font-semibold text-[11px] hover:bg-indigo-50 transition-all"
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-indigo-600 text-indigo-600 font-semibold text-[11px] hover:bg-indigo-50 transition-all cursor-pointer"
                         >
                           <DollarSign className="w-3.5 h-3.5" /> Suggest Deposit
                         </button>
                       </div>
+                    )}
 
-                      <button
-                        onClick={async () => {
-                          setForwardModalItem(selectedRecord);
-                          if (selectedRecord.approval_logs && selectedRecord.approval_logs.length > 0) {
-                            setApprovalLogs(selectedRecord.approval_logs);
-                          } else {
-                            loadLogs(selectedRecord.module, selectedRecord.id);
-                          }
-                          setSelectedRecord(null);
-                        }}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition-all shadow-xs"
-                      >
-                        <ArrowRight className="w-4 h-4" /> Approve & Forward
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
+                    {/* Approve & Forward button */}
+                    <button
+                      onClick={async () => {
+                        setForwardModalItem(selectedRecord);
+                        if (selectedRecord.approval_logs && selectedRecord.approval_logs.length > 0) {
+                          setApprovalLogs(selectedRecord.approval_logs);
+                        } else {
+                          loadLogs(selectedRecord.module, selectedRecord.id);
+                        }
+                        setSelectedRecord(null);
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 transition-all shadow-xs cursor-pointer"
+                    >
+                      <ArrowRight className="w-4 h-4" /> Approve &amp; Forward
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
             </div>

@@ -536,6 +536,7 @@ def startup_event():
             "approved_by         INTEGER",
             "approval_remarks    TEXT",
             "approval_submitted_at TIMESTAMP",
+            "approved_amount     VARCHAR(50)",
         ]:
             cur.execute(f"ALTER TABLE july_partner_adjustment ADD COLUMN IF NOT EXISTS {col};")
 
@@ -1927,6 +1928,7 @@ class AdjustmentData(BaseModel):
     approver_2_id: Optional[str] = None
     approver_2_name: Optional[str] = None
     additional_photos: Optional[Any] = None
+    approved_amount: Optional[str] = None
 
 class AllocationData(BaseModel):
     allocation_date: str
@@ -5323,7 +5325,7 @@ def get_adjustments(
             base_query += " AND status = %s"
             params.append(status)
             
-        base_query += " ORDER BY COALESCE(updated_at, created_at) DESC, id DESC"
+        base_query += " ORDER BY COALESCE(approval_submitted_at, created_at, updated_at) DESC NULLS LAST, id DESC"
         cur.execute(base_query, params)
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
@@ -5419,7 +5421,7 @@ def create_adjustment(data: AdjustmentData, authorization: Optional[str] = Heade
                 submitter_comments, sent_for_approval,
                 hisaab_date, adjustment_sub_type, adjustment_sub_type_other, adjustment_date_mandatory, adjustment_date_optional,
                 photo_1, photo_2, photo_3, photo_4,
-                reason_for_penalty, maintenance_id, approver_1_id, approver_1_name, approver_2_id, approver_2_name, additional_photos,
+                reason_for_penalty, maintenance_id, approver_1_id, approver_1_name, approver_2_id, approver_2_name, additional_photos, approved_amount,
                 approval_status, created_by, created_at, updated_at, updated_by
             ) VALUES (
                 %s,%s,%s,%s,%s,%s,
@@ -5430,7 +5432,7 @@ def create_adjustment(data: AdjustmentData, authorization: Optional[str] = Heade
                 %s,%s,
                 %s,%s,%s,%s,%s,
                 %s,%s,%s,%s,
-                %s,%s,%s,%s,%s,%s,%s,
+                %s,%s,%s,%s,%s,%s,%s,%s,
                 'Draft',%s, NOW(), NOW(), %s
             )
             RETURNING id;
@@ -5446,6 +5448,7 @@ def create_adjustment(data: AdjustmentData, authorization: Optional[str] = Heade
             extract_image(data.photo_1), extract_image(data.photo_2), extract_image(data.photo_3), extract_image(data.photo_4),
             data.reason_for_penalty, data.maintenance_id, data.approver_1_id, data.approver_1_name, data.approver_2_id, data.approver_2_name,
             json.dumps(data.additional_photos) if isinstance(data.additional_photos, list) else (str(data.additional_photos) if data.additional_photos else None),
+            data.approved_amount or data.enter_amount,
             uid, uid
         ))
         new_id = cur.fetchone()[0]
@@ -5569,7 +5572,7 @@ def update_adjustment(id: int, data: AdjustmentData, authorization: Optional[str
                 submitter_comments=%s, sent_for_approval=%s,
                 hisaab_date=%s, adjustment_sub_type=%s, adjustment_sub_type_other=%s, adjustment_date_mandatory=%s, adjustment_date_optional=%s,
                 photo_1=%s, photo_2=%s, photo_3=%s, photo_4=%s,
-                reason_for_penalty=%s, maintenance_id=%s, approver_1_id=%s, approver_1_name=%s, approver_2_id=%s, approver_2_name=%s, additional_photos=%s,
+                reason_for_penalty=%s, maintenance_id=%s, approver_1_id=%s, approver_1_name=%s, approver_2_id=%s, approver_2_name=%s, additional_photos=%s, approved_amount=%s,
                 updated_at=NOW(), updated_by=%s
             WHERE id=%s RETURNING id;
         """, (
@@ -5584,6 +5587,7 @@ def update_adjustment(id: int, data: AdjustmentData, authorization: Optional[str
             extract_image(data.photo_1), extract_image(data.photo_2), extract_image(data.photo_3), extract_image(data.photo_4),
             data.reason_for_penalty, data.maintenance_id, data.approver_1_id, data.approver_1_name, data.approver_2_id, data.approver_2_name,
             json.dumps(data.additional_photos) if isinstance(data.additional_photos, list) else (str(data.additional_photos) if data.additional_photos else None),
+            data.approved_amount or data.enter_amount,
             uid, id
         ))
         row = cur.fetchone()
@@ -5603,14 +5607,18 @@ def update_adjustment_status(id: int, request: Request, authorization: Optional[
     
     data = asyncio.run(request.json())
     new_status = data.get("status")
+    approved_amt = data.get("approved_amount")
     
-    if new_status not in ["Approved", "Rejected"]:
+    if new_status not in ["Approved", "Rejected", "Partially Approved"]:
         raise HTTPException(status_code=400, detail="Invalid status")
         
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("UPDATE july_partner_adjustment SET status = %s, first_level_approval_by = %s WHERE id = %s", (new_status, user.get("name", ""), id))
+        if approved_amt is not None:
+            cur.execute("UPDATE july_partner_adjustment SET status = %s, approval_status = %s, first_level_approval_by = %s, approved_amount = %s, updated_at = NOW() WHERE id = %s", (new_status, new_status, user.get("name", ""), str(approved_amt), id))
+        else:
+            cur.execute("UPDATE july_partner_adjustment SET status = %s, approval_status = %s, first_level_approval_by = %s, updated_at = NOW() WHERE id = %s", (new_status, new_status, user.get("name", ""), id))
         conn.commit()
         return {"status": "success", "message": f"Adjustment {new_status}"}
     except Exception as e:
@@ -9866,8 +9874,10 @@ def get_my_submissions(authorization: Optional[str] = Header(None)):
             LEFT JOIN july_portal_users sub ON sub.portal_user_id = a.created_by
             LEFT JOIN july_employees sub_e ON sub_e.employee_id = sub.employee_id
             LEFT JOIN july_roles sub_r ON sub_r.role_id = sub.role_id
-            WHERE a.created_by = %s OR a.updated_by = %s ORDER BY COALESCE(a.updated_at, a.created_at) DESC;
-        """, (uid, uid))
+            WHERE a.created_by = %s OR a.updated_by = %s
+               OR a.id IN (SELECT record_id FROM july_approval_chain_logs WHERE module_name IN ('adjustment_form', 'adjustment') AND from_user_id = %s)
+            ORDER BY COALESCE(a.updated_at, a.created_at) DESC;
+        """, (uid, uid, uid))
         for r in cur.fetchall():
             submissions.append({"id": r[0], "module": r[1], "module_label": r[2],
                                 "title": r[3], "city": r[4], "subtitle": r[5],
@@ -9928,6 +9938,7 @@ class ApprovalAction(BaseModel):
     action: str  # APPROVE, REJECT, FORWARD
     remarks: Optional[str] = None
     forward_to_user_id: Optional[int] = None
+    approved_amount: Optional[Union[str, float, int]] = None
 
 
 MODULE_TABLE_MAP = {
@@ -10007,11 +10018,27 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
 
             if next_approver_id:
                 # L1 approved → route to L2
-                cur.execute(f"""
-                    UPDATE {table} SET approval_status = 'Pending L2 Approval',
-                        current_approver_id = %s, approval_remarks = %s, updated_at = NOW()
-                    WHERE {pk} = %s RETURNING {pk};
-                """, (next_approver_id, body.remarks, record_id))
+                if table == "july_partner_adjustment" and body.approved_amount is not None:
+                    try:
+                        val_amt = float(body.approved_amount)
+                        cur.execute("""
+                            UPDATE july_partner_adjustment 
+                            SET approved_amount = %s, approval_status = 'Pending L2 Approval',
+                                current_approver_id = %s, approval_remarks = %s, updated_at = NOW()
+                            WHERE id = %s RETURNING id;
+                        """, (str(val_amt), next_approver_id, body.remarks, record_id))
+                    except Exception:
+                        cur.execute(f"""
+                            UPDATE {table} SET approval_status = 'Pending L2 Approval',
+                                current_approver_id = %s, approval_remarks = %s, updated_at = NOW()
+                            WHERE {pk} = %s RETURNING {pk};
+                        """, (next_approver_id, body.remarks, record_id))
+                else:
+                    cur.execute(f"""
+                        UPDATE {table} SET approval_status = 'Pending L2 Approval',
+                            current_approver_id = %s, approval_remarks = %s, updated_at = NOW()
+                        WHERE {pk} = %s RETURNING {pk};
+                    """, (next_approver_id, body.remarks, record_id))
                 if not cur.fetchone():
                     raise HTTPException(status_code=403, detail="Update failed")
                 if table == "july_onboarding":
@@ -10028,17 +10055,43 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
                             approval_remarks = %s, updated_at = NOW()
                         WHERE id = %s;
                     """, (next_approver_id, body.remarks, record_id))
+
+                log_rem = body.remarks
+                if table == "july_partner_adjustment" and body.approved_amount is not None:
+                    log_rem = f"[L1 Approved Amount: ₹{body.approved_amount}] {body.remarks or ''}".strip()
                 cur.execute("""
                     INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                     VALUES (%s, %s, %s, %s, 'APPROVED_L1', %s);
-                """, (module, record_id, uid, next_approver_id, body.remarks))
+                """, (module, record_id, uid, next_approver_id, log_rem))
             else:
                 # L2 approval (or no chain) → fully approve
+                final_approval_status = "Approved"
+                existing_app_amt = None
+                if table == "july_partner_adjustment":
+                    app_amt = body.approved_amount
+                    try:
+                        cur.execute("SELECT enter_amount, approved_amount FROM july_partner_adjustment WHERE id = %s;", (record_id,))
+                        ent_row = cur.fetchone()
+                        req_amt = float(ent_row[0]) if ent_row and ent_row[0] else 0.0
+                        existing_app_amt = ent_row[1] if ent_row else None
+                        final_amt_str = app_amt if app_amt is not None else existing_app_amt
+                        if final_amt_str is not None:
+                            val_amt = float(final_amt_str)
+                            if val_amt > 0 and val_amt < req_amt:
+                                final_approval_status = "Partially Approved"
+                            cur.execute("""
+                                UPDATE july_partner_adjustment 
+                                SET approved_amount = %s, status = %s
+                                WHERE id = %s;
+                            """, (str(val_amt), final_approval_status, record_id))
+                    except Exception as e:
+                        print(f"[WARN] Partial approval status update error: {e}")
+
                 cur.execute(f"""
-                    UPDATE {table} SET approval_status = 'Approved',
-                        current_approver_id = NULL, approved_by = %s, approval_remarks = %s, updated_at = NOW()
+                    UPDATE {table} SET approval_status = %s,
+                        current_approver_id = NULL, approved_by = %s, approval_remarks = %s, updated_by = %s, updated_at = NOW()
                     WHERE {pk} = %s AND (current_approver_id = %s OR current_approver_id IS NULL OR %s = True) RETURNING {pk};
-                """, (uid, body.remarks, record_id, uid, is_admin_or_cm))
+                """, (final_approval_status, uid, body.remarks, uid, record_id, uid, is_admin_or_cm))
                 if not cur.fetchone():
                     raise HTTPException(status_code=403, detail="Not authorized or record not found")
                 if table == "july_onboarding":
@@ -10047,10 +10100,17 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
                         SET approval_status = 'Approved', current_approver_id = NULL, approved_by = %s, approval_note = %s, updated_by = %s, updated_at = NOW()
                         WHERE id = %s;
                     """, (uid, body.remarks, uid, record_id))
+
+                log_rem = body.remarks
+                if table == "july_partner_adjustment":
+                    disp_amt = body.approved_amount if body.approved_amount is not None else existing_app_amt
+                    if disp_amt is not None:
+                        log_rem = f"[{final_approval_status}: ₹{disp_amt}] {body.remarks or ''}".strip()
+
                 cur.execute("""
                     INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                     VALUES (%s, %s, %s, NULL, 'APPROVED', %s);
-                """, (module, record_id, uid, body.remarks))
+                """, (module, record_id, uid, log_rem))
 
                 if module == "allocation":
                     cur.execute("""
@@ -10126,10 +10186,24 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
         elif body.action == "FORWARD":
             if not body.forward_to_user_id:
                 raise HTTPException(status_code=400, detail="forward_to_user_id is required")
-            cur.execute(f"""
-                UPDATE {table} SET current_approver_id = %s, approval_remarks = %s, updated_at = NOW()
-                WHERE {pk} = %s AND (current_approver_id = %s OR current_approver_id IS NULL OR %s = True) RETURNING {pk};
-            """, (body.forward_to_user_id, body.remarks, record_id, uid, is_admin_or_cm))
+            
+            if table == "july_partner_adjustment" and body.approved_amount is not None:
+                try:
+                    val_amt = float(body.approved_amount)
+                    cur.execute(f"""
+                        UPDATE {table} SET current_approver_id = %s, approval_remarks = %s, approved_amount = %s, updated_at = NOW()
+                        WHERE {pk} = %s AND (current_approver_id = %s OR current_approver_id IS NULL OR %s = True) RETURNING {pk};
+                    """, (body.forward_to_user_id, body.remarks, str(val_amt), record_id, uid, is_admin_or_cm))
+                except Exception:
+                    cur.execute(f"""
+                        UPDATE {table} SET current_approver_id = %s, approval_remarks = %s, updated_at = NOW()
+                        WHERE {pk} = %s AND (current_approver_id = %s OR current_approver_id IS NULL OR %s = True) RETURNING {pk};
+                    """, (body.forward_to_user_id, body.remarks, record_id, uid, is_admin_or_cm))
+            else:
+                cur.execute(f"""
+                    UPDATE {table} SET current_approver_id = %s, approval_remarks = %s, updated_at = NOW()
+                    WHERE {pk} = %s AND (current_approver_id = %s OR current_approver_id IS NULL OR %s = True) RETURNING {pk};
+                """, (body.forward_to_user_id, body.remarks, record_id, uid, is_admin_or_cm))
             if not cur.fetchone():
                 raise HTTPException(status_code=403, detail="Not authorized or record not found")
             
@@ -10147,10 +10221,14 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
                     WHERE id = %s;
                 """, (body.forward_to_user_id, body.remarks, record_id))
 
+            log_rem = body.remarks
+            if table == "july_partner_adjustment" and body.approved_amount is not None:
+                log_rem = f"[Forwarded with Proposed Amount: ₹{body.approved_amount}] {body.remarks or ''}".strip()
+
             cur.execute("""
                 INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                 VALUES (%s, %s, %s, %s, 'FORWARDED', %s);
-            """, (module, record_id, uid, body.forward_to_user_id, body.remarks))
+            """, (module, record_id, uid, body.forward_to_user_id, log_rem))
 
         elif body.action == "SEND_BACK":
             cur.execute(f"""
