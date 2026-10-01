@@ -180,7 +180,7 @@ $$;
 -- ============================================================================
 -- ROLLING WRAPPER PROCEDURE: sp_refresh_daily_mis_rolling
 -- ============================================================================
-CREATE OR REPLACE PROCEDURE public.sp_refresh_daily_mis_rolling(IN p_lookback_days INT DEFAULT 2)
+CREATE OR REPLACE PROCEDURE public.sp_refresh_daily_mis_rolling(IN p_lookback_days INT DEFAULT 7)
 LANGUAGE plpgsql
 AS $$
 BEGIN
