@@ -5,13 +5,15 @@ import { User } from '../types';
 interface MISDashboardProps {
   user?: User | null;
   onBackToSelector?: () => void;
+  onBack?: () => void;
   onLogout?: () => void;
 }
 
 const MONTH_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const MONTH_FULL = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDashboardProps) {
+export default function MISDashboard({ user, onBackToSelector, onBack, onLogout }: MISDashboardProps) {
+  const handleBack = onBack || onBackToSelector;
   const [granularity, setGranularity] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [rangeMode, setRangeMode] = useState('Fixed');
@@ -394,9 +396,9 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
           
           {/* Brand & Back to Dashboard Button */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {onBackToSelector && (
+            {handleBack && (
               <button
-                onClick={onBackToSelector}
+                onClick={handleBack}
                 className="flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer mr-1"
                 title="Back to Dashboard"
               >

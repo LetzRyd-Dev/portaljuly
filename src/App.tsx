@@ -349,6 +349,10 @@ export default function App() {
       {screen === "mis_dashboard" && user && (
         <MISDashboard 
           user={user} 
+          onBack={() => {
+            setSelectorSection("dashboards");
+            setScreen("selector");
+          }}
           onBackToSelector={() => {
             setSelectorSection("dashboards");
             setScreen("selector");

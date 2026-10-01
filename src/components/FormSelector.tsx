@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ClipboardList, UserCheck, Settings, Key, LogOut, Truck, AlertTriangle,
   Wrench, MapPin, IndianRupee, Users, ShieldCheck, TicketIcon, UserCircle,
@@ -59,6 +59,12 @@ const DASHBOARD_CARDS = [
 export default function FormSelector({ user, initialSection = "forms", onSectionChange, onSelectForm, onLogout }: FormSelectorProps) {
   // Navigation section: "forms" (default) or "dashboards"
   const [activeSection, setActiveSection] = useState<"forms" | "dashboards">(initialSection);
+
+  useEffect(() => {
+    if (initialSection) {
+      setActiveSection(initialSection);
+    }
+  }, [initialSection]);
   
   const handleSectionClick = (section: "forms" | "dashboards") => {
     setActiveSection(section);
