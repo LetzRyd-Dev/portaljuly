@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Filter, ArrowLeft, ExternalLink, Inbox, LogOut, BarChart3, ChevronDown, ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
+import { Calendar, Filter, ArrowLeft, ExternalLink, Inbox, LogOut, BarChart3, ChevronDown, ChevronLeft, ChevronRight, X, Check, SlidersHorizontal } from 'lucide-react';
 import { User } from '../types';
 
 interface MISDashboardProps {
@@ -12,7 +12,7 @@ const MONTH_SHORT = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SE
 const MONTH_FULL = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDashboardProps) {
-  const [granularity, setGranularity] = useState('Daily');
+  const [granularity, setGranularity] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [rangeMode, setRangeMode] = useState('Fixed');
   
@@ -30,7 +30,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
 
   const [dateRangeLabel, setDateRangeLabel] = useState('Jul 6, 2026 - Jul 22, 2026');
 
-  // Dates matching Looker Studio Dashboard screenshots
+  // Dates matching Looker Studio Dashboard snapshots
   const [dates, setDates] = useState<string[]>([
     '2026-07-22',
     '2026-07-21',
@@ -85,7 +85,6 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
   // Handle Mode Preset Selection (Today, Yesterday, Last 7 days, This month, Fixed)
   const handleRangeModeChange = (mode: string) => {
     setRangeMode(mode);
-    const refDate = new Date(2026, 6, 22); // July 22, 2026 baseline
 
     if (mode === 'Today') {
       setStartYear(2026); setStartMonth(6); setStartDay(22);
@@ -103,7 +102,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
   };
 
   // Apply Action: Update Date Range Label and Generate Daily Snapshot Columns
-  const handleApplyLookerStudioRange = () => {
+  const handleApplyDateRange = () => {
     const sDate = new Date(startYear, startMonth, startDay);
     const eDate = new Date(endYear, endMonth, endDay);
     
@@ -180,7 +179,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
     { metric: 'Dead Miles (%)', values: ['-621.09', '-688.87', '-643.44', '-945.88', '-842.98', '-787.83', '-781.23', '-644.38', '-707.96', '-343.86'] },
   ];
 
-  // Monthly Granularity Replica Data (Matching Looker Studio Screenshot 2)
+  // Monthly Granularity Replica Data
   const monthlyDates = ['2026-07 (Jul)', '2026-06 (Jun)', '2026-05 (May)', '2026-04 (Apr)', '2026-03 (Mar)', '2026-02 (Feb)', '2026-01 (Jan)'];
   const monthlyAssetsData = [
     { metric: 'Total Vehicle Days', values: ['5,279', '5,166.23', '4,668.74', '4,241.53', '3,870.03', '3,563.21', '3,288.61'] },
@@ -226,7 +225,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
     { metric: 'Dead Miles (%)', values: ['-580.12', '-610.45', '-590.22', '-710.88', '-650.32', '-620.15', '-510.40'] },
   ];
 
-  // Weekly Granularity Replica Data (Matching Looker Studio Screenshot 3)
+  // Weekly Granularity Replica Data
   const weeklyDates = ['W30 (Jul 20 - Jul 26)', 'W29 (Jul 13 - Jul 19)', 'W28 (Jul 6 - Jul 12)', 'W27 (Jun 29 - Jul 5)', 'W26 (Jun 22 - Jun 28)', 'W25 (Jun 15 - Jun 21)', 'W24 (Jun 8 - Jun 14)', 'W23 (Jun 1 - Jun 7)', 'W22 (May 25 - May 31)', 'W21 (May 18 - May 24)'];
   const weeklyAssetsData = [
     { metric: 'Total Vehicle Days', values: ['5,279', '5,279', '5,279', '5,279', '5,279', '5,267.71', '5,122', '4,964', '4,832.29', '4,745'] },
@@ -286,12 +285,12 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
   return (
     <div className="min-h-screen flex flex-col bg-bg text-text font-sans">
       
-      {/* Standard Portal Header */}
+      {/* Standard Portal Top Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-white shadow-xs">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 w-full items-center justify-between px-3 sm:px-6 lg:px-8">
           
-          {/* Brand & Back Button */}
-          <div className="flex items-center gap-3">
+          {/* Brand & Back to Forms Button */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {onBackToSelector && (
               <button
                 onClick={onBackToSelector}
@@ -304,7 +303,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
             <img 
               src="/letzryd_icon.png" 
               alt="LetzRyd logo" 
-              className="h-9 w-auto object-contain"
+              className="h-8 w-auto object-contain"
             />
             <span className="hidden h-5 border-l border-border sm:inline-block" />
             <span className="hidden font-sans text-xs font-semibold text-text-muted sm:inline-block">
@@ -312,82 +311,98 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
             </span>
           </div>
 
-          {/* Header Actions */}
-          <div className="flex items-center gap-3">
+          {/* Header User Actions */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {user && (
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-bg/50 px-3 py-1.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-bold text-white">
+              <div className="flex items-center gap-2 sm:gap-2.5 rounded-lg border border-border bg-slate-50/70 px-2 sm:px-3 py-1.5">
+                <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-primary text-xs font-bold text-white shrink-0">
                   {initials}
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-sans text-xs font-semibold text-text leading-tight">{user.name || user.username}</span>
-                  <span className="font-mono text-[10px] text-text-muted mt-0.5 leading-none">{user.role || 'Executive'}</span>
+                <div className="hidden md:flex flex-col">
+                  <span className="font-sans text-xs font-semibold text-slate-800 leading-tight">
+                    {user.name || user.username}
+                  </span>
+                  <span className="font-mono text-[10px] text-slate-500 mt-0.5 leading-none">
+                    {user.role || 'Executive'}
+                  </span>
                 </div>
               </div>
             )}
             {onLogout && (
               <button 
                 onClick={onLogout}
-                className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 font-sans text-xs font-medium text-text-muted hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors shadow-xs cursor-pointer"
+                className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-2.5 sm:px-3 font-sans text-xs font-medium text-slate-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors shadow-xs cursor-pointer"
+                title="Sign Out"
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                <span className="hidden sm:inline">Sign Out</span>
               </button>
             )}
           </div>
         </div>
       </header>
 
-      {/* Standalone Dashboard View */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Expanded Widescreen Dashboard Canvas */}
+      <main className="flex-grow w-full max-w-[98%] 2xl:max-w-[99%] mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6">
         
-        <div className="w-full bg-white rounded-2xl border border-slate-300 shadow-md p-6 font-sans overflow-hidden">
+        <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 font-sans overflow-hidden">
           
-          {/* Top Header Controls Bar (Matching Portal Font & Green Palette) */}
-          <div className="flex flex-col md:flex-row justify-between items-center pb-6 border-b border-slate-200 gap-4">
+          {/* Top Controls Bar: Granularity, Center Title, Date Picker */}
+          <div className="flex flex-col lg:flex-row justify-between items-center pb-5 border-b border-slate-200 gap-4">
             
-            {/* Left: Interactive Granularity Selection Dropdown (Matching Looker Studio Style) */}
-            <div className="relative">
-              <select 
-                value={granularity}
-                onChange={(e) => setGranularity(e.target.value)}
-                className="bg-[#70c07c] hover:bg-[#60b06c] text-black border border-black rounded-sm px-4 py-2 text-xs font-normal font-sans outline-none cursor-pointer shadow-2xs pr-8"
-              >
-                <option value="Daily">Granularity_Selection: Daily</option>
-                <option value="Weekly">Granularity_Selection: Weekly</option>
-                <option value="Monthly">Granularity_Selection: Monthly</option>
-              </select>
+            {/* Left: Clean Segmented Granularity Control */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2.5 hidden sm:flex items-center gap-1.5">
+                <Filter className="h-3.5 w-3.5 text-slate-400" />
+                Granularity:
+              </span>
+              {(['Daily', 'Weekly', 'Monthly'] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGranularity(g)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    granularity === g
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
             </div>
 
-            {/* Center: Title & Logo (Matching LetzRyd Portal Font-Sans Style) */}
+            {/* Center: Title & Logo (Exact title requested: LetzRyd MIS Dashboard) */}
             <div className="text-center flex items-center justify-center gap-3">
-              <img src="/letzryd_icon.png" alt="LetzRyd" className="h-8 w-auto object-contain" />
-              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight font-sans">
-                LetzRyd MIS Dashboard : 2026
-              </h2>
+              <img src="/letzryd_icon.png" alt="LetzRyd" className="h-7 w-auto object-contain" />
+              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight font-sans">
+                LetzRyd MIS Dashboard
+              </h1>
             </div>
 
-            {/* Right: Interactive Looker Studio Date Range Control Button & Modal Popover */}
+            {/* Right: Clean Modern Date Range Picker */}
             <div className="relative">
               <button 
                 type="button"
                 onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-                className="bg-[#70c07c] hover:bg-[#60b06c] text-black border border-black rounded-sm px-4 py-2 text-xs font-normal font-sans flex items-center justify-between min-w-[210px] cursor-pointer shadow-2xs"
+                className="flex items-center gap-2.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-800 rounded-xl px-3.5 py-2 text-xs font-semibold font-sans shadow-xs transition-colors cursor-pointer"
               >
+                <Calendar className="h-4 w-4 text-primary" />
                 <span>{dateRangeLabel}</span>
-                <span className="text-[10px] text-black ml-3">▼</span>
+                <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${isDatePickerOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Exact Replica Looker Studio Dual-Calendar Modal Window */}
+              {/* Replica Looker Studio Dual-Calendar Modal Window */}
               {isDatePickerOpen && (
-                <div className="absolute right-0 top-11 bg-white rounded-2xl shadow-2xl border border-slate-300 p-6 z-50 w-[530px] font-sans text-slate-800 animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute right-0 top-12 bg-white rounded-2xl shadow-2xl border border-slate-300 p-6 z-50 w-[530px] max-w-[90vw] font-sans text-slate-800 animate-in fade-in zoom-in-95 duration-150">
                   
-                  {/* Mode Select Header Bar (Matching Looker Studio Mode Options) */}
-                  <div className="flex justify-end mb-4">
+                  {/* Mode Select Header Bar */}
+                  <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+                    <span className="text-xs font-bold text-slate-700">Date Range Mode</span>
                     <select 
                       value={rangeMode}
                       onChange={(e) => handleRangeModeChange(e.target.value)}
-                      className="bg-[#e5e7eb] hover:bg-[#d1d5db] border border-slate-400 text-xs px-3 py-1 rounded text-slate-800 font-semibold outline-none cursor-pointer transition-colors"
+                      className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs px-3 py-1 rounded-lg text-slate-800 font-semibold outline-none cursor-pointer transition-colors"
                     >
                       <option value="Fixed">Fixed</option>
                       <option value="Today">Today</option>
@@ -398,7 +413,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                   </div>
 
                   {/* Side-by-Side Dual Calendars */}
-                  <div className="grid grid-cols-2 gap-6 pb-6 border-b border-slate-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-6 border-b border-slate-100">
                     
                     {/* Start Date Calendar Column */}
                     <div className="relative">
@@ -409,7 +424,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                         <button
                           type="button"
                           onClick={() => setShowStartPicker(!showStartPicker)}
-                          className="font-extrabold text-xs text-slate-900 flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer"
+                          className="font-extrabold text-xs text-slate-900 flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
                         >
                           <span>{MONTH_SHORT[startMonth]} {startYear}</span>
                           <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
@@ -469,7 +484,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                                 }}
                                 className={`py-1 text-[11px] rounded font-semibold transition-colors cursor-pointer ${
                                   mIdx === startMonth
-                                    ? 'bg-blue-600 text-white font-bold'
+                                    ? 'bg-primary text-white font-bold'
                                     : 'text-slate-700 hover:bg-slate-100'
                                 }`}
                               >
@@ -501,7 +516,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                             onClick={() => setStartDay(d)}
                             className={`h-7 w-7 text-xs rounded-full flex items-center justify-center mx-auto transition-all cursor-pointer ${
                               d === startDay
-                                ? 'bg-[#1a73e8] text-white font-bold shadow-xs'
+                                ? 'bg-primary text-white font-bold shadow-xs'
                                 : 'text-slate-800 hover:bg-slate-100 font-normal'
                             }`}
                           >
@@ -520,7 +535,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                         <button
                           type="button"
                           onClick={() => setShowEndPicker(!showEndPicker)}
-                          className="font-extrabold text-xs text-slate-900 flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer"
+                          className="font-extrabold text-xs text-slate-900 flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
                         >
                           <span>{MONTH_SHORT[endMonth]} {endYear}</span>
                           <ChevronDown className="w-3.5 h-3.5 text-slate-600" />
@@ -580,7 +595,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                                 }}
                                 className={`py-1 text-[11px] rounded font-semibold transition-colors cursor-pointer ${
                                   mIdx === endMonth
-                                    ? 'bg-blue-600 text-white font-bold'
+                                    ? 'bg-primary text-white font-bold'
                                     : 'text-slate-700 hover:bg-slate-100'
                                 }`}
                               >
@@ -612,7 +627,7 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                             onClick={() => setEndDay(d)}
                             className={`h-7 w-7 text-xs rounded-full flex items-center justify-center mx-auto transition-all cursor-pointer ${
                               d === endDay
-                                ? 'bg-[#1a73e8] text-white font-bold shadow-xs'
+                                ? 'bg-primary text-white font-bold shadow-xs'
                                 : 'text-slate-800 hover:bg-slate-100 font-normal'
                             }`}
                           >
@@ -624,19 +639,19 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
 
                   </div>
 
-                  {/* Action Footer Buttons (Bottom Right: Cancel & Apply) */}
-                  <div className="flex justify-end items-center gap-4 pt-4">
+                  {/* Action Footer Buttons (Cancel & Apply) */}
+                  <div className="flex justify-end items-center gap-3 pt-4">
                     <button
                       type="button"
                       onClick={() => setIsDatePickerOpen(false)}
-                      className="text-slate-700 hover:text-black font-semibold text-xs px-3 py-1 rounded cursor-pointer"
+                      className="text-slate-600 hover:text-slate-900 font-semibold text-xs px-4 py-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
-                      onClick={handleApplyLookerStudioRange}
-                      className="text-[#1a73e8] hover:text-[#1557b0] font-bold text-xs px-3 py-1 rounded hover:bg-blue-50 transition-colors cursor-pointer"
+                      onClick={handleApplyDateRange}
+                      className="bg-primary hover:bg-primary-hover text-white font-bold text-xs px-5 py-2 rounded-lg shadow-xs transition-colors cursor-pointer"
                     >
                       Apply
                     </button>
@@ -647,17 +662,21 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
             </div>
           </div>
 
-          {/* Main Table Container */}
-          <div className="mt-6 overflow-x-auto rounded-lg border border-slate-900 shadow-sm">
+          {/* Main Table Container: Expanded Width & Crisp Alignment */}
+          <div className="mt-5 overflow-x-auto rounded-xl border border-slate-300 shadow-2xs bg-white">
             <table className="w-full text-left border-collapse font-sans text-xs">
               
               {/* Table Header: Column Names & Dynamic Dates / Weeks / Months */}
               <thead>
-                <tr className="bg-[#3f3f3f] text-white font-bold text-[11px] tracking-wider font-sans">
-                  <th className="py-2.5 px-3 border border-slate-600 w-36 text-center bg-[#3f3f3f] text-white">Particulars</th>
-                  <th className="py-2.5 px-3 border border-slate-600 w-52 bg-[#3f3f3f] text-white">metric_name</th>
+                <tr className="bg-[#2d3748] text-white font-bold text-[11px] tracking-wider font-sans">
+                  <th className="py-3 px-3.5 border border-slate-600 w-32 sm:w-36 text-center bg-[#2d3748] text-white">
+                    Particulars
+                  </th>
+                  <th className="py-3 px-3.5 border border-slate-600 w-60 min-w-[220px] bg-[#2d3748] text-white">
+                    metric_name
+                  </th>
                   {activeDates.map((d) => (
-                    <th key={d} className="py-2.5 px-2 border border-slate-600 text-center min-w-[105px] font-mono text-white">
+                    <th key={d} className="py-3 px-3 border border-slate-600 text-center min-w-[110px] font-mono text-white text-[11px]">
                       {d}
                     </th>
                   ))}
@@ -676,9 +695,9 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                         Assets
                       </td>
                     )}
-                    <td className="py-2 px-3 font-bold border-r border-amber-300/80 text-black font-sans">{row.metric}</td>
+                    <td className="py-2.5 px-3.5 font-bold border-r border-amber-300/80 text-black font-sans">{row.metric}</td>
                     {activeDates.map((d, vIdx) => (
-                      <td key={d} className="py-2 px-2 text-right font-mono border-r border-amber-300/60 text-black">
+                      <td key={d} className="py-2.5 px-3 text-right font-mono tabular-nums border-r border-amber-300/60 text-black">
                         {row.values[vIdx] !== undefined ? row.values[vIdx] : (row.values[row.values.length - 1] || '0')}
                       </td>
                     ))}
@@ -696,9 +715,9 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                         Trips
                       </td>
                     )}
-                    <td className="py-2 px-3 font-bold border-r border-amber-400 text-black font-sans">{row.metric}</td>
+                    <td className="py-2.5 px-3.5 font-bold border-r border-amber-400 text-black font-sans">{row.metric}</td>
                     {activeDates.map((d, vIdx) => (
-                      <td key={d} className="py-2 px-2 text-right font-mono border-r border-amber-400/70 text-black">
+                      <td key={d} className="py-2.5 px-3 text-right font-mono tabular-nums border-r border-amber-400/70 text-black">
                         {row.values[vIdx] !== undefined ? row.values[vIdx] : (row.values[row.values.length - 1] || '0')}
                       </td>
                     ))}
@@ -716,16 +735,16 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                         Revenue
                       </td>
                     )}
-                    <td className="py-2 px-3 font-bold border-r border-purple-300 text-black font-sans">{row.metric}</td>
+                    <td className="py-2.5 px-3.5 font-bold border-r border-purple-300 text-black font-sans">{row.metric}</td>
                     {activeDates.map((d, vIdx) => (
-                      <td key={d} className="py-2 px-2 text-right font-mono border-r border-purple-300/60 text-black">
+                      <td key={d} className="py-2.5 px-3 text-right font-mono tabular-nums border-r border-purple-300/60 text-black">
                         {row.values[vIdx] !== undefined ? row.values[vIdx] : (row.values[row.values.length - 1] || '0')}
                       </td>
                     ))}
                   </tr>
                 ))}
 
-                {/* 4. QUALITY METRICS SECTION (Salmon/Coral Red Theme: Left #ba544f, Rows #dc7d78) */}
+                {/* 4. QUALITY METRICS SECTION (Coral Theme: Left #ba544f, Rows #dc7d78) */}
                 {activeQualityData.map((row, idx) => (
                   <tr key={row.metric} className="bg-[#dc7d78] hover:bg-[#cc6c67] transition-colors border-b border-rose-300 text-black font-semibold">
                     {idx === 0 && (
@@ -736,16 +755,16 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                         Quality Metrics
                       </td>
                     )}
-                    <td className="py-2 px-3 font-bold border-r border-rose-300 text-black font-sans">{row.metric}</td>
+                    <td className="py-2.5 px-3.5 font-bold border-r border-rose-300 text-black font-sans">{row.metric}</td>
                     {activeDates.map((d, vIdx) => (
-                      <td key={d} className="py-2 px-2 text-right font-mono border-r border-rose-200/60 text-black">
+                      <td key={d} className="py-2.5 px-3 text-right font-mono tabular-nums border-r border-rose-200/60 text-black">
                         {row.values[vIdx] !== undefined ? row.values[vIdx] : (row.values[row.values.length - 1] || '0')}
                       </td>
                     ))}
                   </tr>
                 ))}
 
-                {/* 5. DEAD MILES SECTION (Soft Light Pink Theme) */}
+                {/* 5. DEAD MILES SECTION (Soft Pink Theme: Left #f2a7b5, Rows #ffeef2) */}
                 {activeDeadMilesData.map((row, idx) => (
                   <tr key={row.metric} className="bg-[#ffeef2] hover:bg-[#fcd0da] transition-colors border-b border-pink-200 text-black font-semibold">
                     {idx === 0 && (
@@ -756,9 +775,9 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
                         Dead Miles
                       </td>
                     )}
-                    <td className="py-2 px-3 font-bold border-r border-pink-200 text-black font-sans">{row.metric}</td>
+                    <td className="py-2.5 px-3.5 font-bold border-r border-pink-200 text-black font-sans">{row.metric}</td>
                     {activeDates.map((d, vIdx) => (
-                      <td key={d} className="py-2 px-2 text-right font-mono border-r border-pink-200/80 text-black">
+                      <td key={d} className="py-2.5 px-3 text-right font-mono tabular-nums border-r border-pink-200/80 text-black">
                         {row.values[vIdx] !== undefined ? row.values[vIdx] : (row.values[row.values.length - 1] || '0')}
                       </td>
                     ))}
@@ -768,23 +787,22 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
             </table>
           </div>
 
-          {/* Footer Info */}
-          <div className="mt-4 flex justify-between items-center text-[11px] text-slate-500 font-semibold px-1 font-sans">
-            <span>* Replicated directly from LetzRyd Looker Studio MIS Dashboard</span>
-            <span>Displaying 10 Daily Snapshot Columns</span>
+          {/* Table Footer Info */}
+          <div className="mt-3.5 flex justify-end items-center text-[11px] text-slate-500 font-semibold px-1 font-sans">
+            <span>Displaying {activeDates.length} Columns · {granularity} View</span>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="bg-primary py-8 text-center text-xs text-white border-t border-primary-hover font-sans mt-auto">
+      <footer className="bg-primary py-6 text-center text-xs text-white border-t border-primary-hover font-sans mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <img 
             src="/letzryd_logo.png" 
             alt="LetzRyd" 
-            className="h-11 w-auto object-contain brightness-0 invert" 
+            className="h-9 w-auto object-contain brightness-0 invert" 
           />
-          <span className="font-semibold text-white">LetzRyd © Copyright 2026 | All Rights Reserved</span>
+          <span className="font-semibold text-white/95">LetzRyd © Copyright 2026 | All Rights Reserved</span>
         </div>
       </footer>
     </div>
