@@ -33,6 +33,7 @@ const LOCAL_STORAGE_TOKEN_KEY = "lr_token";
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [screen, setScreen] = useState<"login" | "selector" | "walkin" | "onboarding" | "operator_onboarding" | "adjustment" | "allocation" | "dropoff" | "expenses" | "vehicle_onboarding" | "workshops" | "hubs_parking" | "rents" | "accident" | "inspection" | "users" | "vehicle_models" | "cities" | "roles" | "tickets" | "employees" | "maintenance" | "maintenance_in" | "maintenance_out" | "challans" | "approvals" | "mis_dashboard">("login");
+  const [selectorSection, setSelectorSection] = useState<"forms" | "dashboards">("forms");
   const [editTarget, setEditTarget] = useState<{ formType: string; id: number; isReview?: boolean } | null>(null);
   const [activeApprovalsTab, setActiveApprovalsTab] = useState<"pending" | "my-submissions" | "revisions">("pending");
   const [isInitializing, setIsInitializing] = useState(true);
@@ -137,6 +138,8 @@ export default function App() {
       {screen === "selector" && user && (
         <FormSelector 
           user={user} 
+          initialSection={selectorSection}
+          onSectionChange={(sec) => setSelectorSection(sec)}
           onSelectForm={(formType) => {
             setEditTarget(null);
             setScreen(formType as any);
@@ -346,7 +349,10 @@ export default function App() {
       {screen === "mis_dashboard" && user && (
         <MISDashboard 
           user={user} 
-          onBackToSelector={() => setScreen("selector")} 
+          onBackToSelector={() => {
+            setSelectorSection("dashboards");
+            setScreen("selector");
+          }} 
           onLogout={handleLogout} 
         />
       )}

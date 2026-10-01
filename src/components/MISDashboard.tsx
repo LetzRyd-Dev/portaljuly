@@ -392,15 +392,16 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
       <header className="sticky top-0 z-50 border-b border-border bg-white shadow-xs">
         <div className="flex h-16 w-full items-center justify-between px-3 sm:px-6 lg:px-8">
           
-          {/* Brand & Back to Forms Button */}
+          {/* Brand & Back to Dashboard Button */}
           <div className="flex items-center gap-2 sm:gap-3">
             {onBackToSelector && (
               <button
                 onClick={onBackToSelector}
                 className="flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer mr-1"
+                title="Back to Dashboard"
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span>Forms</span>
+                <span>Dashboard</span>
               </button>
             )}
             <img 

@@ -8,6 +8,8 @@ import { User } from "../types";
 
 interface FormSelectorProps {
   user: User;
+  initialSection?: "forms" | "dashboards";
+  onSectionChange?: (section: "forms" | "dashboards") => void;
   onSelectForm: (form: "walkin" | "onboarding" | "operator_onboarding" | "adjustment" | "allocation" | "dropoff" | "expenses" | "vehicle_onboarding" | "workshops" | "hubs_parking" | "rents" | "accident" | "inspection" | "users" | "vehicle_models" | "cities" | "roles" | "tickets" | "employees" | "maintenance" | "maintenance_in" | "maintenance_out" | "challans" | "approvals" | "mis_dashboard") => void;
   onLogout: () => void;
 }
@@ -54,9 +56,14 @@ const DASHBOARD_CARDS = [
   },
 ] as const;
 
-export default function FormSelector({ user, onSelectForm, onLogout }: FormSelectorProps) {
+export default function FormSelector({ user, initialSection = "forms", onSectionChange, onSelectForm, onLogout }: FormSelectorProps) {
   // Navigation section: "forms" (default) or "dashboards"
-  const [activeSection, setActiveSection] = useState<"forms" | "dashboards">("forms");
+  const [activeSection, setActiveSection] = useState<"forms" | "dashboards">(initialSection);
+  
+  const handleSectionClick = (section: "forms" | "dashboards") => {
+    setActiveSection(section);
+    if (onSectionChange) onSectionChange(section);
+  };
   
   // Left sidebar open/collapse state (open by default on desktop)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -226,7 +233,7 @@ export default function FormSelector({ user, onSelectForm, onLogout }: FormSelec
             {/* 1. Forms & Registration Section */}
             <button
               onClick={() => {
-                setActiveSection("forms");
+                handleSectionClick("forms");
                 setIsMobileDrawerOpen(false);
               }}
               className={`
@@ -261,7 +268,7 @@ export default function FormSelector({ user, onSelectForm, onLogout }: FormSelec
             {/* 2. Dashboards & Analytics Section */}
             <button
               onClick={() => {
-                setActiveSection("dashboards");
+                handleSectionClick("dashboards");
                 setIsMobileDrawerOpen(false);
               }}
               className={`
