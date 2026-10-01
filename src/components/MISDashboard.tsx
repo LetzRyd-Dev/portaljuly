@@ -16,33 +16,62 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [rangeMode, setRangeMode] = useState('Fixed');
   
-  // Start Date state
+  // Start Date state (Default: September 21, 2026)
   const [startYear, setStartYear] = useState(2026);
-  const [startMonth, setStartMonth] = useState(6); // 6 = July
-  const [startDay, setStartDay] = useState(6);
+  const [startMonth, setStartMonth] = useState(8); // 8 = September
+  const [startDay, setStartDay] = useState(21);
   const [showStartPicker, setShowStartPicker] = useState(false);
 
-  // End Date state
+  // End Date state (Default: September 30, 2026)
   const [endYear, setEndYear] = useState(2026);
-  const [endMonth, setEndMonth] = useState(6); // 6 = July
-  const [endDay, setEndDay] = useState(22);
+  const [endMonth, setEndMonth] = useState(8); // 8 = September
+  const [endDay, setEndDay] = useState(30);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
-  const [dateRangeLabel, setDateRangeLabel] = useState('Jul 6, 2026 - Jul 22, 2026');
+  const [dateRangeLabel, setDateRangeLabel] = useState('Sep 21, 2026 - Sep 30, 2026');
 
-  // Dates matching Looker Studio Dashboard snapshots
+  // Dates matching latest database snapshots
   const [dates, setDates] = useState<string[]>([
-    '2026-07-22',
-    '2026-07-21',
-    '2026-07-20',
-    '2026-07-19',
-    '2026-07-18',
-    '2026-07-17',
-    '2026-07-16',
-    '2026-07-15',
-    '2026-07-14',
-    '2026-07-13',
+    '2026-09-30',
+    '2026-09-29',
+    '2026-09-28',
+    '2026-09-27',
+    '2026-09-26',
+    '2026-09-25',
+    '2026-09-24',
+    '2026-09-23',
+    '2026-09-22',
+    '2026-09-21',
   ]);
+
+  const [liveRows, setLiveRows] = useState<any[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch live metrics from zero-impact database rollup
+  useEffect(() => {
+    const fetchLiveMetrics = async () => {
+      setIsLoading(true);
+      try {
+        const sDate = `${startYear}-${String(startMonth + 1).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+        const eDate = `${endYear}-${String(endMonth + 1).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+        const res = await fetch(`/api/mis/daily-metrics?start_date=${sDate <= eDate ? sDate : eDate}&end_date=${sDate <= eDate ? eDate : sDate}&granularity=${granularity}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            setLiveRows(json.data);
+            if (granularity === 'Daily') {
+              setDates(json.data.map((r: any) => String(r.record_date)));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('MIS live fetch error, using default snapshots:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchLiveMetrics();
+  }, [startYear, startMonth, startDay, endYear, endMonth, endDay, granularity]);
 
   // Start Date Month Navigation
   const handlePrevStartMonth = () => {
@@ -271,13 +300,87 @@ export default function MISDashboard({ user, onBackToSelector, onLogout }: MISDa
     { metric: 'Dead Miles (%)', values: ['-615.4', '-672.3', '-638.1', '-920.4', '-835.6', '-778.2', '-772.9', '-639.1', '-698.4', '-335.2'] },
   ];
 
-  // Dynamic Dataset Resolution based on selected Granularity
-  const activeDates = granularity === 'Monthly' ? monthlyDates : (granularity === 'Weekly' ? weeklyDates : dates);
-  const activeAssetsData = granularity === 'Monthly' ? monthlyAssetsData : (granularity === 'Weekly' ? weeklyAssetsData : assetsData);
-  const activeTripsData = granularity === 'Monthly' ? monthlyTripsData : (granularity === 'Weekly' ? weeklyTripsData : tripsData);
-  const activeRevenueData = granularity === 'Monthly' ? monthlyRevenueData : (granularity === 'Weekly' ? weeklyRevenueData : revenueData);
-  const activeQualityData = granularity === 'Monthly' ? monthlyQualityData : (granularity === 'Weekly' ? weeklyQualityData : qualityData);
-  const activeDeadMilesData = granularity === 'Monthly' ? monthlyDeadMilesData : (granularity === 'Weekly' ? weeklyDeadMilesData : deadMilesData);
+  // Dynamic Dataset Resolution based on selected Granularity and live database records
+  const dynamicDailyAssetsData = liveRows ? [
+    { metric: 'Total Vehicle Days', values: liveRows.map((r) => Number(r.total_vehicle_days || 0).toLocaleString()) },
+    { metric: 'Alloted cars Days', values: liveRows.map((r) => Number(r.allotted_car_days || 0).toLocaleString()) },
+    { metric: 'R&M Vehicle Days', values: liveRows.map((r) => Number(r.rm_vehicle_days || 0).toLocaleString()) },
+    { metric: 'Inventory Vehicle Days', values: liveRows.map((r) => Number(r.inventory_vehicle_days || 0).toLocaleString()) },
+    { metric: 'Active Vehicle Days', values: liveRows.map((r) => Number(r.active_vehicle_days || 0).toLocaleString()) },
+    { metric: 'Utilisation %', values: liveRows.map((r) => (Number(r.allotted_car_days) > 0 ? ((Number(r.active_vehicle_days) / Number(r.allotted_car_days)) * 100).toFixed(2) : '0.00')) },
+    { metric: 'Allotted %', values: liveRows.map((r) => (Number(r.total_vehicle_days) > 0 ? ((Number(r.allotted_car_days) / Number(r.total_vehicle_days)) * 100).toFixed(2) : '0.00')) },
+    { metric: 'R&M%', values: liveRows.map((r) => (Number(r.total_vehicle_days) > 0 ? ((Number(r.rm_vehicle_days) / Number(r.total_vehicle_days)) * 100).toFixed(2) : '0.00')) },
+  ] : assetsData;
+
+  const dynamicDailyTripsData = liveRows ? [
+    { metric: 'Trips-OLA', values: liveRows.map((r) => Number(r.trips_ola || 0).toLocaleString()) },
+    { metric: 'Trips-Uber', values: liveRows.map((r) => Number(r.trips_uber || 0).toLocaleString()) },
+    { metric: 'Trips-Rapido', values: liveRows.map((r) => Number(r.trips_rapido || 0).toLocaleString()) },
+    { metric: 'TPV', values: liveRows.map((r) => (Number(r.trips_ola || 0) + Number(r.trips_uber || 0) + Number(r.trips_rapido || 0)).toLocaleString()) },
+  ] : tripsData;
+
+  const dynamicDailyRevenueData = liveRows ? [
+    { metric: 'OLA-Revenue', values: liveRows.map((r) => Number(r.ola_revenue || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'Uber-Revenue', values: liveRows.map((r) => Number(r.uber_revenue || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'Rapio-Revenue', values: liveRows.map((r) => Number(r.rapido_revenue || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'OLA-Incentive', values: liveRows.map((r) => Number(r.ola_incentive || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'Uber-Incentive', values: liveRows.map((r) => Number(r.uber_incentive || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'Rapio-Incentive', values: liveRows.map((r) => Number(r.rapido_incentive || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'Total Revenue', values: liveRows.map((r) => (Number(r.ola_revenue || 0) + Number(r.uber_revenue || 0) + Number(r.rapido_revenue || 0) + Number(r.ola_incentive || 0) + Number(r.uber_incentive || 0) + Number(r.rapido_incentive || 0)).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'Active EPV', values: liveRows.map((r) => {
+      const totRev = Number(r.ola_revenue || 0) + Number(r.uber_revenue || 0) + Number(r.rapido_revenue || 0) + Number(r.ola_incentive || 0) + Number(r.uber_incentive || 0) + Number(r.rapido_incentive || 0);
+      const act = Number(r.active_vehicle_days || 0);
+      return act > 0 ? (totRev / act).toFixed(2) : '0.00';
+    }) },
+    { metric: 'Allotted EPV', values: liveRows.map((r) => {
+      const totRev = Number(r.ola_revenue || 0) + Number(r.uber_revenue || 0) + Number(r.rapido_revenue || 0) + Number(r.ola_incentive || 0) + Number(r.uber_incentive || 0) + Number(r.rapido_incentive || 0);
+      const allot = Number(r.allotted_car_days || 0);
+      return allot > 0 ? (totRev / allot).toFixed(2) : '0.00';
+    }) },
+    { metric: 'RPT', values: liveRows.map((r) => {
+      const totRev = Number(r.ola_revenue || 0) + Number(r.uber_revenue || 0) + Number(r.rapido_revenue || 0) + Number(r.ola_incentive || 0) + Number(r.uber_incentive || 0) + Number(r.rapido_incentive || 0);
+      const totTrips = Number(r.trips_ola || 0) + Number(r.trips_uber || 0) + Number(r.trips_rapido || 0);
+      return totTrips > 0 ? (totRev / totTrips).toFixed(2) : '0.00';
+    }) },
+    { metric: 'Avg. trip Length', values: liveRows.map((r) => {
+      const totKm = Number(r.in_trip_km_ola || 0) + Number(r.in_trip_km_uber || 0) + Number(r.in_trip_km_rapido || 0);
+      const totTrips = Number(r.trips_ola || 0) + Number(r.trips_uber || 0) + Number(r.trips_rapido || 0);
+      return totTrips > 0 ? (totKm / totTrips).toFixed(2) : '0.00';
+    }) },
+    { metric: 'IN Trip KM/Active Vehicle', values: liveRows.map((r) => {
+      const totKm = Number(r.in_trip_km_ola || 0) + Number(r.in_trip_km_uber || 0) + Number(r.in_trip_km_rapido || 0);
+      const act = Number(r.active_vehicle_days || 0);
+      return act > 0 ? (totKm / act).toFixed(2) : '0.00';
+    }) },
+  ] : revenueData;
+
+  const dynamicDailyQualityData = liveRows ? [
+    { metric: 'IN Trip KM Ola', values: liveRows.map((r) => Number(r.in_trip_km_ola || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'IN Trip KM Uber', values: liveRows.map((r) => Number(r.in_trip_km_uber || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'IN Trip KM Rapido', values: liveRows.map((r) => Number(r.in_trip_km_rapido || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'IN Trip KM Total', values: liveRows.map((r) => (Number(r.in_trip_km_ola || 0) + Number(r.in_trip_km_uber || 0) + Number(r.in_trip_km_rapido || 0)).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'Average OEPK', values: liveRows.map((r) => {
+      const totRev = Number(r.ola_revenue || 0) + Number(r.uber_revenue || 0) + Number(r.rapido_revenue || 0) + Number(r.ola_incentive || 0) + Number(r.uber_incentive || 0) + Number(r.rapido_incentive || 0);
+      const totKm = Number(r.in_trip_km_ola || 0) + Number(r.in_trip_km_uber || 0) + Number(r.in_trip_km_rapido || 0);
+      return totKm > 0 ? (totRev / totKm).toFixed(2) : '0.00';
+    }) },
+  ] : qualityData;
+
+  const dynamicDailyDeadMilesData = liveRows ? [
+    { metric: 'Total GPS KMs', values: liveRows.map((r) => Number(r.total_gps_kms || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })) },
+    { metric: 'Dead Miles (%)', values: liveRows.map((r) => {
+      const gps = Number(r.total_gps_kms || 0);
+      const inTrip = Number(r.in_trip_km_ola || 0) + Number(r.in_trip_km_uber || 0) + Number(r.in_trip_km_rapido || 0);
+      return gps > 0 ? ((Math.max(0, gps - inTrip) / gps) * 100).toFixed(2) : '0.00';
+    }) },
+  ] : deadMilesData;
+
+  const activeDates = granularity === 'Monthly' ? monthlyDates : (granularity === 'Weekly' ? weeklyDates : (liveRows ? liveRows.map((r) => String(r.record_date)) : dates));
+  const activeAssetsData = granularity === 'Monthly' ? monthlyAssetsData : (granularity === 'Weekly' ? weeklyAssetsData : dynamicDailyAssetsData);
+  const activeTripsData = granularity === 'Monthly' ? monthlyTripsData : (granularity === 'Weekly' ? weeklyTripsData : dynamicDailyTripsData);
+  const activeRevenueData = granularity === 'Monthly' ? monthlyRevenueData : (granularity === 'Weekly' ? weeklyRevenueData : dynamicDailyRevenueData);
+  const activeQualityData = granularity === 'Monthly' ? monthlyQualityData : (granularity === 'Weekly' ? weeklyQualityData : dynamicDailyQualityData);
+  const activeDeadMilesData = granularity === 'Monthly' ? monthlyDeadMilesData : (granularity === 'Weekly' ? weeklyDeadMilesData : dynamicDailyDeadMilesData);
 
   const displayName = user?.name || user?.username || 'User';
   const initials = displayName.split(' ').map((w) => w[0]).join('').substring(0, 2).toUpperCase();
