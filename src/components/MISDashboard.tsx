@@ -18,33 +18,50 @@ export default function MISDashboard({ user, onBackToSelector, onBack, onLogout 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [rangeMode, setRangeMode] = useState('Fixed');
   
-  // Start Date state (Default: September 21, 2026)
-  const [startYear, setStartYear] = useState(2026);
-  const [startMonth, setStartMonth] = useState(8); // 8 = September
-  const [startDay, setStartDay] = useState(21);
+  // Dynamic initial dates (Default: Last 7 days up to today)
+  const [startYear, setStartYear] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return d.getFullYear();
+  });
+  const [startMonth, setStartMonth] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return d.getMonth();
+  });
+  const [startDay, setStartDay] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return d.getDate();
+  });
   const [showStartPicker, setShowStartPicker] = useState(false);
 
-  // End Date state (Default: September 30, 2026)
-  const [endYear, setEndYear] = useState(2026);
-  const [endMonth, setEndMonth] = useState(8); // 8 = September
-  const [endDay, setEndDay] = useState(30);
+  // End Date state (Default: Today)
+  const [endYear, setEndYear] = useState(() => new Date().getFullYear());
+  const [endMonth, setEndMonth] = useState(() => new Date().getMonth());
+  const [endDay, setEndDay] = useState(() => new Date().getDate());
   const [showEndPicker, setShowEndPicker] = useState(false);
 
-  const [dateRangeLabel, setDateRangeLabel] = useState('Sep 21, 2026 - Sep 30, 2026');
+  const [dateRangeLabel, setDateRangeLabel] = useState(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 6);
+    return `${MONTH_FULL[start.getMonth()]} ${start.getDate()}, ${start.getFullYear()} - ${MONTH_FULL[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+  });
 
   // Dates matching latest database snapshots
-  const [dates, setDates] = useState<string[]>([
-    '2026-09-30',
-    '2026-09-29',
-    '2026-09-28',
-    '2026-09-27',
-    '2026-09-26',
-    '2026-09-25',
-    '2026-09-24',
-    '2026-09-23',
-    '2026-09-22',
-    '2026-09-21',
-  ]);
+  const [dates, setDates] = useState<string[]>(() => {
+    const arr: string[] = [];
+    let curr = new Date();
+    for (let i = 0; i < 7; i++) {
+      const yyyy = curr.getFullYear();
+      const mm = String(curr.getMonth() + 1).padStart(2, '0');
+      const dd = String(curr.getDate()).padStart(2, '0');
+      arr.push(`${yyyy}-${mm}-${dd}`);
+      curr.setDate(curr.getDate() - 1);
+    }
+    return arr;
+  });
 
   const [liveRows, setLiveRows] = useState<any[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -116,19 +133,24 @@ export default function MISDashboard({ user, onBackToSelector, onBack, onLogout 
   // Handle Mode Preset Selection (Today, Yesterday, Last 7 days, This month, Fixed)
   const handleRangeModeChange = (mode: string) => {
     setRangeMode(mode);
+    const now = new Date();
 
     if (mode === 'Today') {
-      setStartYear(2026); setStartMonth(6); setStartDay(22);
-      setEndYear(2026); setEndMonth(6); setEndDay(22);
+      setStartYear(now.getFullYear()); setStartMonth(now.getMonth()); setStartDay(now.getDate());
+      setEndYear(now.getFullYear()); setEndMonth(now.getMonth()); setEndDay(now.getDate());
     } else if (mode === 'Yesterday') {
-      setStartYear(2026); setStartMonth(6); setStartDay(21);
-      setEndYear(2026); setEndMonth(6); setEndDay(21);
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      setStartYear(y.getFullYear()); setStartMonth(y.getMonth()); setStartDay(y.getDate());
+      setEndYear(y.getFullYear()); setEndMonth(y.getMonth()); setEndDay(y.getDate());
     } else if (mode === 'Last 7 days') {
-      setStartYear(2026); setStartMonth(6); setStartDay(16);
-      setEndYear(2026); setEndMonth(6); setEndDay(22);
+      const s = new Date(now);
+      s.setDate(s.getDate() - 6);
+      setStartYear(s.getFullYear()); setStartMonth(s.getMonth()); setStartDay(s.getDate());
+      setEndYear(now.getFullYear()); setEndMonth(now.getMonth()); setEndDay(now.getDate());
     } else if (mode === 'This month') {
-      setStartYear(2026); setStartMonth(6); setStartDay(1);
-      setEndYear(2026); setEndMonth(6); setEndDay(31);
+      setStartYear(now.getFullYear()); setStartMonth(now.getMonth()); setStartDay(1);
+      setEndYear(now.getFullYear()); setEndMonth(now.getMonth()); setEndDay(now.getDate());
     }
   };
 
@@ -156,10 +178,17 @@ export default function MISDashboard({ user, onBackToSelector, onBack, onLogout 
       curr.setDate(curr.getDate() - 1);
     }
 
-    setDates(newDates.length > 0 ? newDates : [
-      '2026-07-22', '2026-07-21', '2026-07-20', '2026-07-19', '2026-07-18',
-      '2026-07-17', '2026-07-16', '2026-07-15', '2026-07-14', '2026-07-13'
-    ]);
+    const fallbackDates: string[] = [];
+    let fb = new Date();
+    for (let i = 0; i < 7; i++) {
+      const yyyy = fb.getFullYear();
+      const mm = String(fb.getMonth() + 1).padStart(2, '0');
+      const dd = String(fb.getDate()).padStart(2, '0');
+      fallbackDates.push(`${yyyy}-${mm}-${dd}`);
+      fb.setDate(fb.getDate() - 1);
+    }
+
+    setDates(newDates.length > 0 ? newDates : fallbackDates);
     setIsDatePickerOpen(false);
   };
 
