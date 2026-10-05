@@ -302,7 +302,7 @@ export default function OnboardingForm({
   const [sameAsDriver, setSameAsDriver] = useState(true);
   const [operatorDrivers, setOperatorDrivers] = useState<any[]>([]);
 
-  const [linkedWalkinId, setLinkedWalkinId] = useState<number | null>(null);
+  const [linkedWalkinId, setLinkedWalkinId] = useState<number | string | null>(null);
   const [walkinSearchInput, setWalkinSearchInput] = useState("");
   const [driverName, setDriverName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -750,8 +750,9 @@ export default function OnboardingForm({
   const applyRecordAutoFill = (r: any) => {
     setDriverName(r.person_name || `${r.first_name || ''} ${r.last_name || ''}`.trim());
     if (r.city) {
-      const matchedCity = CITIES.find(c => c.value === r.city || c.text === r.city);
+      const matchedCity = CITIES.find(c => c.value?.toLowerCase() === r.city.toLowerCase() || c.text?.toLowerCase() === r.city.toLowerCase());
       if (matchedCity) setCity(matchedCity.value);
+      else setCity(r.city);
     }
     if (r.dl_number) setDlNumber(r.dl_number);
     if (r.aadhaar_number) setAadhaarNumber(r.aadhaar_number);
@@ -979,7 +980,7 @@ export default function OnboardingForm({
       dl_front: dlFront || null,
       dl_back: dlBack || null,
       pan_card_photo: panCardPhoto || null,
-      walkin_id: linkedWalkinId ? Number(linkedWalkinId) : null,
+      walkin_id: linkedWalkinId ? (parseInt(String(linkedWalkinId).replace(/\D/g, ''), 10) || null) : null,
       vendor_name: vendorName.trim() || null,
       vendor_id: vendorId.trim() || null,
       aadhaar_card_photo: aadhaarPhoto || null,
@@ -1441,8 +1442,9 @@ export default function OnboardingForm({
       setDriverName(item.person_name || `${item.first_name || ""} ${item.last_name || ""}`.trim());
       setPhoneNumber(item.person_number || "");
       if (item.city) {
-        const matchedCity = CITIES.find(c => c.value === item.city || c.text === item.city);
+        const matchedCity = CITIES.find(c => c.value?.toLowerCase() === item.city.toLowerCase() || c.text?.toLowerCase() === item.city.toLowerCase());
         if (matchedCity) setCity(matchedCity.value);
+        else setCity(item.city);
       }
       if (item.dl_number) setDlNumber(item.dl_number);
       if (item.aadhaar_number) setAadhaarNumber(item.aadhaar_number);
@@ -1479,8 +1481,9 @@ export default function OnboardingForm({
         if (record.person_name) setDriverName(record.person_name);
         if (record.person_number) setPhoneNumber(record.person_number.replace(/\D/g, '').slice(0, 10));
         if (record.city) {
-          const matchedCity = CITIES.find(c => c.value === record.city || c.text === record.city);
+          const matchedCity = CITIES.find(c => c.value?.toLowerCase() === record.city.toLowerCase() || c.text?.toLowerCase() === record.city.toLowerCase());
           if (matchedCity) setCity(matchedCity.value);
+          else setCity(record.city);
         }
         if (record.dl_number) setDlNumber(record.dl_number);
         if (record.aadhaar_number) setAadhaarNumber(record.aadhaar_number);

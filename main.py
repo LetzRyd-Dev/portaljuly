@@ -4390,37 +4390,49 @@ def create_onboarding(data: OnboardingData, authorization: Optional[str] = Heade
         ))
         new_id = cur.fetchone()[0]
         
-        walkin_id = int(data.walkin_id) if data.walkin_id and str(data.walkin_id).isdigit() else None
+        # Clean walkin_id: handle strings like "N136" or numbers like 136
+        raw_wid = str(data.walkin_id).strip() if data.walkin_id is not None else ""
+        if raw_wid.upper().startswith("N"):
+            raw_wid = raw_wid[1:]
+        walkin_id = int(raw_wid) if raw_wid.isdigit() else None
+
         if not walkin_id and data.phone_number:
-            cur.execute("SELECT id FROM july_walkins WHERE REPLACE(person_number, ' ', '') = %s LIMIT 1;", (data.phone_number.replace(" ", ""),))
+            clean_p = data.phone_number.replace(" ", "").replace("-", "")
+            # Check july_new_walkins first
+            cur.execute("SELECT id FROM july_new_walkins WHERE REPLACE(REPLACE(person_number, ' ', ''), '-', '') = %s ORDER BY id DESC LIMIT 1;", (clean_p,))
             row = cur.fetchone()
             if row:
                 walkin_id = row[0]
             else:
-                cur.execute("""
-                    INSERT INTO july_walkins (
-                        visitor_type, event_date, city, operating_place, 
-                        person_name, person_number, aadhaar_number, dl_number,
-                        visiting_reason, joined_status, remarks,
-                        first_name, last_name, lead_channel
-                    ) VALUES (%s, CURRENT_DATE, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id;
-                """, (
-                    data.vendor_type if data.vendor_type in ("Individual", "Operator") else "Individual",
-                    data.city or "Hyderabad",
-                    data.operating_place or data.city or "Hyderabad",
-                    data.driver_name or "Partner",
-                    data.phone_number,
-                    data.aadhaar_number or "",
-                    data.dl_number or "",
-                    "Onboarding",
-                    "Successfully Onboarded",
-                    "Auto-created from Onboarding Form",
-                    data.driver_name.split()[0] if data.driver_name else "",
-                    " ".join(data.driver_name.split()[1:]) if data.driver_name and len(data.driver_name.split()) > 1 else "",
-                    data.lead_source or "Direct"
-                ))
-                walkin_id = cur.fetchone()[0]
+                cur.execute("SELECT id FROM july_walkins WHERE REPLACE(REPLACE(person_number, ' ', ''), '-', '') = %s ORDER BY id DESC LIMIT 1;", (clean_p,))
+                row = cur.fetchone()
+                if row:
+                    walkin_id = row[0]
+                else:
+                    cur.execute("""
+                        INSERT INTO july_walkins (
+                            visitor_type, event_date, city, operating_place, 
+                            person_name, person_number, aadhaar_number, dl_number,
+                            visiting_reason, joined_status, remarks,
+                            first_name, last_name, lead_channel
+                        ) VALUES (%s, CURRENT_DATE, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING id;
+                    """, (
+                        data.vendor_type if data.vendor_type in ("Individual", "Operator") else "Individual",
+                        data.city or "Hyderabad",
+                        data.operating_place or data.city or "Hyderabad",
+                        data.driver_name or "Partner",
+                        data.phone_number,
+                        data.aadhaar_number or "",
+                        data.dl_number or "",
+                        "Onboarding",
+                        "Successfully Onboarded",
+                        "Auto-created from Onboarding Form",
+                        data.driver_name.split()[0] if data.driver_name else "",
+                        " ".join(data.driver_name.split()[1:]) if data.driver_name and len(data.driver_name.split()) > 1 else "",
+                        data.lead_source or "Direct"
+                    ))
+                    walkin_id = cur.fetchone()[0]
 
         if walkin_id:
             cur.execute("""
@@ -4431,6 +4443,9 @@ def create_onboarding(data: OnboardingData, authorization: Optional[str] = Heade
             
             cur.execute("""
                 UPDATE july_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;
+            """, (walkin_id,))
+            cur.execute("""
+                UPDATE july_new_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;
             """, (walkin_id,))
 
         if data.vendor_type == "Operator" and data.operator_drivers:
@@ -5141,9 +5156,15 @@ def update_onboarding(id: int, data: OnboardingData, authorization: Optional[str
         """, (data.driver_name, data.city, user_p_id, id))
 
         if data.walkin_id:
-            cur.execute("DELETE FROM july_walkin_form_links WHERE onboarding_id = %s;", (id,))
-            cur.execute("INSERT INTO july_walkin_form_links (walkin_id, onboarding_id) VALUES (%s, %s);", (data.walkin_id, id))
-            cur.execute("UPDATE july_walkins SET joined_status = 'Onboarded' WHERE id = %s;", (data.walkin_id,))
+            raw_wid = str(data.walkin_id).strip()
+            if raw_wid.upper().startswith("N"):
+                raw_wid = raw_wid[1:]
+            w_id = int(raw_wid) if raw_wid.isdigit() else None
+            if w_id:
+                cur.execute("DELETE FROM july_walkin_form_links WHERE onboarding_id = %s;", (id,))
+                cur.execute("INSERT INTO july_walkin_form_links (walkin_id, onboarding_id) VALUES (%s, %s);", (w_id, id))
+                cur.execute("UPDATE july_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;", (w_id,))
+                cur.execute("UPDATE july_new_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;", (w_id,))
 
         if data.vendor_type == "Operator" and data.operator_drivers:
             cur.execute("DELETE FROM july_form_onboarding WHERE vendor_id = %s AND vendor_type = 'Operator' AND driver_id IS NOT NULL AND id != %s;", (data.vendor_id or "", id))
