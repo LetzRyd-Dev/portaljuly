@@ -4528,7 +4528,7 @@ def send_onboarding_for_approval(
          dl_number, pan_number, aadhaar_number, old_status) = row
         role_label = vendor_type or candidate_role or "Driver"
 
-        if old_status not in (None, 'Draft', 'Changes Requested', 'Rejected'):
+        if old_status not in (None, 'Draft', 'Pending Approval', 'Changes Requested', 'Rejected'):
             raise HTTPException(
                 status_code=400,
                 detail=f"Cannot submit: record is already in '{old_status}' state"
