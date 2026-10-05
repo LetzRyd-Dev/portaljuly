@@ -56,17 +56,86 @@ const DASHBOARD_CARDS = [
   },
 ] as const;
 
+// RBAC Check for Executive MIS Dashboard Access
+export const canAccessMISDashboard = (user: User): boolean => {
+  const role = (user.role || "").toLowerCase();
+  const roleCode = (user.role_code || "").toUpperCase();
+  const username = (user.username || "").toLowerCase();
+
+  // 1. SA & BH (Super Admin, Business Head)
+  if (
+    roleCode === "SA" || roleCode === "BH" || roleCode === "BH2" ||
+    role.includes("admin") || role.includes("super admin") || role.includes("founder") || role.includes("ceo") ||
+    role.includes("business head") || username === "admin" || username.startsWith("bh.")
+  ) {
+    return true;
+  }
+
+  // 2. CH & GM (CityHead, General Manager)
+  if (
+    roleCode === "CH" || roleCode === "GM" || roleCode === "GMO" ||
+    role.includes("cityhead") || role.includes("general manager") || username.startsWith("ch.") || username.startsWith("gen_mgr")
+  ) {
+    return true;
+  }
+
+  // 3. FL (Finance Lead)
+  if (
+    roleCode === "FL" || role.includes("finance lead") || username.startsWith("fin_lead")
+  ) {
+    return true;
+  }
+
+  // 4. CM (City Manager)
+  if (
+    roleCode === "CM" || role.includes("city manager") || username.startsWith("city_mgr")
+  ) {
+    return true;
+  }
+
+  // 5. OPS MANAGER (OM)
+  if (
+    roleCode === "OM" || role.includes("ops manager") || role.includes("operations manager") || username.startsWith("om.")
+  ) {
+    return true;
+  }
+
+  // 6. FLEET & MAINTENANCE (FM, MC, ME)
+  if (
+    roleCode === "FM" || roleCode === "MC" || roleCode === "ME" ||
+    role.includes("fleet manager") || role.includes("maintenance") || username.startsWith("fleet_mgr") || username.startsWith("maint_")
+  ) {
+    return true;
+  }
+
+  // 7. Explicit per-user override in allowed_forms
+  if (user.allowed_forms && user.allowed_forms.includes("mis_dashboard")) {
+    return true;
+  }
+
+  return false;
+};
+
 export default function FormSelector({ user, initialSection = "forms", onSectionChange, onSelectForm, onLogout }: FormSelectorProps) {
+  const canAccessDashboards = useMemo(() => canAccessMISDashboard(user), [user]);
+
   // Navigation section: "forms" (default) or "dashboards"
-  const [activeSection, setActiveSection] = useState<"forms" | "dashboards">(initialSection);
+  const [activeSection, setActiveSection] = useState<"forms" | "dashboards">(() => {
+    return initialSection === "dashboards" && canAccessMISDashboard(user) ? "dashboards" : "forms";
+  });
 
   useEffect(() => {
     if (initialSection) {
-      setActiveSection(initialSection);
+      if (initialSection === "dashboards" && !canAccessDashboards) {
+        setActiveSection("forms");
+      } else {
+        setActiveSection(initialSection);
+      }
     }
-  }, [initialSection]);
+  }, [initialSection, canAccessDashboards]);
   
   const handleSectionClick = (section: "forms" | "dashboards") => {
+    if (section === "dashboards" && !canAccessDashboards) return;
     setActiveSection(section);
     if (onSectionChange) onSectionChange(section);
   };
@@ -116,12 +185,13 @@ export default function FormSelector({ user, initialSection = "forms", onSection
   }, [accessibleCards, searchQuery]);
 
   const visibleDashboards = useMemo(() => {
+    if (!canAccessDashboards) return [];
     if (!searchQuery.trim()) return DASHBOARD_CARDS;
     return DASHBOARD_CARDS.filter((card) =>
       card.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
       card.sub.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [canAccessDashboards, searchQuery]);
 
   return (
     <div className="min-h-screen flex flex-col bg-bg text-text font-sans">
@@ -271,40 +341,42 @@ export default function FormSelector({ user, initialSection = "forms", onSection
               )}
             </button>
 
-            {/* 2. Dashboards & Analytics Section */}
-            <button
-              onClick={() => {
-                handleSectionClick("dashboards");
-                setIsMobileDrawerOpen(false);
-              }}
-              className={`
-                flex items-center w-full rounded-xl transition-colors cursor-pointer
-                ${isSidebarOpen ? "gap-3 p-3 text-left" : "justify-center p-2.5 mx-auto"}
-                ${activeSection === "dashboards"
-                  ? "bg-green-light text-green border-2 border-green/70 font-bold shadow-2xs"
-                  : "text-slate-600 hover:bg-slate-50 border border-transparent font-medium"
-                }
-              `}
-              title="Dashboards & Analytics"
-            >
-              <div className={`
-                flex h-9 w-9 items-center justify-center rounded-lg shrink-0
-                ${activeSection === "dashboards" ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}
-              `}>
-                <BarChart3 className="h-5 w-5" />
-              </div>
-              
-              {isSidebarOpen && (
-                <div className="flex flex-col min-w-0">
-                  <span className="font-sans text-sm font-bold whitespace-nowrap">
-                    Dashboards &amp; Analytics
-                  </span>
-                  <span className="font-sans text-[11px] text-slate-400 font-normal whitespace-nowrap mt-0.5">
-                    MIS &amp; reports
-                  </span>
+            {/* 2. Dashboards & Analytics Section (Restricted Access) */}
+            {canAccessDashboards && (
+              <button
+                onClick={() => {
+                  handleSectionClick("dashboards");
+                  setIsMobileDrawerOpen(false);
+                }}
+                className={`
+                  flex items-center w-full rounded-xl transition-colors cursor-pointer
+                  ${isSidebarOpen ? "gap-3 p-3 text-left" : "justify-center p-2.5 mx-auto"}
+                  ${activeSection === "dashboards"
+                    ? "bg-green-light text-green border-2 border-green/70 font-bold shadow-2xs"
+                    : "text-slate-600 hover:bg-slate-50 border border-transparent font-medium"
+                  }
+                `}
+                title="Dashboards & Analytics"
+              >
+                <div className={`
+                  flex h-9 w-9 items-center justify-center rounded-lg shrink-0
+                  ${activeSection === "dashboards" ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}
+                `}>
+                  <BarChart3 className="h-5 w-5" />
                 </div>
-              )}
-            </button>
+                
+                {isSidebarOpen && (
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-sans text-sm font-bold whitespace-nowrap">
+                      Dashboards &amp; Analytics
+                    </span>
+                    <span className="font-sans text-[11px] text-slate-400 font-normal whitespace-nowrap mt-0.5">
+                      MIS &amp; reports
+                    </span>
+                  </div>
+                )}
+              </button>
+            )}
 
           </div>
         </aside>

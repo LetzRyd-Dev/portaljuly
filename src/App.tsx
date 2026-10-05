@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Login from "./components/Login";
-import FormSelector from "./components/FormSelector";
+import FormSelector, { canAccessMISDashboard } from "./components/FormSelector";
 import WalkInForm from "./components/WalkInForm";
 import OnboardingForm from "./components/OnboardingForm";
 import OperatorOnboardingForm from "./components/OperatorOnboardingForm";
@@ -347,18 +347,41 @@ export default function App() {
       )}
 
       {screen === "mis_dashboard" && user && (
-        <MISDashboard 
-          user={user} 
-          onBack={() => {
-            setSelectorSection("dashboards");
-            setScreen("selector");
-          }}
-          onBackToSelector={() => {
-            setSelectorSection("dashboards");
-            setScreen("selector");
-          }} 
-          onLogout={handleLogout} 
-        />
+        canAccessMISDashboard(user) ? (
+          <MISDashboard 
+            user={user} 
+            onBack={() => {
+              setSelectorSection("dashboards");
+              setScreen("selector");
+            }}
+            onBackToSelector={() => {
+              setSelectorSection("dashboards");
+              setScreen("selector");
+            }} 
+            onLogout={handleLogout} 
+          />
+        ) : (
+          <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans">
+            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 text-center max-w-md w-full">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600 mb-4 text-xl font-bold">
+                !
+              </div>
+              <h2 className="text-base font-bold text-slate-900 mb-2">Access Restricted</h2>
+              <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+                You do not have permission to access the executive MIS Dashboard.
+              </p>
+              <button 
+                onClick={() => {
+                  setSelectorSection("forms");
+                  setScreen("selector");
+                }}
+                className="w-full py-2.5 px-4 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary-hover transition-colors shadow-xs cursor-pointer"
+              >
+                Return to Operational Forms
+              </button>
+            </div>
+          </div>
+        )
       )}
     </div>
   );
