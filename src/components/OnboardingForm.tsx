@@ -2599,6 +2599,7 @@ export default function OnboardingForm({
                           <option value="Uber">Uber</option>
                           <option value="Ola">Ola</option>
                           <option value="Rapido">Rapido</option>
+                          <option value="CET">CET</option>
                         </select>
                       </div>
 
