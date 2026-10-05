@@ -121,21 +121,16 @@ export default function FormSelector({ user, initialSection = "forms", onSection
 
   // Navigation section: "forms" (default) or "dashboards"
   const [activeSection, setActiveSection] = useState<"forms" | "dashboards">(() => {
-    return initialSection === "dashboards" && canAccessMISDashboard(user) ? "dashboards" : "forms";
+    return initialSection === "dashboards" ? "dashboards" : "forms";
   });
 
   useEffect(() => {
     if (initialSection) {
-      if (initialSection === "dashboards" && !canAccessDashboards) {
-        setActiveSection("forms");
-      } else {
-        setActiveSection(initialSection);
-      }
+      setActiveSection(initialSection);
     }
-  }, [initialSection, canAccessDashboards]);
+  }, [initialSection]);
   
   const handleSectionClick = (section: "forms" | "dashboards") => {
-    if (section === "dashboards" && !canAccessDashboards) return;
     setActiveSection(section);
     if (onSectionChange) onSectionChange(section);
   };
@@ -341,13 +336,12 @@ export default function FormSelector({ user, initialSection = "forms", onSection
               )}
             </button>
 
-            {/* 2. Dashboards & Analytics Section (Restricted Access) */}
-            {canAccessDashboards && (
-              <button
-                onClick={() => {
-                  handleSectionClick("dashboards");
-                  setIsMobileDrawerOpen(false);
-                }}
+            {/* 2. Dashboards & Analytics Section */}
+            <button
+              onClick={() => {
+                handleSectionClick("dashboards");
+                setIsMobileDrawerOpen(false);
+              }}
                 className={`
                   flex items-center w-full rounded-xl transition-colors cursor-pointer
                   ${isSidebarOpen ? "gap-3 p-3 text-left" : "justify-center p-2.5 mx-auto"}
@@ -376,7 +370,6 @@ export default function FormSelector({ user, initialSection = "forms", onSection
                   </div>
                 )}
               </button>
-            )}
 
           </div>
         </aside>
@@ -498,14 +491,26 @@ export default function FormSelector({ user, initialSection = "forms", onSection
 
               {/* Dashboards Grid (Matching Form Card Box Design exactly) */}
               {visibleDashboards.length === 0 ? (
-                <div className="bg-white border border-border rounded-xl p-8 text-center">
-                  <p className="text-xs text-slate-500">No dashboards found matching "{searchQuery}"</p>
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="mt-2 text-xs font-bold text-primary hover:underline"
-                  >
-                    Clear search
-                  </button>
+                <div className="bg-white border border-border rounded-xl p-8 text-center max-w-md mx-auto">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-3">
+                    <BarChart3 className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-800 mb-1">
+                    {searchQuery ? "No dashboards found" : "No Dashboards Available"}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {searchQuery
+                      ? `No dashboards found matching "${searchQuery}"`
+                      : "You do not currently have access to any dashboards in this section. Please contact your administrator if you need access."}
+                  </p>
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="mt-3 text-xs font-bold text-primary hover:underline"
+                    >
+                      Clear search
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
