@@ -33,7 +33,7 @@ const CARDS = [
   { key: "hubs_parking",        label: "Hubs & Parking",           sub: "Hubs & parking slots",                icon: MapPin,        iconBg: "bg-yellow-light",            iconColor: "text-amber-600",   hover: "hover:border-amber-500",  allowedRoles: ALL_ROLES },
   { key: "accident",            label: "Accidents Form",           sub: "Document vehicle accidents",          icon: AlertTriangle, iconBg: "bg-red-50",                 iconColor: "text-red-600",     hover: "hover:border-red-500",    allowedRoles: ALL_ROLES },
   { key: "inspection",          label: "Vehicle Inspection",       sub: "Log vehicle inspections",             icon: ClipboardList, iconBg: "bg-blue-50",                iconColor: "text-primary",     hover: "hover:border-primary",    allowedRoles: ALL_ROLES },
-  { key: "users",               label: "Portal Users",             sub: "Manage portal users",                 icon: Users,         iconBg: "bg-indigo-50",              iconColor: "text-indigo-600",  hover: "hover:border-indigo-500", allowedRoles: ["SA"] },
+  { key: "users",               label: "Team & Form Access",        sub: "Add users & assign forms",            icon: Users,         iconBg: "bg-emerald-600 text-white", iconColor: "text-white",       hover: "hover:border-emerald-500", allowedRoles: ["SA", "BH", "CH", "GM"] },
   { key: "employees",           label: "Employees Desk",           sub: "LetzRyd team members",                icon: UserCircle,    iconBg: "bg-violet-50",              iconColor: "text-violet-600",  hover: "hover:border-violet-500", allowedRoles: ["SA", "BH"] },
   { key: "vehicle_models",      label: "Vehicle Models Desk",      sub: "Vehicle models registry",             icon: Truck,         iconBg: "bg-emerald-50",             iconColor: "text-emerald-600", hover: "hover:border-emerald-500", allowedRoles: ALL_ROLES },
   { key: "cities",              label: "Operating Cities",         sub: "Manage operating cities",             icon: MapPin,        iconBg: "bg-sky-50",                 iconColor: "text-sky-600",     hover: "hover:border-sky-500",    allowedRoles: ["SA", "BH", "CM"] },
@@ -156,6 +156,10 @@ export default function FormSelector({ user, initialSection = "forms", onSection
 
       if (isAdmin) return true;
       if (key === "maintenance_in" || key === "maintenance_out") return true;
+
+      // Mohan Kumar & Leadership access to user management
+      const isMohanOrLeadership = username.includes("mohan") || username === "mohan@letzryd.com" || roleCode === "CH" || roleCode === "GM";
+      if (key === "users" && isMohanOrLeadership) return true;
 
       if (user.allowed_forms && user.allowed_forms.length > 0) {
         if (key === "approvals") return true;

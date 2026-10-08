@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Users, ArrowLeft, Trash2, Search, UserPlus, ShieldAlert, Info, CheckCircle, RefreshCw, Key, Eye, EyeOff, Edit, ChevronLeft, FileText, Plus } from "lucide-react";
-import { User as UserSession } from "../types";
+import { 
+  Users, ArrowLeft, Search, UserPlus, ShieldAlert, CheckCircle, 
+  RefreshCw, ChevronLeft, ShieldCheck, Lock, CheckSquare, Square, 
+  MapPin, Briefcase, Mail, Key, User, Eye, EyeOff
+} from "lucide-react";
+import { User as UserSession, CITIES } from "../types";
 
 interface UsersFormProps {
   user: UserSession;
@@ -14,67 +18,83 @@ interface AppUser {
   name: string;
   role: string;
   role_id: number | null;
+  role_code?: string;
+  city?: string;
+  email?: string;
+  employee_id?: string;
   created_at: string | null;
-  employee_id?: string | null;
-  email?: string | null;
-  raw_password?: string;
+  forms: string[];
+  is_protected: boolean;
 }
 
-interface AppRole {
-  id: number;
-  name: string;
-}
+// Available Forms and Dashboards to assign
+const AVAILABLE_MODULES = [
+  { key: "walkin",              label: "Walkin & Leads Form",     category: "Operations" },
+  { key: "onboarding",          label: "Partner Onboarding Form",  category: "Operations" },
+  { key: "allocation",          label: "Vehicle Allocation Form", category: "Operations" },
+  { key: "dropoff",             label: "Vehicle Drop-Off Form",   category: "Operations" },
+  { key: "adjustment",          label: "Adjustment Form",         category: "Finance & Accounts" },
+  { key: "vehicle_onboarding",  label: "Vehicle Onboarding Form", category: "Fleet" },
+  { key: "rents",               label: "Rent Plans Form",         category: "Finance & Accounts" },
+  { key: "expenses",            label: "Expenses Form",           category: "Finance & Accounts" },
+  { key: "challans",            label: "Traffic Challans",        category: "Fleet" },
+  { key: "maintenance_in",      label: "Maintenance In",          category: "Fleet & Service" },
+  { key: "maintenance_out",     label: "Maintenance Out",         category: "Fleet & Service" },
+  { key: "workshops",           label: "Workshops Form",          category: "Fleet & Service" },
+  { key: "hubs_parking",        label: "Hubs & Parking Form",     category: "Fleet" },
+  { key: "accident",            label: "Accidents Form",          category: "Fleet" },
+  { key: "inspection",          label: "Vehicle Inspection",      category: "Fleet" },
+  { key: "tickets",             label: "Tickets Desk",            category: "Operations" },
+  { key: "mis_dashboard",       label: "MIS Dashboard",           category: "Dashboards & Analytics" },
+];
 
-export default function UsersForm({ 
-  user, 
-  onBackToSelector,
-  onLogout
-}: UsersFormProps) {
-  const [activeTab, setActiveTab] = useState<"form" | "registry">("form");
-  
-  // Header clock state
-  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    hour12: true
-  }));
+const PRESETS = [
+  {
+    name: "Driver Manager (DM) Standard",
+    forms: ["walkin", "onboarding", "allocation", "dropoff", "adjustment"]
+  },
+  {
+    name: "Onboarding Executive",
+    forms: ["walkin", "onboarding", "allocation"]
+  },
+  {
+    name: "Fleet & Maintenance",
+    forms: ["maintenance_in", "maintenance_out", "workshops", "accident", "inspection"]
+  },
+  {
+    name: "Finance Desk",
+    forms: ["adjustment", "rents", "expenses", "challans"]
+  }
+];
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date().toLocaleTimeString("en-IN", {
-        timeZone: "Asia/Kolkata",
-        hour12: true
-      }));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFormProps) {
+  const [activeTab, setActiveTab] = useState<"create" | "permissions">("permissions");
 
-  // Form Fields State
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [revealedPasswordId, setRevealedPasswordId] = useState<number | null>(null);
+  // Create User Form State
   const [name, setName] = useState("");
-  const [role, setRole] = useState("Executive");
-  const [customRole, setCustomRole] = useState("");
-  const [roleId, setRoleId] = useState<number | "">("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [employeeId, setEmployeeId] = useState("");
   const [email, setEmail] = useState("");
-  const [searchEmpId, setSearchEmpId] = useState("");
+  const [city, setCity] = useState("Delhi");
+  const [role, setRole] = useState("Driver Manager");
+  const [roleId, setRoleId] = useState<number>(197); // default 197 = DM
+  const [password, setPassword] = useState("123456");
+  const [showPassword, setShowPassword] = useState(false);
+  const [selectedForms, setSelectedForms] = useState<string[]>([
+    "walkin", "onboarding", "allocation", "dropoff", "adjustment"
+  ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Registry Search & Filter State
-  const [searchQuery, setSearchQuery] = useState("");
+  // Permissions Management State
   const [records, setRecords] = useState<AppUser[]>([]);
-  const [availableRoles, setAvailableRoles] = useState<AppRole[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCity, setFilterCity] = useState("All");
   const [isLoading, setIsLoading] = useState(false);
+  const [savingUserId, setSavingUserId] = useState<number | null>(null);
+
+  // Available Roles
+  const [availableRoles, setAvailableRoles] = useState<Array<{ id: number; name: string; code?: string }>>([]);
 
   const displayName = user.name || user.username || "User";
-  const initials = displayName
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
+  const initials = displayName.split(" ").map(w => w[0]).join("").substring(0, 2).toUpperCase();
 
   const fetchRecords = async () => {
     setIsLoading(true);
@@ -110,77 +130,83 @@ export default function UsersForm({
   };
 
   useEffect(() => {
+    fetchRecords();
     fetchRoles();
   }, []);
 
-  const handleLookupEmployee = async () => {
-    if (!searchEmpId.trim()) return alert("Please enter an Employee ID to search");
+  const handleToggleFormForUser = (targetUserId: number, formKey: string) => {
+    setRecords(prev => prev.map(u => {
+      if (u.id !== targetUserId) return u;
+      const current = u.forms || [];
+      const updated = current.includes(formKey)
+        ? current.filter(k => k !== formKey)
+        : [...current, formKey];
+      return { ...u, forms: updated };
+    }));
+  };
+
+  const handleSaveUserPermissions = async (targetUser: AppUser) => {
+    if (targetUser.is_protected) {
+      return alert("Security policy: Admin and Leadership account permissions cannot be modified.");
+    }
+    setSavingUserId(targetUser.id);
     try {
       const token = localStorage.getItem("lr_token");
-      const res = await fetch("/api/employees", {
-        headers: { "Authorization": `Bearer ${token}` }
+      const res = await fetch(`/api/users/${targetUser.id}/form-permissions`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ forms: targetUser.forms || [] })
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
-        const emp = data.find((e: any) => e.employee_id && e.employee_id.toLowerCase() === searchEmpId.trim().toLowerCase());
-        if (emp) {
-          setName(emp.name);
-          setEmployeeId(emp.employee_id || "");
-          setEmail(emp.company_email || emp.email || "");
-          const knownRoles = ["Executive", "Driver Relations Manager", "Onboarding Specialist", "Partner Onboarding Lead", "Regional Operations Manager", "Finance Team", "Administrator", "Other"];
-          if (knownRoles.includes(emp.role)) {
-            setRole(emp.role);
-            setCustomRole("");
-          } else {
-            setRole("Other");
-            setCustomRole(emp.role);
-          }
-          alert(`Found employee: ${emp.name} (${emp.role})`);
-        } else {
-          alert("No employee found with this ID.");
-        }
+        alert(`Permissions updated for ${targetUser.name || targetUser.username}!`);
+      } else {
+        alert(data.detail || "Failed to update permissions");
       }
-    } catch (err) {
-      console.error(err);
-      alert("Error looking up employee.");
+    } catch (err: any) {
+      alert("Error saving permissions: " + err.message);
+    } finally {
+      setSavingUserId(null);
     }
   };
 
-  useEffect(() => {
-    if (activeTab === "registry") {
-      fetchRecords();
-    }
-  }, [activeTab]);
+  const handleToggleCreateForm = (formKey: string) => {
+    setSelectedForms(prev => 
+      prev.includes(formKey) ? prev.filter(k => k !== formKey) : [...prev, formKey]
+    );
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleApplyPreset = (presetForms: string[]) => {
+    setSelectedForms(presetForms);
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return alert("Full Name is required");
-    if (!username.trim()) return alert("Username is required");
-    if (!editingId && !password.trim()) return alert("Password is required");
-
-    const finalRole = role === "Other" ? customRole.trim() : role;
-    if (!finalRole) return alert("Role is required");
+    if (!email.trim()) return alert("Email / Username is required");
+    if (!password.trim()) return alert("Password is required");
 
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem("lr_token");
-      const url = editingId ? `/api/users/${editingId}` : "/api/users";
-      const method = editingId ? "PUT" : "POST";
+      const cleanEmail = email.trim().toLowerCase();
       
-      const payload: any = {
+      const payload = {
         name: name.trim(),
-        role: finalRole,
-        username: username.trim(),
+        username: cleanEmail,
+        email: cleanEmail,
+        password: password.trim(),
+        role: role,
         role_id: roleId || null,
-        employee_id: employeeId.trim() || null,
-        email: email.trim() || null
+        city: city,
+        forms: selectedForms
       };
-      if (password) {
-        payload.password = password;
-      }
 
-      const res = await fetch(url, {
-        method: method,
+      const res = await fetch("/api/users", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
@@ -190,21 +216,16 @@ export default function UsersForm({
 
       const data = await res.json();
       if (res.ok) {
-        alert(editingId ? "User account updated successfully!" : "User account created successfully!");
+        alert(`User account "${cleanEmail}" created successfully with assigned form permissions!`);
         // Reset form
         setName("");
-        setRole("Executive");
-        setCustomRole("");
-        setRoleId("");
-        setUsername("");
-        setPassword("");
-        setEmployeeId("");
         setEmail("");
-        setSearchEmpId("");
-        setEditingId(null);
-        setActiveTab("registry");
+        setPassword("123456");
+        setSelectedForms(["walkin", "onboarding", "allocation", "dropoff", "adjustment"]);
+        setActiveTab("permissions");
+        fetchRecords();
       } else {
-        alert(data.detail || "Failed to submit user account");
+        alert(data.detail || "Failed to create user account");
       }
     } catch (err: any) {
       alert("Error occurred: " + err.message);
@@ -213,503 +234,459 @@ export default function UsersForm({
     }
   };
 
-  const handleDelete = async (id: number, targetUsername: string) => {
-    if (user.id === id) {
-       return alert("You cannot delete your own logged-in account!");
-    }
-    if (!confirm(`Are you sure you want to delete user "${targetUsername}"? This will disable their access immediately.`)) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem("lr_token");
-      const res = await fetch(`/api/users/${id}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (res.ok) {
-        alert("User deleted successfully!");
-        fetchRecords();
-      } else {
-        const data = await res.json();
-        alert(data.detail || "Failed to delete user");
-      }
-    } catch (err: any) {
-      alert("Error deleting user: " + err.message);
-    }
-  };
-
-  // Filtered records
-  const filteredRecords = records.filter((r) => {
+  // Filter users
+  const filteredRecords = records.filter(r => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      r.name.toLowerCase().includes(q) ||
-      r.username.toLowerCase().includes(q) ||
-      r.role.toLowerCase().includes(q)
+    const matchesSearch = !q || (
+      (r.name && r.name.toLowerCase().includes(q)) ||
+      (r.username && r.username.toLowerCase().includes(q)) ||
+      (r.email && r.email.toLowerCase().includes(q)) ||
+      (r.role && r.role.toLowerCase().includes(q))
     );
+    const matchesCity = filterCity === "All" || (r.city && r.city.toLowerCase() === filterCity.toLowerCase());
+    return matchesSearch && matchesCity;
   });
 
   return (
-    <div className="min-h-screen bg-bg">
-      {/* HEADER SECTION */}
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
+      {/* HEADER */}
       <header className="sticky top-0 z-40 border-b border-border bg-white shadow-xs">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-2.5 sm:px-6 lg:px-8">
-          
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button 
               type="button" 
               onClick={onBackToSelector}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-slate-100 hover:text-primary transition-all cursor-pointer shrink-0"
-              title="Back to Form Selector"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer shrink-0"
+              title="Back to Dashboard"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
-            {/* Mobile icon (compact, prevents truncation) */}
-            <img 
-              src="/letzryd_icon.png" 
-              alt="LetzRyd" 
-              className="h-7 w-7 object-contain sm:hidden cursor-pointer shrink-0"
-              onClick={onBackToSelector}
-            />
-            {/* Desktop logo */}
             <img 
               src="https://letzryd.com/replica-assets/letzryd-long-png-logo-Aq2o3DNOw1i2kBMB-7ab04eaa76.png" 
               alt="LetzRyd logo" 
-              className="hidden sm:block h-8 w-auto object-contain cursor-pointer shrink-0"
+              className="hidden sm:block h-7 w-auto object-contain cursor-pointer shrink-0"
               onClick={onBackToSelector}
               referrerPolicy="no-referrer"
             />
             <span className="hidden h-5 border-l border-border sm:inline-block" />
-            <span className="hidden font-sans text-xs font-semibold text-text-muted sm:inline-block">
-              Portal Users
-            </span>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-slate-900 leading-tight">Team &amp; Form Access</span>
+              <span className="text-[10px] text-slate-500">Manage team members and assigned form access</span>
+            </div>
           </div>
 
-          <nav className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Tab Navigation */}
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setActiveTab('form')}
-              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === 'form' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-text-muted hover:bg-slate-100 hover:text-primary' }`}
+              onClick={() => setActiveTab("permissions")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === "permissions" 
+                  ? "bg-primary text-white shadow-xs" 
+                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+              }`}
             >
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Portal Users</span>
-              <span className="sm:hidden">Form</span>
+              <ShieldCheck className="w-4 h-4" />
+              <span>Form Access List</span>
             </button>
             <button
-              onClick={() => setActiveTab('registry')}
-              className={`flex items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-semibold tracking-wide transition-all cursor-pointer ${ activeTab === 'registry' ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-text-muted hover:bg-slate-100 hover:text-primary' }`}
+              onClick={() => setActiveTab("create")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === "create" 
+                  ? "bg-primary text-white shadow-xs" 
+                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+              }`}
             >
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">User Accounts Registry</span>
-              <span className="sm:hidden">Registry</span>
+              <UserPlus className="w-4 h-4" />
+              <span>Add New User</span>
             </button>
-          </nav>
+          </div>
 
-          <div className="hidden items-center gap-4 lg:flex">
-            <div className="text-right">
-              <span className="block text-[9px] font-bold text-text-dim">Current Time (IST)</span>
-              <span className="font-sans text-xs font-bold text-primary tracking-tight">{currentTime}</span>
+          {/* User profile */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-bold text-white">
+              {initials}
             </div>
-            
-            <span className="h-5 border-l border-border" />
-            
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-bold text-white">
-                {initials}
-              </div>
-              <div className="flex flex-col">
-                <span className="font-sans text-xs font-semibold leading-none text-text">{user.name || user.username || "User"}</span>
-                {user.executive_id && <span className="font-mono text-[9px] text-text-muted mt-1 leading-none">ID: {user.executive_id}</span>}
-              </div>
-            </div>
-
-            <span className="h-5 border-l border-border" />
-
             <button 
               onClick={onLogout}
-              className="flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-2.5 font-sans text-xs font-medium text-text-muted hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors cursor-pointer"
+              className="hidden sm:flex h-8 items-center justify-center px-3 rounded-lg border border-border text-xs font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 cursor-pointer"
             >
               Sign Out
             </button>
           </div>
-
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {activeTab === "form" ? (
-          <div className="mx-auto max-w-lg rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
-            
-            {/* Dark Brand Header */}
-            <div className="relative overflow-hidden bg-primary p-5 sm:p-8 text-white">
-              <div className="absolute inset-0 bg-radial-gradient from-green/10 to-transparent pointer-events-none" />
-              
-              <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="rounded-md bg-white/10 px-2 py-0.5 text-[9px] font-bold text-white tracking-widest">
-                      LetzRyd Desk
-                    </span>
-                    <span className="text-white/40 text-xs">•</span>
-                    <span className="text-white/60 text-xs font-medium">Operations Portal</span>
-                  </div>
-                  <h2 className="font-sans text-xl sm:text-2xl font-extrabold tracking-tight">User Account Registry</h2>
-                  <p className="font-sans text-xs text-white/70 mt-1 max-w-xl leading-relaxed">
-                    Create and manage portal access credentials for executives and employees.
-                  </p>
-                </div>
+      {/* MAIN CONTENT */}
+      <main className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-6">
+        
+        {/* VIEW 1: CREATE NEW USER */}
+        {activeTab === "create" && (
+          <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="border-b border-slate-100 bg-slate-50/60 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-extrabold text-slate-900">Add New Team Member</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Create portal credentials and immediately grant access to forms.</p>
               </div>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <CheckCircle className="w-3 h-3" /> No Approval Required
+              </span>
             </div>
 
-
-            <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-6">
-              {/* Lookup Section */}
-              {!editingId && (
-                <div className="bg-slate-50 p-4 rounded-xl border border-border">
-                  <label className="block font-sans text-xs font-bold text-text-muted mb-2">
-                    Auto-fill from Employee ID
-                  </label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      placeholder="e.g. LR-EMP-001"
-                      value={searchEmpId}
-                      onChange={(e) => setSearchEmpId(e.target.value)}
-                      className="flex-1 rounded-xl border border-border bg-white px-4 py-2 font-sans text-sm focus:border-primary focus:outline-none transition-all shadow-2xs"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleLookupEmployee}
-                      className="rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 font-sans text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                    >
-                      Lookup
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Employee ID & Email Fields */}
+            <form onSubmit={handleCreateUser} className="p-6 space-y-6">
+              
+              {/* Basic Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-sans text-xs font-bold text-text-muted mb-2">
-                    Employee ID
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Full Name <span className="text-red-500">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. LR-EMP-001"
-                    value={employeeId}
-                    onChange={(e) => setEmployeeId(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs"
-                  />
-                </div>
-                <div>
-                  <label className="block font-sans text-xs font-bold text-text-muted mb-2">
-                    Email Address
-                  </label>
-                  <input 
-                    type="email" 
-                    placeholder="e.g. employee@letzryd.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs"
-                  />
-                </div>
-              </div>
-
-              {/* Name */}
-              <div>
-                <label className="block font-sans text-xs font-bold text-text-muted mb-2">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Anand Kumar..."
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs"
-                />
-              </div>
-
-              {/* Role */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-sans text-xs font-bold text-text-muted mb-2">
-                    Designation/Role <span className="text-red-500">*</span>
-                  </label>
-                  <select 
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
+                  <input
+                    type="text"
                     required
-                    className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:outline-none transition-all shadow-2xs cursor-pointer"
+                    placeholder="e.g. Shiva Kumar"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Email / Login Username <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="e.g. shiva@letzryd.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value.toLowerCase().replace(/\s+/g, ""))}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Operating City <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={city}
+                    onChange={e => setCity(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none cursor-pointer"
                   >
-                    <option value="Executive">Executive</option>
-                    <option value="Driver Relations Manager">Driver Relations Manager</option>
-                    <option value="Onboarding Specialist">Onboarding Specialist</option>
-                    <option value="Partner Onboarding Lead">Partner Onboarding Lead</option>
-                    <option value="Regional Operations Manager">Regional Operations Manager</option>
-                    <option value="Finance Team">Finance Team</option>
-                    <option value="Administrator">Administrator</option>
-                    <option value="Other">Other (Custom)</option>
+                    <option value="Delhi">Delhi</option>
+                    <option value="Bangalore">Bangalore</option>
+                    <option value="Hyderabad">Hyderabad</option>
+                    <option value="Mumbai">Mumbai</option>
+                    <option value="Chennai">Chennai</option>
                   </select>
                 </div>
 
-                {role === "Other" && (
-                  <div>
-                    <label className="block font-sans text-xs font-bold text-text-muted mb-2">
-                      Custom Role Name <span className="text-red-500">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Operations Assistant..."
-                      value={customRole}
-                      onChange={(e) => setCustomRole(e.target.value)}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Designation / Role <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={roleId}
+                    onChange={e => {
+                      const id = Number(e.target.value);
+                      setRoleId(id);
+                      const match = availableRoles.find(r => r.id === id);
+                      if (match) setRole(match.name);
+                    }}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none cursor-pointer"
+                  >
+                    {availableRoles.length > 0 ? (
+                      availableRoles
+                        .filter(r => !["SA", "BH", "BH2"].includes(r.code || ""))
+                        .map(r => (
+                          <option key={r.id} value={r.id}>{r.name}</option>
+                        ))
+                    ) : (
+                      <>
+                        <option value={197}>Driver Manager</option>
+                        <option value={201}>Onboarding Executive</option>
+                        <option value={198}>Ops Executive</option>
+                        <option value={196}>City Manager</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Initial Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
                       required
-                      className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Portal Role (Access Control) */}
-              <div>
-                <label className="block font-sans text-xs font-bold text-text-muted mb-2">
-                  Portal Access Role
-                  <span className="ml-2 text-[10px] font-normal text-text-muted normal-case tracking-normal">(Controls which sections this user can access)</span>
-                </label>
-                <select
-                  value={roleId}
-                  onChange={(e) => setRoleId(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all shadow-2xs cursor-pointer"
-                >
-                  <option value="">— No Portal Role Assigned —</option>
-                  {availableRoles.map((r) => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
-              </div>
-
-
-              <div className="border-t border-border/60 pt-6">
-                <h3 className="font-sans text-xs font-bold text-primary mb-4 flex items-center gap-1.5">
-                  Portal Login Credentials
-                </h3>
-                
-                <div className="space-y-4">
-                  {/* Username */}
-                  <div>
-                    <label className="block font-sans text-xs font-bold text-text-muted mb-2">
-                      Username <span className="text-red-500">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. anandkumar"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value.replace(/\s+/g, "").toLowerCase())}
-                      required
-                      className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs lowercase"
-                    />
-                    <p className="font-sans text-[10px] text-text-muted mt-1">Only letters/numbers, lowercase, no spaces.</p>
-                  </div>
-
-                  {/* Password */}
-                  <div>
-                    <label className="block font-sans text-xs font-bold text-text-muted mb-2">
-                      Password {editingId ? "(Optional)" : <span className="text-red-500">*</span>}
-                    </label>
-                    <input 
-                      type="password" 
-                      placeholder={editingId ? "Leave blank to keep existing password..." : "••••••••"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required={!editingId}
                       minLength={6}
-                      className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-sans text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all shadow-2xs"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      className="w-full h-10 px-3 pr-10 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none"
                     />
-                    <p className="font-sans text-[10px] text-text-muted mt-1">
-                      {editingId ? "Leave empty to keep current password. Minimum 6 characters if editing." : "Minimum 6 characters recommended."}
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
+                  <p className="text-[10px] text-slate-400 mt-1">Default set to 123456 (User can change after login)</p>
                 </div>
               </div>
 
-              <div className="flex gap-4">
-                {editingId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setName("");
-                      setRole("Executive");
-                      setCustomRole("");
-                      setRoleId("");
-                      setUsername("");
-                      setPassword("");
-                      setEmployeeId("");
-                      setEmail("");
-                      setSearchEmpId("");
-                      setEditingId(null);
-                    }}
-                    className="flex-1 rounded-xl border border-border hover:bg-bg px-4 py-3 font-sans text-sm font-bold text-text transition-all cursor-pointer text-center"
-                  >
-                    Cancel Edit
-                  </button>
-                )}
+              {/* Form Access Permissions */}
+              <div className="border-t border-slate-100 pt-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                  <div>
+                    <span className="text-xs font-extrabold text-slate-900 block">Form Access Permissions</span>
+                    <span className="text-[11px] text-slate-500">Select which forms this user is allowed to access and use</span>
+                  </div>
+
+                  {/* Preset Buttons */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Presets:</span>
+                    {PRESETS.map(p => (
+                      <button
+                        key={p.name}
+                        type="button"
+                        onClick={() => handleApplyPreset(p.forms)}
+                        className="px-2 py-1 rounded bg-slate-100 hover:bg-primary hover:text-white text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedForms(AVAILABLE_MODULES.map(m => m.key))}
+                      className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedForms([])}
+                      className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 bg-slate-50/60 p-4 rounded-xl border border-slate-200">
+                  {AVAILABLE_MODULES.map(m => {
+                    const isChecked = selectedForms.includes(m.key);
+                    return (
+                      <label 
+                        key={m.key} 
+                        className={`flex items-center gap-2 p-2 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+                          isChecked 
+                            ? "bg-white border-primary/50 text-slate-900 shadow-2xs" 
+                            : "bg-white/50 border-slate-200 text-slate-500 hover:bg-white"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleCreateForm(m.key)}
+                          className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300 cursor-pointer"
+                        />
+                        <span className="truncate">{m.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-2">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`rounded-xl px-4 py-3 font-sans text-sm font-bold text-white shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${editingId ? 'flex-1 bg-amber-500 hover:bg-amber-600' : 'w-full bg-primary hover:bg-primary-hover'}`}
+                  className="w-full h-11 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? (
-                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Creating Account &amp; Setting Access...
+                    </>
                   ) : (
-                    <UserPlus className="h-4 w-4" />
+                    <>
+                      <UserPlus className="w-4 h-4" />
+                      Create User &amp; Grant Access Immediately
+                    </>
                   )}
-                  {editingId ? "Update Portal User" : "Register Portal User"}
                 </button>
               </div>
             </form>
           </div>
-        ) : (
-          <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
-            <div className="border-b border-border bg-slate-50/50 px-8 py-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 className="font-sans text-lg font-extrabold text-primary tracking-tight">User Registry</h2>
-                  <p className="font-sans text-xs text-text-muted mt-0.5">Manage existing portal login accounts and access levels</p>
+        )}
+
+        {/* VIEW 2: FORM ACCESS PERMISSIONS LIST */}
+        {activeTab === "permissions" && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            {/* Top Toolbar */}
+            <div className="border-b border-slate-100 bg-slate-50/60 p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-extrabold text-slate-900">Team Form Access Matrix</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Directly toggle form access for team members. Changes take effect immediately upon clicking Save.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {/* City Filter */}
+                <select
+                  value={filterCity}
+                  onChange={e => setFilterCity(e.target.value)}
+                  className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none cursor-pointer"
+                >
+                  <option value="All">All Cities</option>
+                  <option value="Delhi">Delhi</option>
+                  <option value="Bangalore">Bangalore</option>
+                  <option value="Hyderabad">Hyderabad</option>
+                  <option value="Mumbai">Mumbai</option>
+                  <option value="Chennai">Chennai</option>
+                </select>
+
+                {/* Search */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, or role..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none"
+                  />
                 </div>
 
-                <div className="flex flex-1 items-center max-w-md gap-3 md:justify-end">
-                  <div className="relative w-full">
-                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                    <input 
-                      type="text" 
-                      placeholder="Search users by name, username, or role..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full rounded-xl border border-border bg-white pl-9 pr-4 py-2 font-sans text-xs focus:border-primary focus:outline-none transition-all shadow-2xs"
-                    />
-                  </div>
-                  <button 
-                    onClick={fetchRecords}
-                    disabled={isLoading}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border hover:bg-bg text-text transition-all cursor-pointer disabled:opacity-50"
-                    title="Refresh Data"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  </button>
-                </div>
+                {/* Refresh */}
+                <button
+                  onClick={fetchRecords}
+                  disabled={isLoading}
+                  className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-all cursor-pointer"
+                  title="Refresh"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+                </button>
               </div>
             </div>
 
-            {isLoading ? (
-              <div className="p-16 flex items-center justify-center">
-                <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : filteredRecords.length === 0 ? (
-              <div className="p-16 text-center">
-                <Users className="h-12 w-12 text-border mx-auto mb-3" />
-                <h3 className="font-sans text-sm font-bold text-text">No User Accounts Found</h3>
-                <p className="font-sans text-xs text-text-muted mt-1">Try modifying your query or register a new user account.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left">
-                  <thead>
-                    <tr className="border-b border-border bg-slate-50/70">
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted">User ID</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted">Employee ID / Email</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted">Full Name</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted">Username</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted">Designation / Role</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted">Password</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted">Created On</th>
-                      <th className="px-6 py-3.5 font-sans text-[10px] font-bold text-text-muted text-right">Actions</th>
+            {/* Matrix Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
+                    <th className="px-5 py-3 min-w-[200px]">Team Member</th>
+                    <th className="px-4 py-3 min-w-[120px]">City &amp; Role</th>
+                    <th className="px-4 py-3 min-w-[480px]">Form Access Toggles</th>
+                    <th className="px-4 py-3 text-right min-w-[110px]">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {filteredRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                        No team members found matching search or filter.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60">
-                    {filteredRecords.map((r) => {
-                      const isSelf = user.id === r.id;
-                      const isRevealed = revealedPasswordId === r.id;
+                  ) : (
+                    filteredRecords.map(r => {
+                      const isSaving = savingUserId === r.id;
+                      const userForms = r.forms || [];
+
                       return (
-                        <tr key={r.id} className="hover:bg-slate-50/40 transition-colors">
-                          <td className="px-6 py-4 font-mono text-xs font-semibold text-text-muted">#{r.id}</td>
-                          <td className="px-6 py-4">
-                            <div className="font-mono text-xs font-bold text-slate-800">{r.employee_id || "—"}</div>
-                            {r.email && <div className="font-sans text-[11px] text-text-muted mt-0.5">{r.email}</div>}
+                        <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                          {/* Member info */}
+                          <td className="px-5 py-3.5 align-middle">
+                            <div className="font-bold text-slate-900 leading-snug">{r.name || r.username}</div>
+                            <div className="text-[11px] text-slate-500 font-mono">{r.email || r.username}</div>
                           </td>
-                          <td className="px-6 py-4 font-sans text-sm font-bold text-text">{r.name}</td>
-                          <td className="px-6 py-4 font-mono text-xs text-primary font-semibold">@{r.username}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold ${ r.role === "Administrator" ? "bg-red-50 text-red-600 border border-red-200/50" : r.role === "Finance Team" ? "bg-amber-50 text-amber-600 border border-amber-200/50" : "bg-slate-100 text-slate-700" }`}>
-                              {r.role}
+
+                          {/* City & Role */}
+                          <td className="px-4 py-3.5 align-middle">
+                            <span className="inline-flex items-center gap-1 font-semibold text-slate-700 block">
+                              <MapPin className="w-3 h-3 text-slate-400" />
+                              {r.city || "—"}
+                            </span>
+                            <span className="text-[11px] text-slate-500 block mt-0.5">
+                              {r.role || "Executive"}
                             </span>
                           </td>
-                          <td className="px-6 py-4 font-mono text-xs text-text font-semibold">
-                            <div className="flex items-center gap-1.5">
-                              <span>{isRevealed ? r.raw_password : "••••••••"}</span>
-                              <button 
-                                onClick={() => setRevealedPasswordId(isRevealed ? null : r.id)}
-                                className="text-text-muted hover:text-primary transition-all focus:outline-none cursor-pointer"
-                                title={isRevealed ? "Hide Password" : "Show Password"}
+
+                          {/* Form Toggles */}
+                          <td className="px-4 py-3.5 align-middle">
+                            {r.is_protected ? (
+                              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold">
+                                <Lock className="w-3.5 h-3.5 text-amber-600" />
+                                Protected Account — Admin / Leadership permissions cannot be modified
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap gap-1.5">
+                                {AVAILABLE_MODULES.map(m => {
+                                  const isAllowed = userForms.includes(m.key);
+                                  return (
+                                    <button
+                                      key={m.key}
+                                      type="button"
+                                      onClick={() => handleToggleFormForUser(r.id, m.key)}
+                                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${
+                                        isAllowed
+                                          ? "bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs"
+                                          : "bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
+                                      }`}
+                                      title={m.label}
+                                    >
+                                      {isAllowed ? (
+                                        <CheckSquare className="w-3 h-3 text-emerald-600" />
+                                      ) : (
+                                        <Square className="w-3 h-3 text-slate-300" />
+                                      )}
+                                      <span>{m.label.replace(" Form", "")}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Action */}
+                          <td className="px-4 py-3.5 text-right align-middle">
+                            {r.is_protected ? (
+                              <span className="text-[11px] font-bold text-slate-400 italic">Locked</span>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={isSaving}
+                                onClick={() => handleSaveUserPermissions(r)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
                               >
-                                {isRevealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                                {isSaving ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                )}
+                                <span>Save</span>
                               </button>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 font-sans text-xs text-text-muted">
-                            {r.created_at ? new Date(r.created_at).toLocaleDateString("en-IN", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric"
-                            }) : "-"}
-                          </td>
-                          <td className="px-6 py-4 text-right space-x-2">
-                            <button
-                              onClick={() => {
-                                setEditingId(r.id);
-                                setName(r.name);
-                                setUsername(r.username);
-                                setEmployeeId(r.employee_id || "");
-                                setEmail(r.email || "");
-                                setSearchEmpId(r.employee_id || "");
-                                const commonRoles = ["Executive", "Driver Relations Manager", "Onboarding Specialist", "Partner Onboarding Lead", "Regional Operations Manager", "Finance Team", "Administrator"];
-                                if (commonRoles.includes(r.role)) {
-                                  setRole(r.role);
-                                  setCustomRole("");
-                                } else {
-                                  setRole("Other");
-                                  setCustomRole(r.role);
-                                }
-                                setPassword(""); // reset password input when editing
-                                setActiveTab("form");
-                              }}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-500 hover:text-white text-amber-500 border border-amber-200/40 transition-all cursor-pointer"
-                              title="Edit User Details & Password"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(r.id, r.username)}
-                              disabled={isSelf}
-                              className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 hover:bg-red-500 hover:text-white text-red-500 border border-red-200/40 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed`}
-                              title={isSelf ? "Cannot delete yourself" : "Delete User Account"}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            )}
                           </td>
                         </tr>
                       );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            
-            <div className="border-t border-border bg-slate-50/50 px-8 py-4 flex items-center justify-between text-xs text-text-muted">
-              <span>Showing {filteredRecords.length} of {records.length} accounts</span>
-              <span className="flex items-center gap-1">
-                <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />
-                Passwords are fully hashed using bcrypt.
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer Summary */}
+            <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-3 flex items-center justify-between text-xs text-slate-500">
+              <span>Showing {filteredRecords.length} team members</span>
+              <span className="flex items-center gap-1 text-[11px]">
+                <ShieldAlert className="w-3.5 h-3.5 text-emerald-600" />
+                Live immediate updates • Admin &amp; Leadership accounts protected
               </span>
             </div>
           </div>

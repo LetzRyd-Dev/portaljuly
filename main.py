@@ -2762,9 +2762,14 @@ class AppUserData(BaseModel):
     role: str
     username: str
     password: str
+    city: Optional[str] = "Hyderabad"
     role_id: Optional[int] = None
     employee_id: Optional[str] = None
     email: Optional[str] = None
+    forms: Optional[List[str]] = []
+
+class UserFormPermissionsUpdate(BaseModel):
+    forms: List[str]
 
 class AppUserUpdateData(BaseModel):
     name: str
@@ -2827,15 +2832,29 @@ def list_app_users(authorization: Optional[str] = Header(None)):
                    pu.role_id,
                    COALESCE(r.role_name, 'User') AS role_name,
                    COALESCE(e.employee_id::text, pu.employee_id::text, ''),
-                   COALESCE(pu.email, e.company_email, '')
+                   COALESCE(pu.email, e.company_email, ''),
+                   COALESCE(pu.city, e.city, '') AS city,
+                   r.role_code,
+                   ARRAY_AGG(fa.form_key) FILTER (WHERE fa.can_access = TRUE) AS forms
             FROM july_portal_users pu
             LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
             LEFT JOIN july_roles r ON r.role_id = pu.role_id
+            LEFT JOIN july_user_form_access fa ON pu.portal_user_id = fa.portal_user_id
+            GROUP BY pu.portal_user_id, pu.username, e.first_name, e.last_name, r.role_name, pu.role, r.role_code, pu.city, e.city, pu.email, e.employee_id, e.company_email
             ORDER BY pu.portal_user_id DESC;
         """)
         rows = cur.fetchall()
         result = []
         for r in rows:
+            role_code = (r[11] or "").upper()
+            role_name = (r[3] or "").lower()
+            u_name = (r[1] or "").lower()
+            is_protected = (
+                role_code in ["SA", "BH", "BH2", "CEO"] or
+                "admin" in role_name or "super admin" in role_name or "founder" in role_name or "business head" in role_name or
+                u_name in ["admin", "super_admin@letzryd.com", "sarvagna@letzryd.com", "ravikumar@letzryd.com"] or
+                u_name.startswith("bh.")
+            )
             result.append({
                 "id": r[0],
                 "username": r[1],
@@ -2846,7 +2865,11 @@ def list_app_users(authorization: Optional[str] = Header(None)):
                 "role_id": r[6],
                 "role_name": r[7],
                 "employee_id": r[8],
-                "email": r[9]
+                "email": r[9],
+                "city": r[10] or "Hyderabad",
+                "role_code": r[11],
+                "is_protected": is_protected,
+                "forms": r[12] or []
             })
         return result
     finally:
@@ -2856,26 +2879,125 @@ def list_app_users(authorization: Optional[str] = Header(None)):
 def create_app_user(req: AppUserData, authorization: Optional[str] = Header(None)):
     get_current_user(authorization)
     username_cleaned = req.username.strip().lower()
+    email_cleaned = (req.email or req.username).strip().lower()
     if not req.password:
          raise HTTPException(status_code=400, detail="Password is required")
     
+    city_val = (req.city or "Hyderabad").strip()
+
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT portal_user_id FROM july_portal_users WHERE LOWER(username) = %s;", (username_cleaned,))
+        cur.execute("SELECT portal_user_id FROM july_portal_users WHERE LOWER(username) = %s OR LOWER(email) = %s;", (username_cleaned, email_cleaned))
         if cur.fetchone():
-            raise HTTPException(status_code=400, detail="Username already exists")
+            raise HTTPException(status_code=400, detail="User account with this username or email already exists")
         
+        # 1. Create or match Employee in july_employees
+        cur.execute("SELECT employee_id FROM july_employees WHERE LOWER(company_email) = %s;", (email_cleaned,))
+        emp_row = cur.fetchone()
+        emp_id = emp_row[0] if emp_row else None
+        if not emp_id:
+            name_parts = req.name.strip().split(" ", 1)
+            fname = name_parts[0]
+            lname = name_parts[1] if len(name_parts) > 1 else ""
+            cur.execute("""
+                INSERT INTO july_employees (first_name, last_name, company_email, department, city, is_active, role_id, phone)
+                VALUES (%s, %s, %s, 'Operations', %s, TRUE, %s, '9999999999')
+                RETURNING employee_id;
+            """, (fname, lname, email_cleaned, city_val, req.role_id))
+            emp_id = cur.fetchone()[0]
+
+        # 2. Insert into july_portal_users
         hashed_password = pwd_context.hash(req.password)
         cur.execute(
-            """INSERT INTO july_portal_users (username, password_hash, role, role_id, email, account_status, created_at) 
-               VALUES (%s, %s, %s, %s, %s, 'Active', NOW()) RETURNING portal_user_id;""",
-            (username_cleaned, hashed_password, req.role.strip(), req.role_id, req.email)
+            """INSERT INTO july_portal_users (employee_id, username, password_hash, role, role_id, email, company_email, city, account_status, created_at) 
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'Active', NOW()) RETURNING portal_user_id;""",
+            (emp_id, username_cleaned, hashed_password, req.role.strip(), req.role_id, email_cleaned, email_cleaned, city_val)
         )
         user_id = cur.fetchone()[0]
         
+        # 3. Insert granted form access into july_user_form_access
+        if req.forms:
+            for f_key in req.forms:
+                clean_f = f_key.strip().lower()
+                if clean_f:
+                    cur.execute("""
+                        INSERT INTO july_user_form_access (portal_user_id, form_key, can_access)
+                        VALUES (%s, %s, TRUE)
+                        ON CONFLICT (portal_user_id, form_key) DO UPDATE SET can_access = TRUE;
+                    """, (user_id, clean_f))
+
+        # 4. If Delhi, auto-set Level 1 approver to Raju / CM
+        if city_val.lower() in ["delhi", "del"]:
+            cur.execute("""
+                INSERT INTO july_user_approval_chain (portal_user_id, level, approver_role_code, approver_city)
+                VALUES (%s, 1, 'CM', 'Delhi')
+                ON CONFLICT (portal_user_id, level) DO UPDATE SET approver_role_code = 'CM', approver_city = 'Delhi';
+            """, (user_id,))
+        else:
+            cur.execute("""
+                INSERT INTO july_user_approval_chain (portal_user_id, level, approver_role_code, approver_city)
+                VALUES (%s, 1, 'CM', %s)
+                ON CONFLICT (portal_user_id, level) DO NOTHING;
+            """, (user_id, city_val))
+
         conn.commit()
         return {"success": True, "user_id": user_id, "executive_id": user_id}
+    except Exception as e:
+        conn.rollback()
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        postgreSQL_pool.putconn(conn)
+
+@app.put("/api/users/{id}/form-permissions")
+def update_user_form_permissions(id: int, req: UserFormPermissionsUpdate, authorization: Optional[str] = Header(None)):
+    """Directly update which forms a portal user can access. Strictly protects Admin and Leadership accounts."""
+    curr_user = get_current_user(authorization)
+    conn = postgreSQL_pool.getconn()
+    try:
+        cur = conn.cursor()
+        # Verify target user exists and is not protected
+        cur.execute("""
+            SELECT pu.portal_user_id, pu.username, pu.role, r.role_code
+            FROM july_portal_users pu
+            LEFT JOIN july_roles r ON r.role_id = pu.role_id
+            WHERE pu.portal_user_id = %s;
+        """, (id,))
+        target = cur.fetchone()
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        _, target_username, target_role, target_role_code = target
+        t_uname = (target_username or "").lower()
+        t_role = (target_role or "").lower()
+        t_code = (target_role_code or "").upper()
+
+        # Strict protection rule: No one can edit permissions of Admin, Super Admin, or Leadership
+        if (
+            t_code in ["SA", "BH", "BH2", "CEO"] or
+            "admin" in t_role or "super admin" in t_role or "founder" in t_role or "business head" in t_role or
+            t_uname in ["admin", "super_admin@letzryd.com", "sarvagna@letzryd.com", "ravikumar@letzryd.com"] or
+            t_uname.startswith("bh.")
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Security policy: Modification of Admin, Super Admin, and Leadership account permissions is strictly prohibited."
+            )
+
+        # Clear existing form access and insert new selected forms
+        cur.execute("DELETE FROM july_user_form_access WHERE portal_user_id = %s;", (id,))
+        for f_key in req.forms:
+            clean_f = f_key.strip().lower()
+            if clean_f:
+                cur.execute("""
+                    INSERT INTO july_user_form_access (portal_user_id, form_key, can_access)
+                    VALUES (%s, %s, TRUE);
+                """, (id, clean_f))
+
+        conn.commit()
+        return {"success": True, "message": f"Updated form permissions for user #{id}"}
     except Exception as e:
         conn.rollback()
         if isinstance(e, HTTPException):
