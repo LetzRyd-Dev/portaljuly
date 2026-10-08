@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { 
-  Users, ArrowLeft, Search, UserPlus, ShieldAlert, CheckCircle, 
-  RefreshCw, ChevronLeft, ShieldCheck, Lock, CheckSquare, Square, 
-  MapPin, Briefcase, Mail, Key, User, Eye, EyeOff, X, Filter
+  Users, UserPlus, ShieldAlert, CheckCircle, RefreshCw, ChevronLeft, 
+  ShieldCheck, Lock, CheckSquare, Square, MapPin, Search, Eye, EyeOff, 
+  X, Sliders, ChevronRight
 } from "lucide-react";
 import { User as UserSession } from "../types";
 
@@ -27,22 +27,22 @@ interface AppUser {
   is_protected: boolean;
 }
 
-// Operational Forms & Dashboards (grouped cleanly)
+// Operational Modules cleanly mapped with labels
 const OPERATIONAL_FORMS = [
   { key: "walkin",              label: "Walk-in & Leads" },
   { key: "onboarding",          label: "Partner Onboarding" },
   { key: "allocation",          label: "Vehicle Allocation" },
   { key: "dropoff",             label: "Vehicle Drop-Off" },
-  { key: "adjustment",          label: "Adjustment" },
+  { key: "adjustment",          label: "Adjustment Form" },
   { key: "rents",               label: "Rent Plans" },
-  { key: "expenses",            label: "Expenses" },
+  { key: "expenses",            label: "Expenses Form" },
   { key: "vehicle_onboarding",  label: "Vehicle Onboarding" },
   { key: "maintenance_in",      label: "Maintenance In" },
   { key: "maintenance_out",     label: "Maintenance Out" },
-  { key: "workshops",           label: "Workshops" },
+  { key: "workshops",           label: "Workshops Form" },
   { key: "hubs_parking",        label: "Hubs & Parking" },
-  { key: "accident",            label: "Accidents" },
-  { key: "inspection",          label: "Inspection" },
+  { key: "accident",            label: "Accidents Form" },
+  { key: "inspection",          label: "Vehicle Inspection" },
   { key: "challans",            label: "Traffic Challans" },
   { key: "tickets",             label: "Tickets Desk" },
   { key: "mis_dashboard",       label: "MIS Dashboard" },
@@ -58,7 +58,7 @@ const PRESETS = [
     forms: ["walkin", "onboarding", "allocation"]
   },
   {
-    name: "Fleet & Maintenance",
+    name: "Fleet & Service",
     forms: ["maintenance_in", "maintenance_out", "workshops", "accident", "inspection"]
   },
   {
@@ -68,8 +68,8 @@ const PRESETS = [
 ];
 
 export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFormProps) {
-  // Modal State for "Add New User"
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  // Default Tab: "create" (Add New User) as requested!
+  const [activeTab, setActiveTab] = useState<"create" | "list">("create");
 
   // Create User Form State
   const [name, setName] = useState("");
@@ -84,12 +84,16 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // User List & Permissions State
+  // User List & Filter State
   const [records, setRecords] = useState<AppUser[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCity, setFilterCity] = useState("All");
   const [isLoading, setIsLoading] = useState(false);
-  const [savingUserId, setSavingUserId] = useState<number | null>(null);
+
+  // Modal State for Editing Permissions of a specific user
+  const [editingPermissionsUser, setEditingPermissionsUser] = useState<AppUser | null>(null);
+  const [modalSelectedForms, setModalSelectedForms] = useState<string[]>([]);
+  const [isSavingPermissions, setIsSavingPermissions] = useState(false);
 
   // Available Roles
   const [availableRoles, setAvailableRoles] = useState<Array<{ id: number; name: string; code?: string }>>([]);
@@ -135,45 +139,6 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
     fetchRoles();
   }, []);
 
-  const handleToggleFormForUser = (targetUserId: number, formKey: string) => {
-    setRecords(prev => prev.map(u => {
-      if (u.id !== targetUserId) return u;
-      const current = u.forms || [];
-      const updated = current.includes(formKey)
-        ? current.filter(k => k !== formKey)
-        : [...current, formKey];
-      return { ...u, forms: updated };
-    }));
-  };
-
-  const handleSaveUserPermissions = async (targetUser: AppUser) => {
-    if (targetUser.is_protected) {
-      return alert("Security policy: Admin and Leadership account permissions cannot be modified.");
-    }
-    setSavingUserId(targetUser.id);
-    try {
-      const token = localStorage.getItem("lr_token");
-      const res = await fetch(`/api/users/${targetUser.id}/form-permissions`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ forms: targetUser.forms || [] })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert(`Permissions updated for ${targetUser.name || targetUser.username}!`);
-      } else {
-        alert(data.detail || "Failed to update permissions");
-      }
-    } catch (err: any) {
-      alert("Error saving permissions: " + err.message);
-    } finally {
-      setSavingUserId(null);
-    }
-  };
-
   const handleToggleCreateForm = (formKey: string) => {
     setSelectedForms(prev => 
       prev.includes(formKey) ? prev.filter(k => k !== formKey) : [...prev, formKey]
@@ -213,13 +178,13 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
 
       const data = await res.json();
       if (res.ok) {
-        alert(`User account "${cleanEmail}" created successfully with assigned form permissions!`);
+        alert(`User account "${cleanEmail}" created successfully with form access!`);
         setName("");
         setEmail("");
         setPassword("123456");
         setSelectedForms(["walkin", "onboarding", "allocation", "dropoff", "adjustment"]);
-        setIsCreateModalOpen(false);
         fetchRecords();
+        setActiveTab("list");
       } else {
         alert(data.detail || "Failed to create user account");
       }
@@ -227,6 +192,50 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
       alert("Error occurred: " + err.message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Open Edit Permissions Modal
+  const openEditPermissionsModal = (targetUser: AppUser) => {
+    if (targetUser.is_protected) {
+      return alert("Security policy: Admin and Leadership account permissions cannot be modified.");
+    }
+    setEditingPermissionsUser(targetUser);
+    setModalSelectedForms(targetUser.forms || []);
+  };
+
+  const handleToggleModalForm = (formKey: string) => {
+    setModalSelectedForms(prev => 
+      prev.includes(formKey) ? prev.filter(k => k !== formKey) : [...prev, formKey]
+    );
+  };
+
+  const handleSaveModalPermissions = async () => {
+    if (!editingPermissionsUser) return;
+    setIsSavingPermissions(true);
+    try {
+      const token = localStorage.getItem("lr_token");
+      const res = await fetch(`/api/users/${editingPermissionsUser.id}/form-permissions`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ forms: modalSelectedForms })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Permissions updated for ${editingPermissionsUser.name || editingPermissionsUser.username}!`);
+        // Update local state
+        setRecords(prev => prev.map(u => u.id === editingPermissionsUser.id ? { ...u, forms: modalSelectedForms } : u));
+        setEditingPermissionsUser(null);
+      } else {
+        alert(data.detail || "Failed to update permissions");
+      }
+    } catch (err: any) {
+      alert("Error saving permissions: " + err.message);
+    } finally {
+      setIsSavingPermissions(false);
     }
   };
 
@@ -267,251 +276,78 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
             <span className="hidden h-5 border-l border-border sm:inline-block" />
             <div className="flex flex-col">
               <span className="text-xs font-bold text-slate-900 leading-tight">Team &amp; Form Access</span>
-              <span className="text-[10px] text-slate-500">Manage team members and assigned form access</span>
+              <span className="text-[10px] text-slate-500">Add users and manage form permissions</span>
             </div>
           </div>
 
-          {/* Prominent Action Button: Add New User */}
-          <div className="flex items-center gap-3">
+          {/* Simple Clean Tabs: Add New User (Default) vs View Team List */}
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green hover:bg-green-600 text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer"
+              type="button"
+              onClick={() => setActiveTab("create")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                activeTab === "create"
+                  ? "bg-green text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
             >
-              <UserPlus className="w-4 h-4" />
-              <span>+ Add New User</span>
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Add New User</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("list")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                activeTab === "list"
+                  ? "bg-green text-white shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>View Team &amp; Permissions</span>
+            </button>
+          </div>
 
-            <span className="hidden sm:inline h-5 border-l border-border" />
-
-            {/* Profile Avatar */}
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-green text-xs font-bold text-white">
-                {initials}
-              </div>
-              <button 
-                onClick={onLogout}
-                className="hidden sm:flex h-8 items-center justify-center px-3 rounded-lg border border-border text-xs font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 cursor-pointer"
-              >
-                Sign Out
-              </button>
+          {/* Profile / Sign Out */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-green text-xs font-bold text-white">
+              {initials}
             </div>
+            <button 
+              onClick={onLogout}
+              className="hidden sm:flex h-8 items-center justify-center px-3 rounded-lg border border-border text-xs font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 cursor-pointer"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
       </header>
 
-      {/* MAIN CONTENT */}
-      <main className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-6">
+      {/* MAIN CONTENT AREA */}
+      <main className="mx-auto max-w-5xl px-3 sm:px-6 lg:px-8 py-6">
         
-        {/* TOP HERO BAR */}
-        <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <div>
-            <h1 className="text-lg font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-              <Users className="w-5 h-5 text-green" />
-              Team Members &amp; Form Access Matrix
-            </h1>
-            <p className="text-xs text-slate-500 mt-1">
-              Select which operational forms each team member can view and use. Click <strong>Save</strong> on any row to apply changes immediately.
-            </p>
-          </div>
-
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="self-start md:self-auto flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green hover:bg-green-600 text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer shrink-0"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>+ Add New User</span>
-          </button>
-        </div>
-
-        {/* MATRIX TABLE CONTAINER */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          
-          {/* Table Filter Toolbar */}
-          <div className="border-b border-slate-100 bg-slate-50/70 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-700">Filter City:</span>
-              <select
-                value={filterCity}
-                onChange={e => setFilterCity(e.target.value)}
-                className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:border-green focus:outline-none cursor-pointer"
-              >
-                <option value="All">All Cities</option>
-                <option value="Delhi">Delhi</option>
-                <option value="Bangalore">Bangalore</option>
-                <option value="Hyderabad">Hyderabad</option>
-                <option value="Mumbai">Mumbai</option>
-                <option value="Chennai">Chennai</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2.5 flex-1 max-w-md justify-end">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search by name, email, or role..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-green focus:outline-none"
-                />
-              </div>
-
-              <button
-                onClick={fetchRecords}
-                disabled={isLoading}
-                className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-all cursor-pointer shrink-0"
-                title="Refresh"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-              </button>
-            </div>
-          </div>
-
-          {/* Clean Interactive Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-100/80 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
-                  <th className="px-5 py-3.5 min-w-[200px]">Team Member</th>
-                  <th className="px-4 py-3.5 min-w-[130px]">City &amp; Role</th>
-                  <th className="px-4 py-3.5 min-w-[500px]">Form Access Permissions (Click to Toggle)</th>
-                  <th className="px-4 py-3.5 text-right min-w-[110px]">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {filteredRecords.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
-                      No team members found matching your search.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRecords.map(r => {
-                    const isSaving = savingUserId === r.id;
-                    const userForms = r.forms || [];
-
-                    return (
-                      <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
-                        {/* Member */}
-                        <td className="px-5 py-4 align-top">
-                          <div className="font-bold text-slate-900 leading-snug text-xs">{r.name || r.username}</div>
-                          <div className="text-[11px] text-slate-500 font-mono mt-0.5">{r.email || r.username}</div>
-                        </td>
-
-                        {/* City & Role */}
-                        <td className="px-4 py-4 align-top">
-                          <span className="inline-flex items-center gap-1 font-bold text-slate-800 block">
-                            <MapPin className="w-3 h-3 text-slate-400" />
-                            {r.city || "—"}
-                          </span>
-                          <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
-                            {r.role || "Executive"}
-                          </span>
-                        </td>
-
-                        {/* Forms */}
-                        <td className="px-4 py-4 align-top">
-                          {r.is_protected ? (
-                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-bold">
-                              <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                              <span>Protected Leadership Account — Permissions cannot be altered</span>
-                            </div>
-                          ) : (
-                            <div className="flex flex-wrap gap-1.5">
-                              {OPERATIONAL_FORMS.map(m => {
-                                const isAllowed = userForms.includes(m.key);
-                                return (
-                                  <button
-                                    key={m.key}
-                                    type="button"
-                                    onClick={() => handleToggleFormForUser(r.id, m.key)}
-                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold border transition-all cursor-pointer ${
-                                      isAllowed
-                                        ? "bg-green-50 border-green text-green shadow-2xs font-extrabold"
-                                        : "bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
-                                    }`}
-                                    title={`Toggle ${m.label}`}
-                                  >
-                                    {isAllowed ? (
-                                      <CheckSquare className="w-3.5 h-3.5 text-green" />
-                                    ) : (
-                                      <Square className="w-3.5 h-3.5 text-slate-300" />
-                                    )}
-                                    <span>{m.label}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Action */}
-                        <td className="px-4 py-4 text-right align-top">
-                          {r.is_protected ? (
-                            <span className="text-[11px] font-bold text-slate-400 italic">Locked</span>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={isSaving}
-                              onClick={() => handleSaveUserPermissions(r)}
-                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-green hover:bg-green-600 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
-                            >
-                              {isSaving ? (
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <CheckCircle className="w-3.5 h-3.5" />
-                              )}
-                              <span>Save</span>
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Footer Info */}
-          <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-3.5 flex items-center justify-between text-xs text-slate-500">
-            <span>Showing {filteredRecords.length} team members</span>
-            <span className="flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
-              <ShieldAlert className="w-3.5 h-3.5" />
-              Live immediate updates • Admin &amp; Leadership accounts protected
-            </span>
-          </div>
-        </div>
-      </main>
-
-      {/* POPUP MODAL: ADD NEW USER */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+        {/* VIEW 1: ADD NEW USER (DEFAULT OPENING) */}
+        {activeTab === "create" && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             
-            {/* Modal Header */}
-            <div className="border-b border-slate-100 bg-slate-50 px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-green/10 flex items-center justify-center text-green">
-                  <UserPlus className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">Add New Team Member</h3>
-                  <p className="text-[11px] text-slate-500">Create login account and assign form permissions immediately</p>
-                </div>
+            <div className="border-b border-slate-100 bg-slate-50/70 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-green" />
+                  Add New Team Member
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Enter candidate details and choose which forms they can see and use.
+                </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsCreateModalOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <CheckCircle className="w-3 h-3" /> Direct Activation
+              </span>
             </div>
 
-            {/* Modal Form Body */}
-            <form onSubmit={handleCreateUser} className="p-6 overflow-y-auto space-y-5">
+            <form onSubmit={handleCreateUser} className="p-6 space-y-6">
               
+              {/* Profile Inputs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -529,7 +365,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Email / Login Username <span className="text-red-500">*</span>
+                    Email Address / Login <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
@@ -610,23 +446,27 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1">Default set to 123456 (User can change after login)</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Default is 123456 (User can change upon logging in)</p>
                 </div>
               </div>
 
-              {/* Form Access Checkboxes */}
-              <div className="border-t border-slate-100 pt-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
-                  <span className="text-xs font-extrabold text-slate-900">Grant Form Permissions:</span>
-                  
-                  {/* Quick Preset Buttons */}
+              {/* Form Access Permissions Box */}
+              <div className="border-t border-slate-100 pt-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                  <div>
+                    <span className="text-xs font-extrabold text-slate-900 block">Form Access Checklist</span>
+                    <span className="text-[11px] text-slate-500">Pick which forms this user will see on their dashboard</span>
+                  </div>
+
+                  {/* Preset Badges */}
                   <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Quick Presets:</span>
                     {PRESETS.map(p => (
                       <button
                         key={p.name}
                         type="button"
                         onClick={() => setSelectedForms(p.forms)}
-                        className="px-2 py-0.5 rounded bg-slate-100 hover:bg-green hover:text-white text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
+                        className="px-2 py-1 rounded-md bg-slate-100 hover:bg-green hover:text-white text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
                       >
                         {p.name}
                       </button>
@@ -634,22 +474,29 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                     <button
                       type="button"
                       onClick={() => setSelectedForms(OPERATIONAL_FORMS.map(m => m.key))}
-                      className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                      className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
                     >
-                      All
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedForms([])}
+                      className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                    >
+                      Clear
                     </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-50/70 p-3 rounded-xl border border-slate-200 max-h-48 overflow-y-auto">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-slate-50/80 p-4 rounded-xl border border-slate-200">
                   {OPERATIONAL_FORMS.map(m => {
                     const isChecked = selectedForms.includes(m.key);
                     return (
                       <label 
                         key={m.key} 
-                        className={`flex items-center gap-2 p-2 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
                           isChecked 
-                            ? "bg-white border-green text-slate-900 shadow-2xs" 
+                            ? "bg-white border-green text-slate-900 shadow-2xs font-extrabold" 
                             : "bg-white/60 border-slate-200 text-slate-500 hover:bg-white"
                         }`}
                       >
@@ -659,31 +506,24 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                           onChange={() => handleToggleCreateForm(m.key)}
                           className="h-4 w-4 rounded text-green focus:ring-green border-slate-300 cursor-pointer"
                         />
-                        <span className="truncate text-[11px]">{m.label}</span>
+                        <span className="truncate">{m.label}</span>
                       </label>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Submit Buttons */}
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  className="flex-1 h-11 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
+              {/* Submit Button */}
+              <div className="pt-2">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-2 h-11 bg-green hover:bg-green-600 text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  className="w-full h-11 bg-green hover:bg-green-600 text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Creating Account...
+                      Creating User Account...
                     </>
                   ) : (
                     <>
@@ -694,6 +534,262 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* VIEW 2: CLEAN, UNCLUTTERED USER LIST */}
+        {activeTab === "list" && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            
+            {/* Filter Bar */}
+            <div className="border-b border-slate-100 bg-slate-50/70 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-700">Filter City:</span>
+                <select
+                  value={filterCity}
+                  onChange={e => setFilterCity(e.target.value)}
+                  className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:border-green focus:outline-none cursor-pointer"
+                >
+                  <option value="All">All Cities</option>
+                  <option value="Delhi">Delhi</option>
+                  <option value="Bangalore">Bangalore</option>
+                  <option value="Hyderabad">Hyderabad</option>
+                  <option value="Mumbai">Mumbai</option>
+                  <option value="Chennai">Chennai</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2.5 flex-1 max-w-md justify-end">
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, or role..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-green focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  onClick={fetchRecords}
+                  disabled={isLoading}
+                  className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-all cursor-pointer shrink-0"
+                  title="Refresh"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Clean Table (Zero Horizontal Clutter) */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-100/80 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                    <th className="px-5 py-3.5">Team Member</th>
+                    <th className="px-4 py-3.5">City &amp; Designation</th>
+                    <th className="px-4 py-3.5">Active Form Access</th>
+                    <th className="px-4 py-3.5 text-right">Manage Access</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {filteredRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                        No team members found.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRecords.map(r => {
+                      const userForms = r.forms || [];
+
+                      return (
+                        <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
+                          {/* Member info */}
+                          <td className="px-5 py-4 align-middle">
+                            <div className="font-bold text-slate-900 leading-snug">{r.name || r.username}</div>
+                            <div className="text-[11px] text-slate-500 font-mono mt-0.5">{r.email || r.username}</div>
+                          </td>
+
+                          {/* City & Role */}
+                          <td className="px-4 py-4 align-middle">
+                            <span className="inline-flex items-center gap-1 font-bold text-slate-800">
+                              <MapPin className="w-3 h-3 text-slate-400" />
+                              {r.city || "—"}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
+                              {r.role || "Executive"}
+                            </span>
+                          </td>
+
+                          {/* Clean Form Access Badges Summary */}
+                          <td className="px-4 py-4 align-middle">
+                            {r.is_protected ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                <Lock className="w-3 h-3 text-amber-600" />
+                                Protected Leadership Account
+                              </span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-green-50 text-green border border-green/30">
+                                  {userForms.length} Active {userForms.length === 1 ? "Form" : "Forms"}
+                                </span>
+                                <span className="text-[11px] text-slate-500 truncate max-w-xs">
+                                  {userForms.length > 0 
+                                    ? userForms.map(f => OPERATIONAL_FORMS.find(o => o.key === f)?.label || f).slice(0, 3).join(", ") + (userForms.length > 3 ? ` +${userForms.length - 3} more` : "")
+                                    : "No forms assigned"}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Clean Action Button */}
+                          <td className="px-4 py-4 text-right align-middle">
+                            {r.is_protected ? (
+                              <span className="text-[11px] font-bold text-slate-400 italic">Locked</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => openEditPermissionsModal(r)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-green hover:text-white hover:border-green text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                              >
+                                <Sliders className="w-3.5 h-3.5" />
+                                <span>Edit Access</span>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-3.5 flex items-center justify-between text-xs text-slate-500">
+              <span>Showing {filteredRecords.length} team members</span>
+              <span className="flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
+                <ShieldAlert className="w-3.5 h-3.5" />
+                Leadership accounts strictly protected from modifications
+              </span>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* POPUP MODAL: EDIT USER PERMISSIONS (OPENED VIA "EDIT ACCESS" BUTTON) */}
+      {editingPermissionsUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
+            
+            {/* Modal Header */}
+            <div className="border-b border-slate-100 bg-slate-50 px-5 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">
+                  Edit Form Access: {editingPermissionsUser.name || editingPermissionsUser.username}
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {editingPermissionsUser.city} • {editingPermissionsUser.role}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingPermissionsUser(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-4">
+              
+              <div className="flex flex-wrap items-center justify-between gap-1.5 pb-2 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-700">Quick Presets:</span>
+                <div className="flex flex-wrap gap-1">
+                  {PRESETS.map(p => (
+                    <button
+                      key={p.name}
+                      type="button"
+                      onClick={() => setModalSelectedForms(p.forms)}
+                      className="px-2 py-0.5 rounded bg-slate-100 hover:bg-green hover:text-white text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setModalSelectedForms(OPERATIONAL_FORMS.map(m => m.key))}
+                    className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalSelectedForms([])}
+                    className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Checkboxes List */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {OPERATIONAL_FORMS.map(m => {
+                  const isChecked = modalSelectedForms.includes(m.key);
+                  return (
+                    <label 
+                      key={m.key} 
+                      className={`flex items-center gap-2 p-2 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
+                        isChecked 
+                          ? "bg-green-50 border-green text-green shadow-2xs font-extrabold" 
+                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleModalForm(m.key)}
+                        className="h-4 w-4 rounded text-green focus:ring-green border-slate-300 cursor-pointer"
+                      />
+                      <span className="truncate">{m.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-slate-100 bg-slate-50 px-5 py-3.5 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setEditingPermissionsUser(null)}
+                className="flex-1 h-10 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSavingPermissions}
+                onClick={handleSaveModalPermissions}
+                className="flex-2 h-10 bg-green hover:bg-green-600 text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isSavingPermissions ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Saving Permissions...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    Save Permissions
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
