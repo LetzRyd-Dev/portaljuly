@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { 
   Users, ArrowLeft, Search, UserPlus, ShieldAlert, CheckCircle, 
   RefreshCw, ChevronLeft, ShieldCheck, Lock, CheckSquare, Square, 
-  MapPin, Briefcase, Mail, Key, User, Eye, EyeOff
+  MapPin, Briefcase, Mail, Key, User, Eye, EyeOff, X, Filter
 } from "lucide-react";
-import { User as UserSession, CITIES } from "../types";
+import { User as UserSession } from "../types";
 
 interface UsersFormProps {
   user: UserSession;
@@ -27,25 +27,25 @@ interface AppUser {
   is_protected: boolean;
 }
 
-// Available Forms and Dashboards to assign
-const AVAILABLE_MODULES = [
-  { key: "walkin",              label: "Walkin & Leads Form",     category: "Operations" },
-  { key: "onboarding",          label: "Partner Onboarding Form",  category: "Operations" },
-  { key: "allocation",          label: "Vehicle Allocation Form", category: "Operations" },
-  { key: "dropoff",             label: "Vehicle Drop-Off Form",   category: "Operations" },
-  { key: "adjustment",          label: "Adjustment Form",         category: "Finance & Accounts" },
-  { key: "vehicle_onboarding",  label: "Vehicle Onboarding Form", category: "Fleet" },
-  { key: "rents",               label: "Rent Plans Form",         category: "Finance & Accounts" },
-  { key: "expenses",            label: "Expenses Form",           category: "Finance & Accounts" },
-  { key: "challans",            label: "Traffic Challans",        category: "Fleet" },
-  { key: "maintenance_in",      label: "Maintenance In",          category: "Fleet & Service" },
-  { key: "maintenance_out",     label: "Maintenance Out",         category: "Fleet & Service" },
-  { key: "workshops",           label: "Workshops Form",          category: "Fleet & Service" },
-  { key: "hubs_parking",        label: "Hubs & Parking Form",     category: "Fleet" },
-  { key: "accident",            label: "Accidents Form",          category: "Fleet" },
-  { key: "inspection",          label: "Vehicle Inspection",      category: "Fleet" },
-  { key: "tickets",             label: "Tickets Desk",            category: "Operations" },
-  { key: "mis_dashboard",       label: "MIS Dashboard",           category: "Dashboards & Analytics" },
+// Operational Forms & Dashboards (grouped cleanly)
+const OPERATIONAL_FORMS = [
+  { key: "walkin",              label: "Walk-in & Leads" },
+  { key: "onboarding",          label: "Partner Onboarding" },
+  { key: "allocation",          label: "Vehicle Allocation" },
+  { key: "dropoff",             label: "Vehicle Drop-Off" },
+  { key: "adjustment",          label: "Adjustment" },
+  { key: "rents",               label: "Rent Plans" },
+  { key: "expenses",            label: "Expenses" },
+  { key: "vehicle_onboarding",  label: "Vehicle Onboarding" },
+  { key: "maintenance_in",      label: "Maintenance In" },
+  { key: "maintenance_out",     label: "Maintenance Out" },
+  { key: "workshops",           label: "Workshops" },
+  { key: "hubs_parking",        label: "Hubs & Parking" },
+  { key: "accident",            label: "Accidents" },
+  { key: "inspection",          label: "Inspection" },
+  { key: "challans",            label: "Traffic Challans" },
+  { key: "tickets",             label: "Tickets Desk" },
+  { key: "mis_dashboard",       label: "MIS Dashboard" },
 ];
 
 const PRESETS = [
@@ -68,14 +68,15 @@ const PRESETS = [
 ];
 
 export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFormProps) {
-  const [activeTab, setActiveTab] = useState<"create" | "permissions">("permissions");
+  // Modal State for "Add New User"
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Create User Form State
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [city, setCity] = useState("Delhi");
   const [role, setRole] = useState("Driver Manager");
-  const [roleId, setRoleId] = useState<number>(197); // default 197 = DM
+  const [roleId, setRoleId] = useState<number>(197); // 197 = DM
   const [password, setPassword] = useState("123456");
   const [showPassword, setShowPassword] = useState(false);
   const [selectedForms, setSelectedForms] = useState<string[]>([
@@ -83,7 +84,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Permissions Management State
+  // User List & Permissions State
   const [records, setRecords] = useState<AppUser[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCity, setFilterCity] = useState("All");
@@ -179,10 +180,6 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
     );
   };
 
-  const handleApplyPreset = (presetForms: string[]) => {
-    setSelectedForms(presetForms);
-  };
-
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return alert("Full Name is required");
@@ -217,12 +214,11 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
       const data = await res.json();
       if (res.ok) {
         alert(`User account "${cleanEmail}" created successfully with assigned form permissions!`);
-        // Reset form
         setName("");
         setEmail("");
         setPassword("123456");
         setSelectedForms(["walkin", "onboarding", "allocation", "dropoff", "adjustment"]);
-        setActiveTab("permissions");
+        setIsCreateModalOpen(false);
         fetchRecords();
       } else {
         alert(data.detail || "Failed to create user account");
@@ -275,43 +271,30 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
             </div>
           </div>
 
-          {/* Tab Navigation */}
-          <div className="flex items-center gap-2">
+          {/* Prominent Action Button: Add New User */}
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setActiveTab("permissions")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeTab === "permissions" 
-                  ? "bg-primary text-white shadow-xs" 
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Form Access List</span>
-            </button>
-            <button
-              onClick={() => setActiveTab("create")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeTab === "create" 
-                  ? "bg-primary text-white shadow-xs" 
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green hover:bg-green-600 text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer"
             >
               <UserPlus className="w-4 h-4" />
-              <span>Add New User</span>
+              <span>+ Add New User</span>
             </button>
-          </div>
 
-          {/* User profile */}
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-bold text-white">
-              {initials}
+            <span className="hidden sm:inline h-5 border-l border-border" />
+
+            {/* Profile Avatar */}
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-green text-xs font-bold text-white">
+                {initials}
+              </div>
+              <button 
+                onClick={onLogout}
+                className="hidden sm:flex h-8 items-center justify-center px-3 rounded-lg border border-border text-xs font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 cursor-pointer"
+              >
+                Sign Out
+              </button>
             </div>
-            <button 
-              onClick={onLogout}
-              className="hidden sm:flex h-8 items-center justify-center px-3 rounded-lg border border-border text-xs font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 cursor-pointer"
-            >
-              Sign Out
-            </button>
           </div>
         </div>
       </header>
@@ -319,25 +302,219 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
       {/* MAIN CONTENT */}
       <main className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-6">
         
-        {/* VIEW 1: CREATE NEW USER */}
-        {activeTab === "create" && (
-          <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="border-b border-slate-100 bg-slate-50/60 px-6 py-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-extrabold text-slate-900">Add New Team Member</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Create portal credentials and immediately grant access to forms.</p>
-              </div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <CheckCircle className="w-3 h-3" /> No Approval Required
-              </span>
+        {/* TOP HERO BAR */}
+        <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+          <div>
+            <h1 className="text-lg font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+              <Users className="w-5 h-5 text-green" />
+              Team Members &amp; Form Access Matrix
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Select which operational forms each team member can view and use. Click <strong>Save</strong> on any row to apply changes immediately.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="self-start md:self-auto flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green hover:bg-green-600 text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer shrink-0"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>+ Add New User</span>
+          </button>
+        </div>
+
+        {/* MATRIX TABLE CONTAINER */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          
+          {/* Table Filter Toolbar */}
+          <div className="border-b border-slate-100 bg-slate-50/70 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700">Filter City:</span>
+              <select
+                value={filterCity}
+                onChange={e => setFilterCity(e.target.value)}
+                className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:border-green focus:outline-none cursor-pointer"
+              >
+                <option value="All">All Cities</option>
+                <option value="Delhi">Delhi</option>
+                <option value="Bangalore">Bangalore</option>
+                <option value="Hyderabad">Hyderabad</option>
+                <option value="Mumbai">Mumbai</option>
+                <option value="Chennai">Chennai</option>
+              </select>
             </div>
 
-            <form onSubmit={handleCreateUser} className="p-6 space-y-6">
-              
-              {/* Basic Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center gap-2.5 flex-1 max-w-md justify-end">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name, email, or role..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-green focus:outline-none"
+                />
+              </div>
+
+              <button
+                onClick={fetchRecords}
+                disabled={isLoading}
+                className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-all cursor-pointer shrink-0"
+                title="Refresh"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Clean Interactive Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-100/80 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                  <th className="px-5 py-3.5 min-w-[200px]">Team Member</th>
+                  <th className="px-4 py-3.5 min-w-[130px]">City &amp; Role</th>
+                  <th className="px-4 py-3.5 min-w-[500px]">Form Access Permissions (Click to Toggle)</th>
+                  <th className="px-4 py-3.5 text-right min-w-[110px]">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs">
+                {filteredRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                      No team members found matching your search.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRecords.map(r => {
+                    const isSaving = savingUserId === r.id;
+                    const userForms = r.forms || [];
+
+                    return (
+                      <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
+                        {/* Member */}
+                        <td className="px-5 py-4 align-top">
+                          <div className="font-bold text-slate-900 leading-snug text-xs">{r.name || r.username}</div>
+                          <div className="text-[11px] text-slate-500 font-mono mt-0.5">{r.email || r.username}</div>
+                        </td>
+
+                        {/* City & Role */}
+                        <td className="px-4 py-4 align-top">
+                          <span className="inline-flex items-center gap-1 font-bold text-slate-800 block">
+                            <MapPin className="w-3 h-3 text-slate-400" />
+                            {r.city || "—"}
+                          </span>
+                          <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
+                            {r.role || "Executive"}
+                          </span>
+                        </td>
+
+                        {/* Forms */}
+                        <td className="px-4 py-4 align-top">
+                          {r.is_protected ? (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-bold">
+                              <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              <span>Protected Leadership Account — Permissions cannot be altered</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              {OPERATIONAL_FORMS.map(m => {
+                                const isAllowed = userForms.includes(m.key);
+                                return (
+                                  <button
+                                    key={m.key}
+                                    type="button"
+                                    onClick={() => handleToggleFormForUser(r.id, m.key)}
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold border transition-all cursor-pointer ${
+                                      isAllowed
+                                        ? "bg-green-50 border-green text-green shadow-2xs font-extrabold"
+                                        : "bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
+                                    }`}
+                                    title={`Toggle ${m.label}`}
+                                  >
+                                    {isAllowed ? (
+                                      <CheckSquare className="w-3.5 h-3.5 text-green" />
+                                    ) : (
+                                      <Square className="w-3.5 h-3.5 text-slate-300" />
+                                    )}
+                                    <span>{m.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Action */}
+                        <td className="px-4 py-4 text-right align-top">
+                          {r.is_protected ? (
+                            <span className="text-[11px] font-bold text-slate-400 italic">Locked</span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => handleSaveUserPermissions(r)}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-green hover:bg-green-600 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                            >
+                              {isSaving ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-3.5 h-3.5" />
+                              )}
+                              <span>Save</span>
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer Info */}
+          <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-3.5 flex items-center justify-between text-xs text-slate-500">
+            <span>Showing {filteredRecords.length} team members</span>
+            <span className="flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              Live immediate updates • Admin &amp; Leadership accounts protected
+            </span>
+          </div>
+        </div>
+      </main>
+
+      {/* POPUP MODAL: ADD NEW USER */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="border-b border-slate-100 bg-slate-50 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-green/10 flex items-center justify-center text-green">
+                  <UserPlus className="w-4 h-4" />
+                </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <h3 className="text-sm font-extrabold text-slate-900">Add New Team Member</h3>
+                  <p className="text-[11px] text-slate-500">Create login account and assign form permissions immediately</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form Body */}
+            <form onSubmit={handleCreateUser} className="p-6 overflow-y-auto space-y-5">
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -346,12 +523,12 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                     placeholder="e.g. Shiva Kumar"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none"
+                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:border-green focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Email / Login Username <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -360,18 +537,18 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                     placeholder="e.g. shiva@letzryd.com"
                     value={email}
                     onChange={e => setEmail(e.target.value.toLowerCase().replace(/\s+/g, ""))}
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none"
+                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:border-green focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Operating City <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={city}
                     onChange={e => setCity(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none cursor-pointer"
+                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:border-green focus:outline-none cursor-pointer"
                   >
                     <option value="Delhi">Delhi</option>
                     <option value="Bangalore">Bangalore</option>
@@ -382,7 +559,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Designation / Role <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -393,7 +570,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                       const match = availableRoles.find(r => r.id === id);
                       if (match) setRole(match.name);
                     }}
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none cursor-pointer"
+                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:border-green focus:outline-none cursor-pointer"
                   >
                     {availableRoles.length > 0 ? (
                       availableRoles
@@ -412,8 +589,8 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                   </select>
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Initial Password <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -423,7 +600,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                       minLength={6}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      className="w-full h-10 px-3 pr-10 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none"
+                      className="w-full h-10 px-3 pr-10 rounded-xl border border-slate-200 bg-white text-xs font-semibold focus:border-green focus:outline-none"
                     />
                     <button
                       type="button"
@@ -437,80 +614,76 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                 </div>
               </div>
 
-              {/* Form Access Permissions */}
-              <div className="border-t border-slate-100 pt-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                  <div>
-                    <span className="text-xs font-extrabold text-slate-900 block">Form Access Permissions</span>
-                    <span className="text-[11px] text-slate-500">Select which forms this user is allowed to access and use</span>
-                  </div>
-
-                  {/* Preset Buttons */}
+              {/* Form Access Checkboxes */}
+              <div className="border-t border-slate-100 pt-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+                  <span className="text-xs font-extrabold text-slate-900">Grant Form Permissions:</span>
+                  
+                  {/* Quick Preset Buttons */}
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Presets:</span>
                     {PRESETS.map(p => (
                       <button
                         key={p.name}
                         type="button"
-                        onClick={() => handleApplyPreset(p.forms)}
-                        className="px-2 py-1 rounded bg-slate-100 hover:bg-primary hover:text-white text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
+                        onClick={() => setSelectedForms(p.forms)}
+                        className="px-2 py-0.5 rounded bg-slate-100 hover:bg-green hover:text-white text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
                       >
                         {p.name}
                       </button>
                     ))}
                     <button
                       type="button"
-                      onClick={() => setSelectedForms(AVAILABLE_MODULES.map(m => m.key))}
-                      className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                      onClick={() => setSelectedForms(OPERATIONAL_FORMS.map(m => m.key))}
+                      className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
                     >
                       All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedForms([])}
-                      className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
-                    >
-                      Clear
                     </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 bg-slate-50/60 p-4 rounded-xl border border-slate-200">
-                  {AVAILABLE_MODULES.map(m => {
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-50/70 p-3 rounded-xl border border-slate-200 max-h-48 overflow-y-auto">
+                  {OPERATIONAL_FORMS.map(m => {
                     const isChecked = selectedForms.includes(m.key);
                     return (
                       <label 
                         key={m.key} 
-                        className={`flex items-center gap-2 p-2 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+                        className={`flex items-center gap-2 p-2 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
                           isChecked 
-                            ? "bg-white border-primary/50 text-slate-900 shadow-2xs" 
-                            : "bg-white/50 border-slate-200 text-slate-500 hover:bg-white"
+                            ? "bg-white border-green text-slate-900 shadow-2xs" 
+                            : "bg-white/60 border-slate-200 text-slate-500 hover:bg-white"
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => handleToggleCreateForm(m.key)}
-                          className="h-4 w-4 rounded text-primary focus:ring-primary border-slate-300 cursor-pointer"
+                          className="h-4 w-4 rounded text-green focus:ring-green border-slate-300 cursor-pointer"
                         />
-                        <span className="truncate">{m.label}</span>
+                        <span className="truncate text-[11px]">{m.label}</span>
                       </label>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Submit Button */}
-              <div className="pt-2">
+              {/* Submit Buttons */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="flex-1 h-11 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full h-11 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  className="flex-2 h-11 bg-green hover:bg-green-600 text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Creating Account &amp; Setting Access...
+                      Creating Account...
                     </>
                   ) : (
                     <>
@@ -522,176 +695,8 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
               </div>
             </form>
           </div>
-        )}
-
-        {/* VIEW 2: FORM ACCESS PERMISSIONS LIST */}
-        {activeTab === "permissions" && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            {/* Top Toolbar */}
-            <div className="border-b border-slate-100 bg-slate-50/60 p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-sm font-extrabold text-slate-900">Team Form Access Matrix</h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Directly toggle form access for team members. Changes take effect immediately upon clicking Save.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                {/* City Filter */}
-                <select
-                  value={filterCity}
-                  onChange={e => setFilterCity(e.target.value)}
-                  className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none cursor-pointer"
-                >
-                  <option value="All">All Cities</option>
-                  <option value="Delhi">Delhi</option>
-                  <option value="Bangalore">Bangalore</option>
-                  <option value="Hyderabad">Hyderabad</option>
-                  <option value="Mumbai">Mumbai</option>
-                  <option value="Chennai">Chennai</option>
-                </select>
-
-                {/* Search */}
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by name, email, or role..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-primary focus:outline-none"
-                  />
-                </div>
-
-                {/* Refresh */}
-                <button
-                  onClick={fetchRecords}
-                  disabled={isLoading}
-                  className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-all cursor-pointer"
-                  title="Refresh"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Matrix Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/80 text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
-                    <th className="px-5 py-3 min-w-[200px]">Team Member</th>
-                    <th className="px-4 py-3 min-w-[120px]">City &amp; Role</th>
-                    <th className="px-4 py-3 min-w-[480px]">Form Access Toggles</th>
-                    <th className="px-4 py-3 text-right min-w-[110px]">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
-                  {filteredRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
-                        No team members found matching search or filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredRecords.map(r => {
-                      const isSaving = savingUserId === r.id;
-                      const userForms = r.forms || [];
-
-                      return (
-                        <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
-                          {/* Member info */}
-                          <td className="px-5 py-3.5 align-middle">
-                            <div className="font-bold text-slate-900 leading-snug">{r.name || r.username}</div>
-                            <div className="text-[11px] text-slate-500 font-mono">{r.email || r.username}</div>
-                          </td>
-
-                          {/* City & Role */}
-                          <td className="px-4 py-3.5 align-middle">
-                            <span className="inline-flex items-center gap-1 font-semibold text-slate-700 block">
-                              <MapPin className="w-3 h-3 text-slate-400" />
-                              {r.city || "—"}
-                            </span>
-                            <span className="text-[11px] text-slate-500 block mt-0.5">
-                              {r.role || "Executive"}
-                            </span>
-                          </td>
-
-                          {/* Form Toggles */}
-                          <td className="px-4 py-3.5 align-middle">
-                            {r.is_protected ? (
-                              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold">
-                                <Lock className="w-3.5 h-3.5 text-amber-600" />
-                                Protected Account — Admin / Leadership permissions cannot be modified
-                              </div>
-                            ) : (
-                              <div className="flex flex-wrap gap-1.5">
-                                {AVAILABLE_MODULES.map(m => {
-                                  const isAllowed = userForms.includes(m.key);
-                                  return (
-                                    <button
-                                      key={m.key}
-                                      type="button"
-                                      onClick={() => handleToggleFormForUser(r.id, m.key)}
-                                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${
-                                        isAllowed
-                                          ? "bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs"
-                                          : "bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
-                                      }`}
-                                      title={m.label}
-                                    >
-                                      {isAllowed ? (
-                                        <CheckSquare className="w-3 h-3 text-emerald-600" />
-                                      ) : (
-                                        <Square className="w-3 h-3 text-slate-300" />
-                                      )}
-                                      <span>{m.label.replace(" Form", "")}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Action */}
-                          <td className="px-4 py-3.5 text-right align-middle">
-                            {r.is_protected ? (
-                              <span className="text-[11px] font-bold text-slate-400 italic">Locked</span>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={isSaving}
-                                onClick={() => handleSaveUserPermissions(r)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-2xs transition-all cursor-pointer disabled:opacity-50"
-                              >
-                                {isSaving ? (
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="w-3.5 h-3.5" />
-                                )}
-                                <span>Save</span>
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Footer Summary */}
-            <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-3 flex items-center justify-between text-xs text-slate-500">
-              <span>Showing {filteredRecords.length} team members</span>
-              <span className="flex items-center gap-1 text-[11px]">
-                <ShieldAlert className="w-3.5 h-3.5 text-emerald-600" />
-                Live immediate updates • Admin &amp; Leadership accounts protected
-              </span>
-            </div>
-          </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 }
