@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { 
   Users, UserPlus, ShieldAlert, CheckCircle, RefreshCw, ChevronLeft, 
-  ShieldCheck, Lock, CheckSquare, Square, MapPin, Search, Eye, EyeOff, 
+  Lock, CheckSquare, Square, MapPin, Search, Eye, EyeOff, 
   X, Sliders, ChevronRight
 } from "lucide-react";
 import { User as UserSession } from "../types";
@@ -48,27 +48,8 @@ const OPERATIONAL_FORMS = [
   { key: "mis_dashboard",       label: "MIS Dashboard" },
 ];
 
-const PRESETS = [
-  {
-    name: "Driver Manager (DM) Standard",
-    forms: ["walkin", "onboarding", "allocation", "dropoff", "adjustment"]
-  },
-  {
-    name: "Onboarding Executive",
-    forms: ["walkin", "onboarding", "allocation"]
-  },
-  {
-    name: "Fleet & Service",
-    forms: ["maintenance_in", "maintenance_out", "workshops", "accident", "inspection"]
-  },
-  {
-    name: "Finance Desk",
-    forms: ["adjustment", "rents", "expenses", "challans"]
-  }
-];
-
 export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFormProps) {
-  // Default Tab: "create" (Add New User) as requested!
+  // Default Tab: "create" (Add New User)
   const [activeTab, setActiveTab] = useState<"create" | "list">("create");
 
   // Create User Form State
@@ -90,7 +71,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
   const [filterCity, setFilterCity] = useState("All");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Modal State for Editing Permissions of a specific user
+  // Modal State for Editing Permissions
   const [editingPermissionsUser, setEditingPermissionsUser] = useState<AppUser | null>(null);
   const [modalSelectedForms, setModalSelectedForms] = useState<string[]>([]);
   const [isSavingPermissions, setIsSavingPermissions] = useState(false);
@@ -226,7 +207,6 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
       const data = await res.json();
       if (res.ok) {
         alert(`Permissions updated for ${editingPermissionsUser.name || editingPermissionsUser.username}!`);
-        // Update local state
         setRecords(prev => prev.map(u => u.id === editingPermissionsUser.id ? { ...u, forms: modalSelectedForms } : u));
         setEditingPermissionsUser(null);
       } else {
@@ -253,10 +233,10 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
-      {/* HEADER */}
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col">
+      {/* HEADER - Full Width & Clean */}
       <header className="sticky top-0 z-40 border-b border-border bg-white shadow-xs">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
+        <div className="w-full max-w-7xl mx-auto flex h-16 items-center justify-between px-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button 
               type="button" 
@@ -276,46 +256,46 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
             <span className="hidden h-5 border-l border-border sm:inline-block" />
             <div className="flex flex-col">
               <span className="text-xs font-bold text-slate-900 leading-tight">Team &amp; Form Access</span>
-              <span className="text-[10px] text-slate-500">Add users and manage form permissions</span>
+              <span className="text-[10px] text-slate-500">Create team members &amp; manage form access</span>
             </div>
           </div>
 
-          {/* Simple Clean Tabs: Add New User (Default) vs View Team List */}
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+          {/* Clean Segmented Control: Add User vs Team List */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               type="button"
               onClick={() => setActiveTab("create")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === "create"
-                  ? "bg-green text-white shadow-xs"
+                  ? "bg-green text-white shadow-xs font-extrabold"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span>Add New User</span>
+              <span>Add User</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("list")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === "list"
-                  ? "bg-green text-white shadow-xs"
+                  ? "bg-green text-white shadow-xs font-extrabold"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>View Team &amp; Permissions</span>
+              <span>Team List</span>
             </button>
           </div>
 
-          {/* Profile / Sign Out */}
+          {/* User Profile */}
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-green text-xs font-bold text-white">
               {initials}
             </div>
             <button 
               onClick={onLogout}
-              className="hidden sm:flex h-8 items-center justify-center px-3 rounded-lg border border-border text-xs font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 cursor-pointer"
+              className="hidden md:flex h-8 items-center justify-center px-3 rounded-lg border border-border text-xs font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 cursor-pointer"
             >
               Sign Out
             </button>
@@ -323,34 +303,34 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
         </div>
       </header>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="mx-auto max-w-5xl px-3 sm:px-6 lg:px-8 py-6">
+      {/* MAIN CONTAINER - Full symmetric width (max-w-7xl) */}
+      <main className="w-full max-w-7xl mx-auto flex-grow px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
         
         {/* VIEW 1: ADD NEW USER (DEFAULT OPENING) */}
         {activeTab === "create" && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             
-            <div className="border-b border-slate-100 bg-slate-50/70 px-6 py-4 flex items-center justify-between">
+            <div className="border-b border-slate-100 bg-slate-50/70 px-5 sm:px-8 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                  <UserPlus className="w-4 h-4 text-green" />
+                <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-green" />
                   Add New Team Member
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Enter candidate details and choose which forms they can see and use.
+                  Enter credentials, city, role, and choose which forms this member can access.
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <CheckCircle className="w-3 h-3" /> Direct Activation
+              <span className="self-start sm:self-auto inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <CheckCircle className="w-3.5 h-3.5" /> Direct Live Activation
               </span>
             </div>
 
-            <form onSubmit={handleCreateUser} className="p-6 space-y-6">
+            <form onSubmit={handleCreateUser} className="p-5 sm:p-8 space-y-6">
               
-              {/* Profile Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Profile Details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Full Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -364,8 +344,8 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Email Address / Login <span className="text-red-500">*</span>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Email / Login Username <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
@@ -378,7 +358,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Operating City <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -395,7 +375,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Designation / Role <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -425,11 +405,12 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                   </select>
                 </div>
 
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                {/* Password field - full row or 2 cols */}
+                <div className="sm:col-span-2 lg:col-span-4">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Initial Password <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
+                  <div className="relative max-w-md">
                     <input
                       type={showPassword ? "text" : "password"}
                       required
@@ -446,11 +427,11 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1">Default is 123456 (User can change upon logging in)</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Default is 123456 (User can change after logging in)</p>
                 </div>
               </div>
 
-              {/* Form Access Permissions Box */}
+              {/* Form Access Checklist Section */}
               <div className="border-t border-slate-100 pt-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                   <div>
@@ -458,43 +439,33 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                     <span className="text-[11px] text-slate-500">Pick which forms this user will see on their dashboard</span>
                   </div>
 
-                  {/* Preset Badges */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Quick Presets:</span>
-                    {PRESETS.map(p => (
-                      <button
-                        key={p.name}
-                        type="button"
-                        onClick={() => setSelectedForms(p.forms)}
-                        className="px-2 py-1 rounded-md bg-slate-100 hover:bg-green hover:text-white text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
-                      >
-                        {p.name}
-                      </button>
-                    ))}
+                  {/* All / Clear toggles */}
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setSelectedForms(OPERATIONAL_FORMS.map(m => m.key))}
-                      className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                      className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-[11px] font-bold text-slate-700 transition-colors cursor-pointer"
                     >
                       Select All
                     </button>
                     <button
                       type="button"
                       onClick={() => setSelectedForms([])}
-                      className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                      className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-[11px] font-bold text-slate-700 transition-colors cursor-pointer"
                     >
-                      Clear
+                      Clear All
                     </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-slate-50/80 p-4 rounded-xl border border-slate-200">
+                {/* Symmetrical Responsive Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 bg-slate-50/80 p-4 rounded-xl border border-slate-200">
                   {OPERATIONAL_FORMS.map(m => {
                     const isChecked = selectedForms.includes(m.key);
                     return (
                       <label 
                         key={m.key} 
-                        className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
+                        className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
                           isChecked 
                             ? "bg-white border-green text-slate-900 shadow-2xs font-extrabold" 
                             : "bg-white/60 border-slate-200 text-slate-500 hover:bg-white"
@@ -504,7 +475,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => handleToggleCreateForm(m.key)}
-                          className="h-4 w-4 rounded text-green focus:ring-green border-slate-300 cursor-pointer"
+                          className="h-4 w-4 rounded text-green focus:ring-green border-slate-300 cursor-pointer shrink-0"
                         />
                         <span className="truncate">{m.label}</span>
                       </label>
@@ -518,7 +489,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full h-11 bg-green hover:bg-green-600 text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  className="w-full sm:w-auto sm:min-w-[280px] h-11 bg-green hover:bg-green-600 text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
@@ -537,18 +508,18 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
           </div>
         )}
 
-        {/* VIEW 2: CLEAN, UNCLUTTERED USER LIST */}
+        {/* VIEW 2: CLEAN, SYMMETRICAL TEAM LIST */}
         {activeTab === "list" && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             
-            {/* Filter Bar */}
-            <div className="border-b border-slate-100 bg-slate-50/70 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-700">Filter City:</span>
+            {/* Top Toolbar */}
+            <div className="border-b border-slate-100 bg-slate-50/70 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-xs font-bold text-slate-700 shrink-0">Filter City:</span>
                 <select
                   value={filterCity}
                   onChange={e => setFilterCity(e.target.value)}
-                  className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:border-green focus:outline-none cursor-pointer"
+                  className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:border-green focus:outline-none cursor-pointer flex-1 sm:flex-initial"
                 >
                   <option value="All">All Cities</option>
                   <option value="Delhi">Delhi</option>
@@ -559,12 +530,12 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                 </select>
               </div>
 
-              <div className="flex items-center gap-2.5 flex-1 max-w-md justify-end">
-                <div className="relative w-full">
+              <div className="flex items-center gap-2.5 w-full sm:w-auto sm:min-w-[320px]">
+                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search by name, email, or role..."
+                    placeholder="Search name, email, or role..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:border-green focus:outline-none"
@@ -582,15 +553,15 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
               </div>
             </div>
 
-            {/* Clean Table (Zero Horizontal Clutter) */}
-            <div className="overflow-x-auto">
+            {/* Desktop Table View (Hidden on Small Screens) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-100/80 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
-                    <th className="px-5 py-3.5">Team Member</th>
-                    <th className="px-4 py-3.5">City &amp; Designation</th>
-                    <th className="px-4 py-3.5">Active Form Access</th>
-                    <th className="px-4 py-3.5 text-right">Manage Access</th>
+                    <th className="px-5 py-3.5 w-1/4">Team Member</th>
+                    <th className="px-4 py-3.5 w-1/5">City &amp; Designation</th>
+                    <th className="px-4 py-3.5 w-2/5">Active Form Access</th>
+                    <th className="px-4 py-3.5 text-right w-1/6">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
@@ -606,7 +577,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
 
                       return (
                         <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
-                          {/* Member info */}
+                          {/* Member */}
                           <td className="px-5 py-4 align-middle">
                             <div className="font-bold text-slate-900 leading-snug">{r.name || r.username}</div>
                             <div className="text-[11px] text-slate-500 font-mono mt-0.5">{r.email || r.username}</div>
@@ -615,7 +586,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                           {/* City & Role */}
                           <td className="px-4 py-4 align-middle">
                             <span className="inline-flex items-center gap-1 font-bold text-slate-800">
-                              <MapPin className="w-3 h-3 text-slate-400" />
+                              <MapPin className="w-3.5 h-3.5 text-slate-400" />
                               {r.city || "—"}
                             </span>
                             <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
@@ -623,28 +594,30 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
                             </span>
                           </td>
 
-                          {/* Clean Form Access Badges Summary */}
+                          {/* Form Summary Badge & Preview */}
                           <td className="px-4 py-4 align-middle">
                             {r.is_protected ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                <Lock className="w-3 h-3 text-amber-600" />
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                                <Lock className="w-3.5 h-3.5 text-amber-600" />
                                 Protected Leadership Account
                               </span>
                             ) : (
-                              <div className="flex items-center gap-2">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-green-50 text-green border border-green/30">
-                                  {userForms.length} Active {userForms.length === 1 ? "Form" : "Forms"}
-                                </span>
-                                <span className="text-[11px] text-slate-500 truncate max-w-xs">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-green-50 text-green border border-green/30 shrink-0">
+                                    {userForms.length} Active {userForms.length === 1 ? "Form" : "Forms"}
+                                  </span>
+                                </div>
+                                <span className="text-[11px] text-slate-500 leading-relaxed">
                                   {userForms.length > 0 
-                                    ? userForms.map(f => OPERATIONAL_FORMS.find(o => o.key === f)?.label || f).slice(0, 3).join(", ") + (userForms.length > 3 ? ` +${userForms.length - 3} more` : "")
+                                    ? userForms.map(f => OPERATIONAL_FORMS.find(o => o.key === f)?.label || f).join(", ")
                                     : "No forms assigned"}
                                 </span>
                               </div>
                             )}
                           </td>
 
-                          {/* Clean Action Button */}
+                          {/* Action */}
                           <td className="px-4 py-4 text-right align-middle">
                             {r.is_protected ? (
                               <span className="text-[11px] font-bold text-slate-400 italic">Locked</span>
@@ -667,25 +640,85 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
               </table>
             </div>
 
+            {/* Mobile Responsive Card List (Optimized for Phones) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {filteredRecords.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-xs">
+                  No team members found.
+                </div>
+              ) : (
+                filteredRecords.map(r => {
+                  const userForms = r.forms || [];
+                  return (
+                    <div key={r.id} className="p-4 flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-bold text-slate-900 text-xs">{r.name || r.username}</div>
+                          <div className="text-[11px] text-slate-500 font-mono">{r.email || r.username}</div>
+                        </div>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                          <MapPin className="w-3 h-3 text-slate-400" />
+                          {r.city || "—"}
+                        </span>
+                      </div>
+
+                      <div className="text-[11px] text-slate-600">
+                        <strong className="text-slate-800">Role:</strong> {r.role || "Executive"}
+                      </div>
+
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-start justify-between gap-2">
+                        {r.is_protected ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800">
+                            <Lock className="w-3 h-3 text-amber-600" /> Protected Account
+                          </span>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-extrabold text-green">
+                              {userForms.length} Active Forms
+                            </span>
+                            <span className="text-[10px] text-slate-500 leading-snug">
+                              {userForms.length > 0 
+                                ? userForms.map(f => OPERATIONAL_FORMS.find(o => o.key === f)?.label || f).slice(0, 3).join(", ") + (userForms.length > 3 ? ` +${userForms.length - 3} more` : "")
+                                : "No forms"}
+                            </span>
+                          </div>
+                        )}
+
+                        {!r.is_protected && (
+                          <button
+                            type="button"
+                            onClick={() => openEditPermissionsModal(r)}
+                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-green hover:text-white text-slate-800 text-xs font-bold shrink-0 transition-colors cursor-pointer"
+                          >
+                            Edit Access
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
             {/* Footer */}
-            <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-3.5 flex items-center justify-between text-xs text-slate-500">
+            <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-3.5 flex items-center justify-between text-xs text-slate-500">
               <span>Showing {filteredRecords.length} team members</span>
               <span className="flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
                 <ShieldAlert className="w-3.5 h-3.5" />
-                Leadership accounts strictly protected from modifications
+                Leadership accounts protected
               </span>
             </div>
           </div>
         )}
       </main>
 
-      {/* POPUP MODAL: EDIT USER PERMISSIONS (OPENED VIA "EDIT ACCESS" BUTTON) */}
+      {/* POPUP MODAL: EDIT USER PERMISSIONS (OPENED VIA "EDIT ACCESS") */}
       {editingPermissionsUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-xl bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
             
             {/* Modal Header */}
-            <div className="border-b border-slate-100 bg-slate-50 px-5 py-4 flex items-center justify-between">
+            <div className="border-b border-slate-100 bg-slate-50 px-5 sm:px-6 py-4 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-extrabold text-slate-900">
                   Edit Form Access: {editingPermissionsUser.name || editingPermissionsUser.username}
@@ -703,57 +736,47 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-5 overflow-y-auto space-y-4">
-              
-              <div className="flex flex-wrap items-center justify-between gap-1.5 pb-2 border-b border-slate-100">
-                <span className="text-xs font-bold text-slate-700">Quick Presets:</span>
-                <div className="flex flex-wrap gap-1">
-                  {PRESETS.map(p => (
-                    <button
-                      key={p.name}
-                      type="button"
-                      onClick={() => setModalSelectedForms(p.forms)}
-                      className="px-2 py-0.5 rounded bg-slate-100 hover:bg-green hover:text-white text-[10px] font-bold text-slate-700 transition-all cursor-pointer"
-                    >
-                      {p.name}
-                    </button>
-                  ))}
+            {/* Modal Body: Clean Checkbox Grid */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-4">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-700">Select Forms:</span>
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setModalSelectedForms(OPERATIONAL_FORMS.map(m => m.key))}
-                    className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                    className="text-[11px] font-bold text-green hover:underline cursor-pointer"
                   >
-                    All
+                    Select All
                   </button>
+                  <span className="text-slate-300">•</span>
                   <button
                     type="button"
                     onClick={() => setModalSelectedForms([])}
-                    className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-700 cursor-pointer"
+                    className="text-[11px] font-bold text-slate-500 hover:underline cursor-pointer"
                   >
-                    Clear
+                    Clear All
                   </button>
                 </div>
               </div>
 
-              {/* Checkboxes List */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* Symmetrical 2-Column Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {OPERATIONAL_FORMS.map(m => {
                   const isChecked = modalSelectedForms.includes(m.key);
                   return (
                     <label 
                       key={m.key} 
-                      className={`flex items-center gap-2 p-2 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
+                      className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
                         isChecked 
-                          ? "bg-green-50 border-green text-green shadow-2xs font-extrabold" 
-                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          ? "bg-white border-green text-slate-900 shadow-2xs font-extrabold" 
+                          : "bg-slate-50/60 border-slate-200 text-slate-600 hover:bg-white"
                       }`}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => handleToggleModalForm(m.key)}
-                        className="h-4 w-4 rounded text-green focus:ring-green border-slate-300 cursor-pointer"
+                        className="h-4 w-4 rounded text-green focus:ring-green border-slate-300 cursor-pointer shrink-0"
                       />
                       <span className="truncate">{m.label}</span>
                     </label>
@@ -763,7 +786,7 @@ export default function UsersForm({ user, onBackToSelector, onLogout }: UsersFor
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-slate-100 bg-slate-50 px-5 py-3.5 flex items-center gap-3">
+            <div className="border-t border-slate-100 bg-slate-50 px-5 sm:px-6 py-4 flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setEditingPermissionsUser(null)}
