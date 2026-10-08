@@ -3094,7 +3094,7 @@ def get_all_executives():
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id, name, COALESCE(role,'Executive') FROM july_portal_users ORDER BY id;")
+        cur.execute("SELECT portal_user_id, COALESCE(username, email), COALESCE(role,'Executive') FROM july_portal_users ORDER BY portal_user_id;")
         rows = cur.fetchall()
         return [{"value": r[0], "text": f"{r[1]}  (ID {r[0]})"} for r in rows]
     finally:
@@ -3106,7 +3106,7 @@ def get_executive(user_id: int):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT name, COALESCE(role,'Executive') FROM july_portal_users WHERE id=%s;", (user_id,))
+        cur.execute("SELECT COALESCE(username, email), COALESCE(role,'Executive') FROM july_portal_users WHERE portal_user_id=%s;", (user_id,))
         r = cur.fetchone()
         if r:
             return {"id": user_id, "name": r[0], "role": r[1]}
