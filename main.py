@@ -1602,6 +1602,34 @@ def startup_event():
                 "role": "Onboarding Executive", "role_id": 201,
                 "city": "All Cities",
                 "forms": ["onboarding", "walkin", "driver_onboarding"]
+            },
+            {
+                "fname": "Shiva", "lname": "",
+                "email": "shiva@letzryd.com",
+                "role": "Driver Manager", "role_id": 197,
+                "city": "Delhi",
+                "forms": ["walkin", "onboarding", "allocation", "dropoff", "adjustment"]
+            },
+            {
+                "fname": "Soniya", "lname": "",
+                "email": "soniya@letzryd.com",
+                "role": "Driver Manager", "role_id": 197,
+                "city": "Delhi",
+                "forms": ["walkin", "onboarding", "allocation", "dropoff", "adjustment"]
+            },
+            {
+                "fname": "Anu", "lname": "",
+                "email": "anu@letzryd.com",
+                "role": "Driver Manager", "role_id": 197,
+                "city": "Delhi",
+                "forms": ["walkin", "onboarding", "allocation", "dropoff", "adjustment"]
+            },
+            {
+                "fname": "Raju", "lname": "",
+                "email": "raju@letzryd.com",
+                "role": "City Manager", "role_id": 196,
+                "city": "Delhi",
+                "forms": ["walkin", "onboarding", "allocation", "dropoff", "adjustment"]
             }
         ]
         default_pw_hash_sys = pwd_context.hash("123456")
@@ -1636,6 +1664,15 @@ def startup_event():
                         SELECT 1 FROM july_user_form_access WHERE portal_user_id = %s AND form_key = %s
                     );
                 """, (pu_id, form_key, pu_id, form_key))
+
+            # Ensure Delhi users have L1 approver set to CM Delhi in july_user_approval_chain
+            if u["city"] == "Delhi":
+                cur.execute("""
+                    INSERT INTO july_user_approval_chain (portal_user_id, level, approver_role_code, approver_city)
+                    VALUES (%s, 1, 'CM', 'Delhi')
+                    ON CONFLICT (portal_user_id, level) DO UPDATE 
+                    SET approver_role_code = EXCLUDED.approver_role_code, approver_city = EXCLUDED.approver_city;
+                """, (pu_id,))
 
         conn.commit()
         cur.close()
@@ -4578,16 +4615,27 @@ def send_onboarding_for_approval(
             
             # Fallback: original logic — CM/DM/GM in city
             if not approver_id or approver_id == submitter_id:
-                cur.execute("""
-                    SELECT portal_user_id FROM july_portal_users
-                    WHERE city = %s AND (role ILIKE '%%city manager%%' OR role ILIKE '%%driver manager%%' OR role ILIKE '%%general manager%%' OR role ILIKE '%%admin%%') AND portal_user_id != %s
-                    ORDER BY portal_user_id LIMIT 1;
-                """, (city, submitter_id))
-                cm_row = cur.fetchone()
-                if cm_row:
-                    approver_id = cm_row[0]
-                else:
-                    approver_id = 3 if submitter_id != 3 else 24
+                if (city or "").strip().lower() in ["delhi", "del"]:
+                    cur.execute("""
+                        SELECT portal_user_id FROM july_portal_users
+                        WHERE LOWER(email) = 'raju@letzryd.com' OR LOWER(username) = 'raju@letzryd.com'
+                        LIMIT 1;
+                    """)
+                    raju_row = cur.fetchone()
+                    if raju_row:
+                        approver_id = raju_row[0]
+
+                if not approver_id or approver_id == submitter_id:
+                    cur.execute("""
+                        SELECT portal_user_id FROM july_portal_users
+                        WHERE city = %s AND (role ILIKE '%%city manager%%' OR role ILIKE '%%driver manager%%' OR role ILIKE '%%general manager%%' OR role ILIKE '%%admin%%') AND portal_user_id != %s
+                        ORDER BY portal_user_id LIMIT 1;
+                    """, (city, submitter_id))
+                    cm_row = cur.fetchone()
+                    if cm_row:
+                        approver_id = cm_row[0]
+                    else:
+                        approver_id = 3 if submitter_id != 3 else 24
 
         if approver_id == submitter_id:
             approver_id = 3 if submitter_id != 3 else 24
@@ -5531,20 +5579,31 @@ def send_adjustment_for_approval(id: int, authorization: Optional[str] = Header(
                 if row:
                     l1_approver_id = row[0]
 
-            # Fallback: any BH/CM in same city
+            # Fallback: any BH/CM in same city (prefer raju@letzryd.com for Delhi)
             if not l1_approver_id:
-                city = city_name or ""
-                cur.execute("""
-                    SELECT pu.portal_user_id FROM july_portal_users pu
-                    LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-                    LEFT JOIN july_roles r ON r.role_id = pu.role_id
-                    WHERE r.role_code IN ('BH','CM','SOM','OM','CH')
-                      AND COALESCE(pu.city, e.city,'') ILIKE %s
-                      AND COALESCE(pu.account_status,'Active') = 'Active' LIMIT 1;
-                """, (f"%{city}%",))
-                row = cur.fetchone()
-                if row:
-                    l1_approver_id = row[0]
+                city = (city_name or "").strip()
+                if city.lower() in ["delhi", "del"]:
+                    cur.execute("""
+                        SELECT portal_user_id FROM july_portal_users
+                        WHERE LOWER(email) = 'raju@letzryd.com' OR LOWER(username) = 'raju@letzryd.com'
+                        LIMIT 1;
+                    """)
+                    raju_row = cur.fetchone()
+                    if raju_row:
+                        l1_approver_id = raju_row[0]
+
+                if not l1_approver_id:
+                    cur.execute("""
+                        SELECT pu.portal_user_id FROM july_portal_users pu
+                        LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
+                        LEFT JOIN july_roles r ON r.role_id = pu.role_id
+                        WHERE r.role_code IN ('BH','CM','SOM','OM','CH')
+                          AND COALESCE(pu.city, e.city,'') ILIKE %s
+                          AND COALESCE(pu.account_status,'Active') = 'Active' LIMIT 1;
+                    """, (f"%{city}%",))
+                    row = cur.fetchone()
+                    if row:
+                        l1_approver_id = row[0]
 
         if not l1_approver_id:
             raise HTTPException(status_code=400, detail="Please select an Approver (Manager / TL) before submitting for approval.")

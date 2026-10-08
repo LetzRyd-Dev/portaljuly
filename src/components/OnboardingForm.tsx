@@ -131,6 +131,9 @@ function SearchableApproverSelect({
       const preferred = (activeCity && norm(activeCity) === "mumbai"
         ? validApprovers.find(a => norm(a.city) === "mumbai" && (a.name?.toLowerCase().includes("tapan") || a.username?.toLowerCase().includes("tapan")))
         : null
+      ) || (activeCity && norm(activeCity) === "delhi"
+        ? validApprovers.find(a => norm(a.city) === "delhi" && (a.name?.toLowerCase().includes("raju") || a.username?.toLowerCase().includes("raju") || a.email?.toLowerCase().includes("raju")))
+        : null
       ) || validApprovers.find(a => {
         const matchCity = activeCity ? norm(a.city) === norm(activeCity) : true;
         const matchRole = a.role?.toLowerCase().includes("city manager") || 
@@ -184,6 +187,12 @@ function SearchableApproverSelect({
           const aTapan = (a.name?.toLowerCase().includes("tapan") || a.username?.toLowerCase().includes("tapan")) ? 0 : 1;
           const bTapan = (b.name?.toLowerCase().includes("tapan") || b.username?.toLowerCase().includes("tapan")) ? 0 : 1;
           if (aTapan !== bTapan) return aTapan - bTapan;
+        }
+
+        if (norm(activeCity) === "delhi") {
+          const aRaju = (a.name?.toLowerCase().includes("raju") || a.username?.toLowerCase().includes("raju") || a.email?.toLowerCase().includes("raju")) ? 0 : 1;
+          const bRaju = (b.name?.toLowerCase().includes("raju") || b.username?.toLowerCase().includes("raju") || b.email?.toLowerCase().includes("raju")) ? 0 : 1;
+          if (aRaju !== bRaju) return aRaju - bRaju;
         }
       }
       if (isEditingSearch && search.trim()) {
@@ -686,6 +695,9 @@ export default function OnboardingForm({
           const targetCity = normCity(city || user?.city);
           const preferred = (targetCity === "mumbai"
             ? validApprovers.find((a: any) => normCity(a.city) === "mumbai" && (a.name?.toLowerCase().includes("tapan") || a.username?.toLowerCase().includes("tapan")))
+            : null
+          ) || (targetCity === "delhi"
+            ? validApprovers.find((a: any) => normCity(a.city) === "delhi" && (a.name?.toLowerCase().includes("raju") || a.username?.toLowerCase().includes("raju") || a.email?.toLowerCase().includes("raju")))
             : null
           ) || validApprovers.find((a: any) => {
             const cityMatch = targetCity ? normCity(a.city) === targetCity : true;

@@ -135,6 +135,9 @@ export default function AdjustmentForm({
       const match = (target === "mumbai"
         ? approversList.find(a => normCity(a.city) === "mumbai" && (a.name?.toLowerCase().includes("tapan") || a.username?.toLowerCase().includes("tapan")))
         : null
+      ) || (target === "delhi"
+        ? approversList.find(a => normCity(a.city) === "delhi" && (a.name?.toLowerCase().includes("raju") || a.username?.toLowerCase().includes("raju") || a.email?.toLowerCase().includes("raju")))
+        : null
       ) || approversList.find(a => normCity(a.city) === target && (a.role?.toLowerCase().includes("city manager") || a.role?.toLowerCase().includes("manager") || ["CM", "GM", "BH", "DM"].includes(a.role_code)))
         || approversList.find(a => normCity(a.city) === target);
       

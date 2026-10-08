@@ -99,7 +99,15 @@ export default function DropOffForm({ user, onBackToSelector, onLogout, initialE
       if (!cityName || !cityName.trim()) return portalUsers;
       const targetNorm = normalizeCity(cityName);
       const matched = portalUsers.filter(u => normalizeCity(u.city) === targetNorm);
-      return matched.length > 0 ? matched : portalUsers;
+      const list = matched.length > 0 ? matched : portalUsers;
+      if (targetNorm === "delhi") {
+        return [...list].sort((a, b) => {
+          const aRaju = (a.username?.toLowerCase().includes("raju") || a.name?.toLowerCase().includes("raju")) ? 0 : 1;
+          const bRaju = (b.username?.toLowerCase().includes("raju") || b.name?.toLowerCase().includes("raju")) ? 0 : 1;
+          return aRaju - bRaju;
+        });
+      }
+      return list;
     } catch (err) {
       console.error("Error filtering approvers by city in DropOffForm:", err);
       return portalUsers;
