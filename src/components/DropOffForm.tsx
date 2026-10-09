@@ -114,6 +114,18 @@ export default function DropOffForm({ user, onBackToSelector, onLogout, initialE
     }
   }, [portalUsers, cityName]);
 
+  // Auto-select designated approver for Delhi
+  useEffect(() => {
+    if (normalizeCity(cityName) === "delhi" && filteredApprovers.length > 0) {
+      const raju = filteredApprovers.find(u => 
+        u.username?.toLowerCase().includes("raju") || u.name?.toLowerCase().includes("raju")
+      );
+      if (raju && (!approverId || !filteredApprovers.some(u => u.id === approverId))) {
+        setApproverId(raju.id);
+      }
+    }
+  }, [cityName, filteredApprovers, approverId]);
+
   // 48-Hour Deviation Calculation
   const deltaInfo = useMemo(() => {
     if (!dropoffDate) return { isOver48: false, diffHours: 0, days: 0, remainingHours: 0, direction: "earlier" };

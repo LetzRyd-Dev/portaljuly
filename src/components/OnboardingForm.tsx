@@ -123,7 +123,14 @@ function SearchableApproverSelect({
   const selectedApprover = validApprovers.find(a => a.id === selectedId);
 
   useEffect(() => {
-    if (selectedApprover) {
+    const activeCityNorm = activeCity ? norm(activeCity) : "";
+    const isSelectedMatchingCity = selectedApprover && activeCityNorm
+      ? (activeCityNorm === "delhi"
+          ? (selectedApprover.name?.toLowerCase().includes("raju") || selectedApprover.username?.toLowerCase().includes("raju"))
+          : norm(selectedApprover.city) === activeCityNorm)
+      : false;
+
+    if (selectedApprover && isSelectedMatchingCity) {
       if (!isEditingSearch) {
         setSearch(`${selectedApprover.name} (${selectedApprover.role})`);
       }
@@ -148,8 +155,10 @@ function SearchableApproverSelect({
         ["CM", "GM", "BH", "DM"].includes(a.role_code)
       ) || validApprovers[0];
 
-      onSelect(preferred.id);
-      setSearch(`${preferred.name} (${preferred.role})`);
+      if (preferred) {
+        onSelect(preferred.id);
+        setSearch(`${preferred.name} (${preferred.role})`);
+      }
     }
   }, [selectedId, validApprovers, activeCity]);
 
@@ -2054,7 +2063,21 @@ export default function OnboardingForm({
                       </div>
                       <div className="space-y-2">
                         <label className="text-xs font-bold text-text-muted">Operating City *</label>
-                        <select required={currentStep === 1} value={city} onChange={(e) => setCity(e.target.value)} className="w-full h-11 px-4 bg-slate-50 border border-border rounded-xl text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
+                        <select required={currentStep === 1} value={city} onChange={(e) => {
+                          const newCity = e.target.value;
+                          setCity(newCity);
+                          const normC = (s?: string) => (s || "").trim().toLowerCase();
+                          if (["delhi", "del", "new delhi"].includes(normC(newCity))) {
+                            const raju = approversList.find((a: any) => 
+                              ["delhi", "del"].includes(normC(a.city)) && 
+                              (a.name?.toLowerCase().includes("raju") || a.username?.toLowerCase().includes("raju"))
+                            );
+                            if (raju) {
+                              setApprovalRequestedTo(raju.id);
+                              setForwardToId(raju.id);
+                            }
+                          }
+                        }} className="w-full h-11 px-4 bg-slate-50 border border-border rounded-xl text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
                           {CITIES.map(c => <option key={c.value} value={c.value}>{c.text}</option>)}
                         </select>
                       </div>

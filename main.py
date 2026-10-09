@@ -4711,6 +4711,29 @@ def send_onboarding_for_approval(
         # ── Resolve approver: use submitter's L1 from approval chain first
         raw_approver_id = body.approver_id if (body and body.approver_id) else None
         approver_id = int(raw_approver_id) if (raw_approver_id and str(raw_approver_id).isdigit()) else None
+
+        # For Delhi records: always route to Raju (City Manager - Delhi) unless another valid Delhi manager is explicitly chosen
+        if (city or "").strip().lower() in ["delhi", "del"]:
+            is_valid_delhi_mgr = False
+            if approver_id and approver_id != submitter_id:
+                cur.execute("""
+                    SELECT 1 FROM july_portal_users pu
+                    LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
+                    WHERE pu.portal_user_id = %s
+                      AND (LOWER(COALESCE(pu.city, '')) IN ('delhi', 'del') OR LOWER(COALESCE(e.city, '')) IN ('delhi', 'del'));
+                """, (approver_id,))
+                is_valid_delhi_mgr = bool(cur.fetchone())
+
+            if not is_valid_delhi_mgr:
+                cur.execute("""
+                    SELECT portal_user_id FROM july_portal_users
+                    WHERE LOWER(email) = 'raju@letzryd.com' OR LOWER(username) = 'raju@letzryd.com'
+                    LIMIT 1;
+                """)
+                raju_row = cur.fetchone()
+                if raju_row:
+                    approver_id = raju_row[0]
+
         if not approver_id or approver_id == submitter_id:
             # Look up the user's L1 approver role from july_user_approval_chain
             cur.execute("""
@@ -9787,6 +9810,7 @@ def get_approvers(authorization: Optional[str] = Header(None)):
               AND pu.portal_user_id != %s
             ORDER BY 
               CASE WHEN e.city = %s THEN 0 ELSE 1 END,
+              CASE WHEN (LOWER(pu.username) = 'raju@letzryd.com' OR LOWER(e.first_name) = 'raju') THEN 0 ELSE 1 END,
               r.role_id, e.first_name;
         """, (user["portal_user_id"], user["city"]))
         rows = cur.fetchall()
