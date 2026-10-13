@@ -33,11 +33,11 @@ query = """
         COALESCE(f.candidate_role, f.vendor_type, 'Driver') AS candidate_role,
         COALESCE(NULLIF(TRIM(CONCAT(e1.first_name, ' ', e1.last_name)), ''), u1.username, 'Admin') AS executive_name,
         COALESCE(NULLIF(TRIM(CONCAT(e2.first_name, ' ', e2.last_name)), ''), u2.username, NULLIF(TRIM(CONCAT(e1.first_name, ' ', e1.last_name)), ''), u1.username, '—') AS updated_by_name
-    FROM july_form_onboarding f
-    LEFT JOIN july_portal_users u1 ON u1.portal_user_id = f.created_by
-    LEFT JOIN july_employees e1 ON e1.employee_id = u1.employee_id
-    LEFT JOIN july_portal_users u2 ON u2.portal_user_id = f.updated_by
-    LEFT JOIN july_employees e2 ON e2.employee_id = u2.employee_id
+    FROM portal_form_onboarding f
+    LEFT JOIN portal_portal_users u1 ON u1.portal_user_id = f.created_by
+    LEFT JOIN portal_employees e1 ON e1.employee_id = u1.employee_id
+    LEFT JOIN portal_portal_users u2 ON u2.portal_user_id = f.updated_by
+    LEFT JOIN portal_employees e2 ON e2.employee_id = u2.employee_id
     WHERE 1=1
     ORDER BY COALESCE(f.updated_at, f.created_at) DESC, f.id DESC LIMIT 100;
 """

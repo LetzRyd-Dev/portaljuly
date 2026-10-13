@@ -130,7 +130,7 @@ def run_walkin_e2e_tests():
     try:
         cur = conn.cursor()
         raw_num = int(new_id.replace("N", "").replace("E", ""))
-        cur.execute("DELETE FROM july_new_walkins WHERE id = %s;", (raw_num,))
+        cur.execute("DELETE FROM portal_new_walkins WHERE id = %s;", (raw_num,))
         conn.commit()
         print("  OK Cleanup complete! Database restored to clean state.")
     finally:

@@ -53,8 +53,8 @@ new_users = [
 created_ids = {}
 
 for u in new_users:
-    # 1. Check if employee exists in july_employees
-    cur.execute("SELECT employee_id FROM july_employees WHERE LOWER(company_email) = %s OR LOWER(first_name) LIKE %s;", (u["email"].lower(), f"%{u['name'].split()[0].lower()}%"))
+    # 1. Check if employee exists in portal_employees
+    cur.execute("SELECT employee_id FROM portal_employees WHERE LOWER(company_email) = %s OR LOWER(first_name) LIKE %s;", (u["email"].lower(), f"%{u['name'].split()[0].lower()}%"))
     emp_row = cur.fetchone()
     emp_id = None
     if emp_row:
@@ -64,14 +64,14 @@ for u in new_users:
         fname = name_parts[0]
         lname = name_parts[1] if len(name_parts) > 1 else ""
         cur.execute("""
-            INSERT INTO july_employees (first_name, last_name, company_email, department, city, is_active, role_id, phone)
+            INSERT INTO portal_employees (first_name, last_name, company_email, department, city, is_active, role_id, phone)
             VALUES (%s, %s, %s, 'Operations', %s, TRUE, 34, %s)
             RETURNING employee_id;
         """, (fname, lname, u["email"], u["city"], "9999999999"))
         emp_id = cur.fetchone()[0]
 
-    # 2. Check if portal user exists in july_portal_users
-    cur.execute("SELECT portal_user_id FROM july_portal_users WHERE LOWER(username) = %s OR LOWER(email) = %s;", (u["username"].lower(), u["email"].lower()))
+    # 2. Check if portal user exists in portal_portal_users
+    cur.execute("SELECT portal_user_id FROM portal_portal_users WHERE LOWER(username) = %s OR LOWER(email) = %s;", (u["username"].lower(), u["email"].lower()))
     pu_row = cur.fetchone()
     pu_id = None
     if pu_row:
@@ -79,7 +79,7 @@ for u in new_users:
         print(f"[EXISTS] User {u['name']} already has portal_user_id: {pu_id}")
     else:
         cur.execute("""
-            INSERT INTO july_portal_users (employee_id, username, password_hash, role, role_id, account_status, email, company_email, city)
+            INSERT INTO portal_portal_users (employee_id, username, password_hash, role, role_id, account_status, email, company_email, city)
             VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s, %s)
             RETURNING portal_user_id;
         """, (emp_id, u["username"], default_pw_hash, u["role"], u["role_id"], u["email"], u["company_email"], u["city"]))
@@ -88,11 +88,11 @@ for u in new_users:
 
     created_ids[u["name"]] = pu_id
 
-    # 3. Ensure form access permissions in july_user_form_access
+    # 3. Ensure form access permissions in portal_user_form_access
     cur.execute("""
-        CREATE TABLE IF NOT EXISTS july_user_form_access (
+        CREATE TABLE IF NOT EXISTS portal_user_form_access (
             id SERIAL PRIMARY KEY,
-            portal_user_id INTEGER REFERENCES july_portal_users(portal_user_id) ON DELETE CASCADE,
+            portal_user_id INTEGER REFERENCES portal_portal_users(portal_user_id) ON DELETE CASCADE,
             form_key VARCHAR(50) NOT NULL,
             can_access BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -100,10 +100,10 @@ for u in new_users:
     """)
     for form_key in u["forms"]:
         cur.execute("""
-            INSERT INTO july_user_form_access (portal_user_id, form_key, can_access)
+            INSERT INTO portal_user_form_access (portal_user_id, form_key, can_access)
             SELECT %s, %s, TRUE
             WHERE NOT EXISTS (
-                SELECT 1 FROM july_user_form_access WHERE portal_user_id = %s AND form_key = %s
+                SELECT 1 FROM portal_user_form_access WHERE portal_user_id = %s AND form_key = %s
             );
         """, (pu_id, form_key, pu_id, form_key))
 

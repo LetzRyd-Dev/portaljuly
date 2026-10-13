@@ -88,7 +88,7 @@ def perform_adversarial_bug_hunting():
         try:
             cur = conn.cursor()
             raw_num = int(sp_id.replace("N", "").replace("E", ""))
-            cur.execute("DELETE FROM july_new_walkins WHERE id = %s;", (raw_num,))
+            cur.execute("DELETE FROM portal_new_walkins WHERE id = %s;", (raw_num,))
             conn.commit()
         finally:
             main.postgreSQL_pool.putconn(conn)

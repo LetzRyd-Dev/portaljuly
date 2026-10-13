@@ -140,7 +140,7 @@ add_paragraph("The platform is engineered as a high-performance Single Page Appl
 add_bullet("Frontend Architecture", "Built with React 18, Vite 6, and TypeScript. Styled using Vanilla CSS tokens and Tailwind CSS utilities, utilizing Lucide React icons for consistent visual cues.")
 add_bullet("Backend Microservices", "Powered by Python 3.12 and FastAPI. Implements non-blocking REST API endpoints, Pydantic data contract validation, and connection pooling via psycopg2.")
 add_bullet("Database & Storage", "PostgreSQL database utilizing connection pooling (min 1, max 20 connections), JSONB column types for unstructured photo metadata & audit diffs, GIN indexing, and IST timezone synchronization.")
-add_bullet("Security & RBAC", "Session-based token authentication backed by july_app_sessions table, granular 15-role permission matrix, and parameterized SQL queries to prevent SQL injection.")
+add_bullet("Security & RBAC", "Session-based token authentication backed by portal_app_sessions table, granular 15-role permission matrix, and parameterized SQL queries to prevent SQL injection.")
 
 # SECTION 2: TECHNOLOGY STACK & DEPENDENCIES
 add_heading_1("2. Technology Stack & Environment Configuration")
@@ -241,7 +241,7 @@ add_bullet("Saved Drafts & Registry Features", "Save as Draft button, Saved Draf
 add_heading_2("3.4 Walk-In & Returning Partner Visit Logger Module")
 add_paragraph("Manages daily hub visits, distinguishing between new candidate onboarding inquiries and returning partner operational visits.")
 
-add_bullet("Two-Table Architecture", "Separate database storage using july_new_walkins (for candidates) and july_existing_walkins (for returning partners) with UNION listing.")
+add_bullet("Two-Table Architecture", "Separate database storage using portal_new_walkins (for candidates) and portal_existing_walkins (for returning partners) with UNION listing.")
 add_bullet("Entry Mode Selector", "Top selector allowing hub executives to switch between New Candidate Onboarding and Returning Partner Visit Log.")
 add_bullet("Master Onboarding Phone Lookup", "Auto-populates partner name and city when typing phone number by searching approved master onboarding records.")
 add_bullet("Operational Visit Tags", "Dropdown options: DM Meet, Complaint, Hisaab & Payout, Maintenance, Deposit Refund Issue, General Service, Accident, Battery Issue, Tyre Issue.")
@@ -318,12 +318,12 @@ add_paragraph("The portal incorporates 6 dedicated database log tables that capt
 
 log_headers = ["Audit Log Table", "Target Module", "Action Types Tracked", "Audit Data Captured"]
 log_data = [
-    ["july_allocation_form_logs", "Allocation & Drop-Off", "CREATE, UPDATE, DELETE, DRAFT_SAVE", "Allocation ID, Executive ID, IST Timestamp, Driver ID, Vehicle No, Snapshot & JSON diff"],
-    ["july_walkin_logs", "Walk-In & Partner Visits", "CREATE, UPDATE, DELETE", "Walkin ID (N1, E1), Executive ID, IST Timestamp, Remarks, Snapshot & JSON diff"],
-    ["july_onboarding_logs", "Partner Onboarding", "CREATE, UPDATE, DRAFT_SAVE, RESUBMIT", "Onboarding ID, Executive ID, IST Timestamp, Full Snapshot & changed_fields JSON diff"],
-    ["july_vehicle_logs", "Fleet Vehicle Master", "CREATE, UPDATE, STATUS_CHANGE", "Vehicle ID, Executive ID, IST Timestamp, Status, Full Snapshot & JSON diff"],
-    ["july_approval_chain_logs", "Approvals Dashboard", "APPROVE, REJECT, REVISION, FORWARD", "Module Name, Record ID, From User ID, To User ID, Action, Approver Remarks & IST Timestamp"],
-    ["july_user_login_logs", "Authentication Engine", "LOGIN, LOGOUT, FAILED_LOGIN", "User ID, Username, Full Name, Role Code, Login Time, Logout Time, IP Address & Browser User-Agent"]
+    ["portal_allocation_form_logs", "Allocation & Drop-Off", "CREATE, UPDATE, DELETE, DRAFT_SAVE", "Allocation ID, Executive ID, IST Timestamp, Driver ID, Vehicle No, Snapshot & JSON diff"],
+    ["portal_walkin_logs", "Walk-In & Partner Visits", "CREATE, UPDATE, DELETE", "Walkin ID (N1, E1), Executive ID, IST Timestamp, Remarks, Snapshot & JSON diff"],
+    ["portal_onboarding_logs", "Partner Onboarding", "CREATE, UPDATE, DRAFT_SAVE, RESUBMIT", "Onboarding ID, Executive ID, IST Timestamp, Full Snapshot & changed_fields JSON diff"],
+    ["portal_vehicle_logs", "Fleet Vehicle Master", "CREATE, UPDATE, STATUS_CHANGE", "Vehicle ID, Executive ID, IST Timestamp, Status, Full Snapshot & JSON diff"],
+    ["portal_approval_chain_logs", "Approvals Dashboard", "APPROVE, REJECT, REVISION, FORWARD", "Module Name, Record ID, From User ID, To User ID, Action, Approver Remarks & IST Timestamp"],
+    ["portal_user_login_logs", "Authentication Engine", "LOGIN, LOGOUT, FAILED_LOGIN", "User ID, Username, Full Name, Role Code, Login Time, Logout Time, IP Address & Browser User-Agent"]
 ]
 
 t_log = doc.add_table(rows=len(log_data)+1, cols=4)
@@ -370,13 +370,13 @@ for r in t_log.rows:
 add_heading_1("6. Database Schema & Entity Relationships")
 add_paragraph("The database schema is structured around normalized core entity tables, application log tables, master lookup tables, and approval tracking tables.")
 
-add_bullet("july_portal_users", "Stores executive user accounts, roles, portal_user_id (PK), employee_id, username, password_hash, role_id, city, joining_date, and account_status.")
-add_bullet("july_employees", "Stores employee master records including employee_id (PK), first_name, last_name, email, phone, city, department, and joining_date.")
-add_bullet("july_form_onboarding", "Master onboarding registry storing candidate personal details, KYC document URLs, address proofs, bank details, approval status, and timestamps.")
-add_bullet("july_allocation_form", "Unified storage for Vehicle Allocation and Vehicle Drop-off records, distinguished by allocation_type ('Allocation' vs 'Drop-Off') and sub_type.")
-add_bullet("july_new_walkins", "Stores new candidate walk-in entries including N-series auto-increment ID, candidate info, DL/Aadhaar numbers, lead channel, and joined status.")
-add_bullet("july_existing_walkins", "Stores returning partner visit logs including E-series auto-increment ID, partner info, partner category, visiting reason, and visit notes.")
-add_bullet("july_cities", "Master lookup table for active operating cities (Bengaluru, Mumbai, Hyderabad, Pune, Chennai).")
+add_bullet("portal_portal_users", "Stores executive user accounts, roles, portal_user_id (PK), employee_id, username, password_hash, role_id, city, joining_date, and account_status.")
+add_bullet("portal_employees", "Stores employee master records including employee_id (PK), first_name, last_name, email, phone, city, department, and joining_date.")
+add_bullet("portal_form_onboarding", "Master onboarding registry storing candidate personal details, KYC document URLs, address proofs, bank details, approval status, and timestamps.")
+add_bullet("portal_allocation_form", "Unified storage for Vehicle Allocation and Vehicle Drop-off records, distinguished by allocation_type ('Allocation' vs 'Drop-Off') and sub_type.")
+add_bullet("portal_new_walkins", "Stores new candidate walk-in entries including N-series auto-increment ID, candidate info, DL/Aadhaar numbers, lead channel, and joined status.")
+add_bullet("portal_existing_walkins", "Stores returning partner visit logs including E-series auto-increment ID, partner info, partner category, visiting reason, and visit notes.")
+add_bullet("portal_cities", "Master lookup table for active operating cities (Bengaluru, Mumbai, Hyderabad, Pune, Chennai).")
 
 # SECTION 7: APPROVAL WORKFLOWS & STATE MACHINE
 add_heading_1("7. Approval Workflows & State Machine")

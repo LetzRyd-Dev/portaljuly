@@ -22,13 +22,13 @@ mgr_id  = 20   # city_manager
 print(f"Executive ID: {exec_id}  |  Manager ID: {mgr_id}")
 
 # Check current records
-cur.execute("SELECT COUNT(*) FROM july_onboarding;")
+cur.execute("SELECT COUNT(*) FROM portal_onboarding;")
 print(f"Current onboarding records: {cur.fetchone()[0]}")
 
-# Check available columns in july_onboarding
+# Check available columns in portal_onboarding
 cur.execute("""
     SELECT column_name FROM information_schema.columns 
-    WHERE table_name='july_onboarding' ORDER BY ordinal_position;
+    WHERE table_name='portal_onboarding' ORDER BY ordinal_position;
 """)
 cols = [r[0] for r in cur.fetchall()]
 print(f"Columns: {cols}")
@@ -47,13 +47,13 @@ samples = [
 
 inserted = 0
 for (name, city, plan, status, approver, remarks) in samples:
-    cur.execute("SELECT COUNT(*) FROM july_onboarding WHERE driver_name=%s AND city=%s;", (name, city))
+    cur.execute("SELECT COUNT(*) FROM portal_onboarding WHERE driver_name=%s AND city=%s;", (name, city))
     if cur.fetchone()[0] > 0:
         print(f"  [SKIP]  {name} / {city}")
         # Update remarks if it's a Changes Requested record
         if remarks and status == "Changes Requested":
             cur.execute("""
-                UPDATE july_onboarding 
+                UPDATE portal_onboarding 
                 SET approval_status=%s, approval_remarks=%s, current_approver_id=%s
                 WHERE driver_name=%s AND city=%s;
             """, (status, remarks, approver, name, city))
@@ -63,7 +63,7 @@ for (name, city, plan, status, approver, remarks) in samples:
     phone = str(abs(hash(name)) % 9000000000 + 1000000000)[:10]
 
     cur.execute("""
-        INSERT INTO july_onboarding (
+        INSERT INTO portal_onboarding (
             driver_name, city, driver_plan,
             approval_status, current_approver_id, approval_remarks,
             created_by, phone_number
@@ -83,8 +83,8 @@ cur.execute("""
     SELECT o.onboarding_id, o.driver_name, o.city, o.approval_status,
            COALESCE(pu.username, 'none') as pending_with,
            COALESCE(LEFT(o.approval_remarks, 50), '') as remarks_preview
-    FROM july_onboarding o
-    LEFT JOIN july_portal_users pu ON pu.portal_user_id = o.current_approver_id
+    FROM portal_onboarding o
+    LEFT JOIN portal_portal_users pu ON pu.portal_user_id = o.current_approver_id
     ORDER BY o.created_at DESC LIMIT 20;
 """)
 for r in cur.fetchall():

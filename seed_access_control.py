@@ -33,26 +33,26 @@ role_id_map = {}
 for role_name, role_code, desc in NEW_ROLES:
     try:
         cur.execute(
-            "INSERT INTO july_roles (role_name, role_code, description, is_active) VALUES (%s,%s,%s,TRUE) ON CONFLICT (role_code) DO UPDATE SET role_name=EXCLUDED.role_name RETURNING role_id;",
+            "INSERT INTO portal_roles (role_name, role_code, description, is_active) VALUES (%s,%s,%s,TRUE) ON CONFLICT (role_code) DO UPDATE SET role_name=EXCLUDED.role_name RETURNING role_id;",
             (role_name, role_code, desc)
         )
         row = cur.fetchone()
         if row:
             role_id_map[role_code] = row[0]
         else:
-            cur.execute("SELECT role_id FROM july_roles WHERE role_code=%s;", (role_code,))
+            cur.execute("SELECT role_id FROM portal_roles WHERE role_code=%s;", (role_code,))
             r = cur.fetchone()
             if r: role_id_map[role_code] = r[0]
         conn.commit()
     except Exception as e:
         conn.rollback()
-        cur.execute("SELECT role_id FROM july_roles WHERE role_code=%s;", (role_code,))
+        cur.execute("SELECT role_id FROM portal_roles WHERE role_code=%s;", (role_code,))
         r = cur.fetchone()
         if r: role_id_map[role_code] = r[0]
         print(f"  [WARN] Role {role_code}: {e}")
 
 for code in ["SA", "CM", "DM", "OB", "AU", "FM", "SP", "MC"]:
-    cur.execute("SELECT role_id FROM july_roles WHERE role_code=%s;", (code,))
+    cur.execute("SELECT role_id FROM portal_roles WHERE role_code=%s;", (code,))
     r = cur.fetchone()
     if r: role_id_map[code] = r[0]
 
@@ -60,7 +60,7 @@ print(f"[OK] Roles: {role_id_map}")
 
 # STEP 2: Tables
 cur.execute("""
-    CREATE TABLE IF NOT EXISTS july_user_form_access (
+    CREATE TABLE IF NOT EXISTS portal_user_form_access (
         id SERIAL PRIMARY KEY,
         portal_user_id INTEGER NOT NULL,
         form_key VARCHAR(50) NOT NULL,
@@ -70,7 +70,7 @@ cur.execute("""
     );
 """)
 cur.execute("""
-    CREATE TABLE IF NOT EXISTS july_user_approval_chain (
+    CREATE TABLE IF NOT EXISTS portal_user_approval_chain (
         id SERIAL PRIMARY KEY,
         portal_user_id INTEGER NOT NULL,
         level INTEGER NOT NULL,
@@ -95,12 +95,12 @@ PLACEHOLDER_ROLES = [
 placeholder_user_map = {}
 
 def get_or_create_employee(first_name, last_name, role_id, email, city):
-    cur.execute("SELECT employee_id FROM july_employees WHERE company_email=%s;", (email,))
+    cur.execute("SELECT employee_id FROM portal_employees WHERE company_email=%s;", (email,))
     row = cur.fetchone()
     if row: return row[0]
     try:
         cur.execute(
-            "INSERT INTO july_employees (first_name, last_name, role_id, phone, company_email, department, city, is_active) VALUES (%s,%s,%s,%s,%s,%s,%s,TRUE) RETURNING employee_id;",
+            "INSERT INTO portal_employees (first_name, last_name, role_id, phone, company_email, department, city, is_active) VALUES (%s,%s,%s,%s,%s,%s,%s,TRUE) RETURNING employee_id;",
             (first_name, last_name, role_id, "0000000000", email, "Operations", city)
         )
         r = cur.fetchone()
@@ -108,20 +108,20 @@ def get_or_create_employee(first_name, last_name, role_id, email, city):
         return r[0] if r else None
     except Exception as e:
         conn.rollback()
-        cur.execute("SELECT employee_id FROM july_employees WHERE company_email=%s;", (email,))
+        cur.execute("SELECT employee_id FROM portal_employees WHERE company_email=%s;", (email,))
         r = cur.fetchone()
         return r[0] if r else None
 
 def get_or_create_portal_user(username, password_hash, emp_id, role_id, role_name):
-    cur.execute("SELECT portal_user_id FROM july_portal_users WHERE username=%s;", (username,))
+    cur.execute("SELECT portal_user_id FROM portal_portal_users WHERE username=%s;", (username,))
     row = cur.fetchone()
     if row:
-        cur.execute("UPDATE july_portal_users SET password_hash=%s, role_id=%s, account_status='Active' WHERE username=%s;", (password_hash, role_id, username))
+        cur.execute("UPDATE portal_portal_users SET password_hash=%s, role_id=%s, account_status='Active' WHERE username=%s;", (password_hash, role_id, username))
         conn.commit()
         return row[0]
     try:
         cur.execute(
-            "INSERT INTO july_portal_users (username, password_hash, employee_id, role_id, account_status, role) VALUES (%s,%s,%s,%s,'Active',%s) RETURNING portal_user_id;",
+            "INSERT INTO portal_portal_users (username, password_hash, employee_id, role_id, account_status, role) VALUES (%s,%s,%s,%s,'Active',%s) RETURNING portal_user_id;",
             (username, password_hash, emp_id, role_id, role_name)
         )
         r = cur.fetchone()
@@ -129,7 +129,7 @@ def get_or_create_portal_user(username, password_hash, emp_id, role_id, role_nam
         return r[0] if r else None
     except Exception as e:
         conn.rollback()
-        cur.execute("SELECT portal_user_id FROM july_portal_users WHERE username=%s;", (username,))
+        cur.execute("SELECT portal_user_id FROM portal_portal_users WHERE username=%s;", (username,))
         r = cur.fetchone()
         return r[0] if r else None
 
@@ -217,18 +217,18 @@ for user_data in REAL_USERS:
     access_flags = dict(zip(FORM_KEYS, [walkin, onboarding, allocation, dropoff, adjustment, rent_plan, vehicle_ob]))
     for fk, ca in access_flags.items():
         cur.execute(
-            "INSERT INTO july_user_form_access (portal_user_id, form_key, can_access) VALUES (%s,%s,%s) ON CONFLICT (portal_user_id, form_key) DO UPDATE SET can_access=EXCLUDED.can_access;",
+            "INSERT INTO portal_user_form_access (portal_user_id, form_key, can_access) VALUES (%s,%s,%s) ON CONFLICT (portal_user_id, form_key) DO UPDATE SET can_access=EXCLUDED.can_access;",
             (uid, fk, ca)
         )
     
     if ap1_code:
         cur.execute(
-            "INSERT INTO july_user_approval_chain (portal_user_id, level, approver_role_code, approver_city) VALUES (%s,1,%s,%s) ON CONFLICT (portal_user_id, level) DO UPDATE SET approver_role_code=EXCLUDED.approver_role_code, approver_city=EXCLUDED.approver_city;",
+            "INSERT INTO portal_user_approval_chain (portal_user_id, level, approver_role_code, approver_city) VALUES (%s,1,%s,%s) ON CONFLICT (portal_user_id, level) DO UPDATE SET approver_role_code=EXCLUDED.approver_role_code, approver_city=EXCLUDED.approver_city;",
             (uid, ap1_code, ap1_city)
         )
     if ap2_code:
         cur.execute(
-            "INSERT INTO july_user_approval_chain (portal_user_id, level, approver_role_code, approver_city) VALUES (%s,2,%s,%s) ON CONFLICT (portal_user_id, level) DO UPDATE SET approver_role_code=EXCLUDED.approver_role_code, approver_city=EXCLUDED.approver_city;",
+            "INSERT INTO portal_user_approval_chain (portal_user_id, level, approver_role_code, approver_city) VALUES (%s,2,%s,%s) ON CONFLICT (portal_user_id, level) DO UPDATE SET approver_role_code=EXCLUDED.approver_role_code, approver_city=EXCLUDED.approver_city;",
             (uid, ap2_code, ap2_city)
         )
     
@@ -236,19 +236,19 @@ for user_data in REAL_USERS:
     print(f"  [OK] {username} (ID:{uid}) {city} {role_code} -> forms:{form_list}")
 
 # STEP 5: Give admin full access
-cur.execute("SELECT portal_user_id FROM july_portal_users WHERE username='admin';")
+cur.execute("SELECT portal_user_id FROM portal_portal_users WHERE username='admin';")
 row = cur.fetchone()
 if row:
     ALL_FORMS = ["walkin","onboarding","allocation","dropoff","adjustment","rents","vehicle_onboarding","expenses","workshops","hubs_parking","accident","inspection","users","vehicle_models","cities","roles","tickets","employees","maintenance","challans","approvals"]
     for fk in ALL_FORMS:
-        cur.execute("INSERT INTO july_user_form_access (portal_user_id, form_key, can_access) VALUES (%s,%s,TRUE) ON CONFLICT (portal_user_id, form_key) DO UPDATE SET can_access=TRUE;", (row[0], fk))
+        cur.execute("INSERT INTO portal_user_form_access (portal_user_id, form_key, can_access) VALUES (%s,%s,TRUE) ON CONFLICT (portal_user_id, form_key) DO UPDATE SET can_access=TRUE;", (row[0], fk))
     print(f"[OK] Admin (ID:{row[0]}) -> full access")
 
 conn.commit()
 
-cur.execute("SELECT COUNT(*) FROM july_portal_users WHERE account_status='Active';")
-cur.execute("SELECT COUNT(*) FROM july_user_form_access;")
-cur.execute("SELECT COUNT(*) FROM july_user_approval_chain;")
+cur.execute("SELECT COUNT(*) FROM portal_portal_users WHERE account_status='Active';")
+cur.execute("SELECT COUNT(*) FROM portal_user_form_access;")
+cur.execute("SELECT COUNT(*) FROM portal_user_approval_chain;")
 
 print(f"\n===== SEED COMPLETE =====")
 print(f"Real users: {len(real_user_map)}")

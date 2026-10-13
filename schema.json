@@ -12,7 +12,7 @@
       "tab_name": "Master Setup",
       "tables": [
         {
-          "table_name": "july_cities",
+          "table_name": "portal_cities",
           "description": "Central geographic hub repository configuring operating cities (Bengaluru, Mumbai, Hyderabad); scopes vehicle fleets, parking hubs, driver allocations, and city pricing tariffs.",
           "portal_screen": "CitiesForm.tsx",
           "linked_tables": "None (Master)",
@@ -33,7 +33,7 @@
             {
               "column_name": "city_name",
               "data_type": "VARCHAR(255)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": false,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -78,7 +78,7 @@
           ]
         },
         {
-          "table_name": "july_vehicle_models",
+          "table_name": "portal_vehicle_models",
           "description": "Vehicle make and model catalog storing factory specs and base daily maintenance reserves funding workshop repairs.",
           "portal_screen": "VehicleModelsForm.tsx",
           "linked_tables": "None (Master)",
@@ -153,7 +153,7 @@
           ]
         },
         {
-          "table_name": "july_roles",
+          "table_name": "portal_roles",
           "description": "Role-Based Access Control (RBAC) tiers defining user authority for SuperAdmin, CityManager, DriverManager, and Onboarding staff.",
           "portal_screen": "RolesPermissionsForm.tsx",
           "linked_tables": "None (Master)",
@@ -210,7 +210,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -228,7 +228,7 @@
           ]
         },
         {
-          "table_name": "july_permissions",
+          "table_name": "portal_permissions",
           "description": "Granular functional action definitions (view, create, edit, delete, approve, export) evaluated during button rendering and API calls.",
           "portal_screen": "RolesPermissionsForm.tsx",
           "linked_tables": "None (Master)",
@@ -285,7 +285,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -294,10 +294,10 @@
           ]
         },
         {
-          "table_name": "july_role_permissions",
+          "table_name": "portal_role_permissions",
           "description": "Matrix mapping system roles to specific permitted actions and screen capabilities across the portal (163 active rules).",
           "portal_screen": "RolesPermissionsForm.tsx",
-          "linked_tables": "july_roles, july_permissions",
+          "linked_tables": "portal_roles, portal_permissions",
           "primary_key": [
             "role_permission_id"
           ],
@@ -315,7 +315,7 @@
             {
               "column_name": "role_id",
               "data_type": "INT",
-              "key_link": "FK -> july_roles.role_id",
+              "key_link": "FK -> portal_roles.role_id",
               "default": "None",
               "nullable": false,
               "description": "Auto-incrementing unique record ID; acts as the primary key and immutable anchor referenced across foreign keys and audit logs.",
@@ -324,7 +324,7 @@
             {
               "column_name": "permission_id",
               "data_type": "INT",
-              "key_link": "FK -> july_permissions.permission_id",
+              "key_link": "FK -> portal_permissions.permission_id",
               "default": "None",
               "nullable": false,
               "description": "Stores permission id information utilized by the role permissions screen.",
@@ -378,7 +378,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -387,10 +387,10 @@
           ]
         },
         {
-          "table_name": "july_employees",
+          "table_name": "portal_employees",
           "description": "Operations staff directory recording employee names, corporate emails, contact numbers, and regional city assignments.",
           "portal_screen": "EmployeesForm.tsx",
-          "linked_tables": "july_cities",
+          "linked_tables": "portal_cities",
           "primary_key": [
             "employee_id"
           ],
@@ -426,7 +426,7 @@
             {
               "column_name": "role_id",
               "data_type": "INT",
-              "key_link": "FK -> july_roles.role_id",
+              "key_link": "FK -> portal_roles.role_id",
               "default": "None",
               "nullable": false,
               "description": "Auto-incrementing unique record ID; acts as the primary key and immutable anchor referenced across foreign keys and audit logs.",
@@ -462,7 +462,7 @@
             {
               "column_name": "city",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "'Hyderabad'",
               "nullable": false,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -489,7 +489,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -498,10 +498,10 @@
           ]
         },
         {
-          "table_name": "july_hubs_parking",
+          "table_name": "portal_hubs_parking",
           "description": "Physical vehicle parking yards, slot capacities, EV charging points, security CCTV, and assigned yard managers.",
           "portal_screen": "HubsParkingForm.tsx",
-          "linked_tables": "july_cities",
+          "linked_tables": "portal_cities",
           "primary_key": [
             "id"
           ],
@@ -528,7 +528,7 @@
             {
               "column_name": "city_name",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -663,10 +663,10 @@
           ]
         },
         {
-          "table_name": "july_workshop_vendors",
+          "table_name": "portal_workshop_vendors",
           "description": "Authorized commercial garages, body shops, mechanics, contact persons, GST numbers, and settlement bank accounts.",
           "portal_screen": "WorkshopsForm.tsx",
-          "linked_tables": "july_cities",
+          "linked_tables": "portal_cities",
           "primary_key": [
             "id"
           ],
@@ -702,7 +702,7 @@
             {
               "column_name": "city_name",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -873,10 +873,10 @@
           ]
         },
         {
-          "table_name": "july_portal_users",
+          "table_name": "portal_portal_users",
           "description": "Operations login accounts, encrypted credentials, assigned roles, city scoping, and activation status.",
           "portal_screen": "UsersForm.tsx / Login.tsx",
-          "linked_tables": "july_cities, july_roles, july_employees",
+          "linked_tables": "portal_cities, portal_roles, portal_employees",
           "primary_key": [
             "portal_user_id"
           ],
@@ -894,7 +894,7 @@
             {
               "column_name": "employee_id",
               "data_type": "INT",
-              "key_link": "FK -> july_employees.employee_id",
+              "key_link": "FK -> portal_employees.employee_id",
               "default": "None",
               "nullable": false,
               "description": "Auto-incrementing unique record ID; acts as the primary key and immutable anchor referenced across foreign keys and audit logs.",
@@ -921,7 +921,7 @@
             {
               "column_name": "role_id",
               "data_type": "INT",
-              "key_link": "FK -> july_roles.role_id",
+              "key_link": "FK -> portal_roles.role_id",
               "default": "None",
               "nullable": false,
               "description": "Auto-incrementing unique record ID; acts as the primary key and immutable anchor referenced across foreign keys and audit logs.",
@@ -948,7 +948,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -1002,7 +1002,7 @@
             {
               "column_name": "city",
               "data_type": "VARCHAR(255)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -1029,10 +1029,10 @@
           ]
         },
         {
-          "table_name": "july_user_form_access",
+          "table_name": "portal_user_form_access",
           "description": "Per-user screen authorization matrix determining permitted desk forms in the portal FormSelector menu.",
           "portal_screen": "FormSelector.tsx",
-          "linked_tables": "july_portal_users",
+          "linked_tables": "portal_portal_users",
           "primary_key": [
             "id"
           ],
@@ -1086,10 +1086,10 @@
           ]
         },
         {
-          "table_name": "july_user_approval_chain",
+          "table_name": "portal_user_approval_chain",
           "description": "Configurable managerial approval hierarchy routing partner onboarding and allocation requests to city managers.",
           "portal_screen": "ApprovalsDashboard.tsx",
-          "linked_tables": "july_portal_users, july_roles",
+          "linked_tables": "portal_portal_users, portal_roles",
           "primary_key": [
             "id"
           ],
@@ -1157,10 +1157,10 @@
       "tab_name": "WalkIns & Onboarding",
       "tables": [
         {
-          "table_name": "july_new_walkins",
+          "table_name": "portal_new_walkins",
           "description": "First-time driver candidate visits, contact info, acquisition channels, and initial interview outcome tracking.",
           "portal_screen": "WalkInForm.tsx",
-          "linked_tables": "july_cities, july_portal_users",
+          "linked_tables": "portal_cities, portal_portal_users",
           "primary_key": [
             "id"
           ],
@@ -1214,7 +1214,7 @@
             {
               "column_name": "city",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -1376,7 +1376,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -1403,7 +1403,7 @@
             {
               "column_name": "updated_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who made the most recent update.",
@@ -1412,10 +1412,10 @@
           ]
         },
         {
-          "table_name": "july_existing_walkins",
+          "table_name": "portal_existing_walkins",
           "description": "Returning driver and operator partner office visits for vehicle service, rent payments, inquiries, or grievances.",
           "portal_screen": "WalkInForm.tsx",
-          "linked_tables": "july_cities, july_portal_users",
+          "linked_tables": "portal_cities, portal_portal_users",
           "primary_key": [
             "id"
           ],
@@ -1469,7 +1469,7 @@
             {
               "column_name": "city",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -1541,7 +1541,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -1568,7 +1568,7 @@
             {
               "column_name": "updated_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who made the most recent update.",
@@ -1577,10 +1577,10 @@
           ]
         },
         {
-          "table_name": "july_walkins",
+          "table_name": "portal_walkins",
           "description": "Original walk-in registry and historical archive queried in candidate status lookups and direct partner intake.",
           "portal_screen": "WalkInForm.tsx",
-          "linked_tables": "july_cities, july_portal_users",
+          "linked_tables": "portal_cities, portal_portal_users",
           "primary_key": [
             "id"
           ],
@@ -1616,7 +1616,7 @@
             {
               "column_name": "city",
               "data_type": "VARCHAR(255)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -1805,7 +1805,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -1814,7 +1814,7 @@
             {
               "column_name": "updated_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who made the most recent update.",
@@ -1850,7 +1850,7 @@
             {
               "column_name": "current_approver_id",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Stores current approver id information utilized by the walkins screen.",
@@ -1922,10 +1922,10 @@
           ]
         },
         {
-          "table_name": "july_form_onboarding",
+          "table_name": "portal_form_onboarding",
           "description": "Master driver and operator KYC repository storing personal demographics, Aadhaar, PAN, DL, bank accounts, photos, and approvals (87 columns).",
           "portal_screen": "OnboardingForm.tsx",
-          "linked_tables": "july_cities, july_portal_users",
+          "linked_tables": "portal_cities, portal_portal_users",
           "primary_key": [
             "id"
           ],
@@ -1979,7 +1979,7 @@
             {
               "column_name": "city",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -2564,7 +2564,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -2582,7 +2582,7 @@
             {
               "column_name": "updated_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who made the most recent update.",
@@ -2591,7 +2591,7 @@
             {
               "column_name": "current_approver_id",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Stores current approver id information utilized by the form onboarding screen.",
@@ -2717,10 +2717,10 @@
           ]
         },
         {
-          "table_name": "july_onboarding",
+          "table_name": "portal_onboarding",
           "description": "Managerial approval state machine engine tracking L1/L2 approval queues, review status, and approver assignments.",
           "portal_screen": "ApprovalsDashboard.tsx",
-          "linked_tables": "july_form_onboarding, july_portal_users",
+          "linked_tables": "portal_form_onboarding, portal_portal_users",
           "primary_key": [
             "onboarding_id"
           ],
@@ -2738,7 +2738,7 @@
             {
               "column_name": "driver_id",
               "data_type": "VARCHAR(30)",
-              "key_link": "FK -> july_form_onboarding.driver_id",
+              "key_link": "FK -> portal_form_onboarding.driver_id",
               "default": "None",
               "nullable": true,
               "description": "Unique partner alphanumeric code assigned upon onboarding completion; acts as the primary relational link across allocations, hisaabs, and payouts.",
@@ -2765,7 +2765,7 @@
             {
               "column_name": "city",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": false,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -2855,7 +2855,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": false,
               "description": "Operations executive user who originally submitted this record.",
@@ -2864,7 +2864,7 @@
             {
               "column_name": "current_approver_id",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Stores current approver id information utilized by the onboarding screen.",
@@ -2927,7 +2927,7 @@
             {
               "column_name": "updated_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who made the most recent update.",
@@ -3071,10 +3071,10 @@
           ]
         },
         {
-          "table_name": "july_driver_onboarding",
+          "table_name": "portal_driver_onboarding",
           "description": "Driver profile repository (1,483 records) actively queried by driver lookup APIs during vehicle allocation.",
           "portal_screen": "AllocationForm.tsx",
-          "linked_tables": "july_cities, july_portal_users",
+          "linked_tables": "portal_cities, portal_portal_users",
           "primary_key": [
             "id"
           ],
@@ -3547,10 +3547,10 @@
       "tab_name": "Fleet Operations",
       "tables": [
         {
-          "table_name": "july_vehicle_onboarding",
+          "table_name": "portal_vehicle_onboarding",
           "description": "Master fleet asset catalog containing RC registration, chassis, engine, RTO tax, insurance validity, Fastag IDs, and inspection photos (84 columns).",
           "portal_screen": "VehicleOnboardingForm.tsx",
-          "linked_tables": "july_cities, july_vehicle_models",
+          "linked_tables": "portal_cities, portal_vehicle_models",
           "primary_key": [
             "id"
           ],
@@ -3586,7 +3586,7 @@
             {
               "column_name": "city_name",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -4036,7 +4036,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -4045,7 +4045,7 @@
             {
               "column_name": "updated_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who made the most recent update.",
@@ -4072,7 +4072,7 @@
             {
               "column_name": "current_approver_id",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Stores current approver id information utilized by the vehicle onboarding screen.",
@@ -4315,10 +4315,10 @@
           ]
         },
         {
-          "table_name": "july_allocation_form",
+          "table_name": "portal_allocation_form",
           "description": "Vehicle handoffs, contract swaps, reallocations, and drop-off clearances with odometer readings and photos (73 columns).",
           "portal_screen": "AllocationForm.tsx",
-          "linked_tables": "july_form_onboarding, july_vehicle_onboarding",
+          "linked_tables": "portal_form_onboarding, portal_vehicle_onboarding",
           "primary_key": [
             "id"
           ],
@@ -4363,7 +4363,7 @@
             {
               "column_name": "city_name",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -4372,7 +4372,7 @@
             {
               "column_name": "driver_id",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_form_onboarding.driver_id",
+              "key_link": "FK -> portal_form_onboarding.driver_id",
               "default": "None",
               "nullable": true,
               "description": "Unique partner alphanumeric code assigned upon onboarding completion; acts as the primary relational link across allocations, hisaabs, and payouts.",
@@ -4426,7 +4426,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(50)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": true,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -4741,7 +4741,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -4750,7 +4750,7 @@
             {
               "column_name": "updated_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who made the most recent update.",
@@ -4804,7 +4804,7 @@
             {
               "column_name": "current_approver_id",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Stores current approver id information utilized by the allocation form screen.",
@@ -4984,10 +4984,10 @@
           ]
         },
         {
-          "table_name": "july_vehicle_dropoffs",
+          "table_name": "portal_vehicle_dropoffs",
           "description": "Vehicle return inspections, return odometer readings, body scratch checklists, and handover clearances.",
           "portal_screen": "DropOffForm.tsx",
-          "linked_tables": "july_allocation_form, july_vehicle_onboarding",
+          "linked_tables": "portal_allocation_form, portal_vehicle_onboarding",
           "primary_key": [
             "id"
           ],
@@ -5023,7 +5023,7 @@
             {
               "column_name": "city_name",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -5032,7 +5032,7 @@
             {
               "column_name": "driver_id",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_form_onboarding.driver_id",
+              "key_link": "FK -> portal_form_onboarding.driver_id",
               "default": "None",
               "nullable": true,
               "description": "Unique partner alphanumeric code assigned upon onboarding completion; acts as the primary relational link across allocations, hisaabs, and payouts.",
@@ -5059,7 +5059,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(50)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": true,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -5194,10 +5194,10 @@
           ]
         },
         {
-          "table_name": "july_inspections",
+          "table_name": "portal_inspections",
           "description": "Standardized 28-point Pre-Delivery Inspection (PDI) checklists (tyres, stepney, lights, bodywork, toolkit).",
           "portal_screen": "InspectionForm.tsx",
-          "linked_tables": "july_vehicle_onboarding",
+          "linked_tables": "portal_vehicle_onboarding",
           "primary_key": [
             "id"
           ],
@@ -5215,7 +5215,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": true,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -5458,10 +5458,10 @@
           ]
         },
         {
-          "table_name": "july_maintenance_registry",
+          "table_name": "portal_maintenance_registry",
           "description": "Garage repair work orders, invoice billing, insurance claims, spare parts costs, and turnaround times (69 columns).",
           "portal_screen": "MaintenanceForm.tsx",
-          "linked_tables": "july_vehicle_onboarding, july_workshop_vendors",
+          "linked_tables": "portal_vehicle_onboarding, portal_workshop_vendors",
           "primary_key": [
             "id"
           ],
@@ -5479,7 +5479,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": true,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -5488,7 +5488,7 @@
             {
               "column_name": "city_name",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -6055,7 +6055,7 @@
             {
               "column_name": "current_approver_id",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Stores current approver id information utilized by the maintenance registry screen.",
@@ -6082,7 +6082,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -6091,10 +6091,10 @@
           ]
         },
         {
-          "table_name": "july_accidents_registry",
+          "table_name": "portal_accidents_registry",
           "description": "Road collision accident reports, police FIR numbers, insurance claim statuses, and damage repair estimates.",
           "portal_screen": "AccidentsForm.tsx",
-          "linked_tables": "july_vehicle_onboarding, july_form_onboarding",
+          "linked_tables": "portal_vehicle_onboarding, portal_form_onboarding",
           "primary_key": [
             "id"
           ],
@@ -6112,7 +6112,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": true,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -6139,7 +6139,7 @@
             {
               "column_name": "city_name",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -6184,7 +6184,7 @@
             {
               "column_name": "driver_id",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_form_onboarding.driver_id",
+              "key_link": "FK -> portal_form_onboarding.driver_id",
               "default": "None",
               "nullable": true,
               "description": "Unique partner alphanumeric code assigned upon onboarding completion; acts as the primary relational link across allocations, hisaabs, and payouts.",
@@ -6373,7 +6373,7 @@
             {
               "column_name": "current_approver_id",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Stores current approver id information utilized by the accidents registry screen.",
@@ -6409,7 +6409,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -6418,7 +6418,7 @@
             {
               "column_name": "updated_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who made the most recent update.",
@@ -6427,10 +6427,10 @@
           ]
         },
         {
-          "table_name": "july_traffic_challans",
+          "table_name": "portal_traffic_challans",
           "description": "State traffic police electronic violation notices (e-challans), fine amounts, and weekly driver recovery tracking.",
           "portal_screen": "ChallansForm.tsx",
-          "linked_tables": "july_vehicle_onboarding, july_form_onboarding",
+          "linked_tables": "portal_vehicle_onboarding, portal_form_onboarding",
           "primary_key": [
             "id"
           ],
@@ -6457,7 +6457,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": false,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -6466,7 +6466,7 @@
             {
               "column_name": "driver_id",
               "data_type": "VARCHAR(50)",
-              "key_link": "FK -> july_form_onboarding.driver_id",
+              "key_link": "FK -> portal_form_onboarding.driver_id",
               "default": "None",
               "nullable": true,
               "description": "Unique partner alphanumeric code assigned upon onboarding completion; acts as the primary relational link across allocations, hisaabs, and payouts.",
@@ -6570,10 +6570,10 @@
       "tab_name": "Finance & Tariffs",
       "tables": [
         {
-          "table_name": "july_partner_adjustment",
+          "table_name": "portal_partner_adjustment",
           "description": "Partner balance adjustments (Credits, Debits, Waivers), contested settlement lines, and two-tier managerial approvals.",
           "portal_screen": "AdjustmentForm.tsx",
-          "linked_tables": "july_form_onboarding, july_portal_users",
+          "linked_tables": "portal_form_onboarding, portal_portal_users",
           "primary_key": [
             "id"
           ],
@@ -6618,7 +6618,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": true,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -6627,7 +6627,7 @@
             {
               "column_name": "city_name",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -6762,7 +6762,7 @@
             {
               "column_name": "driver_id",
               "data_type": "VARCHAR(50)",
-              "key_link": "FK -> july_form_onboarding.driver_id",
+              "key_link": "FK -> portal_form_onboarding.driver_id",
               "default": "None",
               "nullable": true,
               "description": "Unique partner alphanumeric code assigned upon onboarding completion; acts as the primary relational link across allocations, hisaabs, and payouts.",
@@ -6915,7 +6915,7 @@
             {
               "column_name": "updated_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who made the most recent update.",
@@ -6924,7 +6924,7 @@
             {
               "column_name": "current_approver_id",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Stores current approver id information utilized by the partner adjustment screen.",
@@ -6951,7 +6951,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -6960,10 +6960,10 @@
           ]
         },
         {
-          "table_name": "july_partner_expenses",
+          "table_name": "portal_partner_expenses",
           "description": "Operational field expenditures: CNG fuel refills, toll reimbursements, and maintenance cash advances.",
           "portal_screen": "ExpensesForm.tsx",
-          "linked_tables": "july_vehicle_onboarding, july_portal_users",
+          "linked_tables": "portal_vehicle_onboarding, portal_portal_users",
           "primary_key": [
             "id"
           ],
@@ -7008,7 +7008,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": true,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -7071,7 +7071,7 @@
             {
               "column_name": "updated_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who made the most recent update.",
@@ -7089,7 +7089,7 @@
             {
               "column_name": "current_approver_id",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Stores current approver id information utilized by the partner expenses screen.",
@@ -7116,7 +7116,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Operations executive user who originally submitted this record.",
@@ -7125,10 +7125,10 @@
           ]
         },
         {
-          "table_name": "july_rents",
+          "table_name": "portal_rents",
           "description": "Configurable daily vehicle lease rental tariffs by vehicle age, model, vendor, and partner discount percentage.",
           "portal_screen": "RentForm.tsx",
-          "linked_tables": "july_vehicle_models",
+          "linked_tables": "portal_vehicle_models",
           "primary_key": [
             "id"
           ],
@@ -7164,7 +7164,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": true,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -7191,7 +7191,7 @@
             {
               "column_name": "driver_id",
               "data_type": "VARCHAR(50)",
-              "key_link": "FK -> july_form_onboarding.driver_id",
+              "key_link": "FK -> portal_form_onboarding.driver_id",
               "default": "None",
               "nullable": true,
               "description": "Unique partner alphanumeric code assigned upon onboarding completion; acts as the primary relational link across allocations, hisaabs, and payouts.",
@@ -7254,10 +7254,10 @@
           ]
         },
         {
-          "table_name": "july_rent_ledger",
+          "table_name": "portal_rent_ledger",
           "description": "Immutable audit ledger tracking all rental price modifications, old vs new amounts, authorizing users, and effective dates.",
           "portal_screen": "RentForm.tsx (Ledger)",
-          "linked_tables": "july_rents, july_portal_users",
+          "linked_tables": "portal_rents, portal_portal_users",
           "primary_key": [
             "id"
           ],
@@ -7347,10 +7347,10 @@
           ]
         },
         {
-          "table_name": "july_tickets",
+          "table_name": "portal_tickets",
           "description": "Internal operations helpdesk tickets for operational issues, document disputes, and resolution tracking.",
           "portal_screen": "TicketsForm.tsx",
-          "linked_tables": "july_portal_users",
+          "linked_tables": "portal_portal_users",
           "primary_key": [
             "ticket_id"
           ],
@@ -7395,7 +7395,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(20)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": true,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -7404,7 +7404,7 @@
             {
               "column_name": "city",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": false,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",
@@ -7440,7 +7440,7 @@
             {
               "column_name": "created_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": false,
               "description": "Operations executive user who originally submitted this record.",
@@ -7449,7 +7449,7 @@
             {
               "column_name": "current_approver_id",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Stores current approver id information utilized by the tickets screen.",
@@ -7499,10 +7499,10 @@
       "tab_name": "Audit & Security Logs",
       "tables": [
         {
-          "table_name": "july_walkin_logs",
+          "table_name": "portal_walkin_logs",
           "description": "Audit trail capturing candidate status transitions, interview outcomes, and executive notes.",
           "portal_screen": "WalkInForm.tsx (Logs)",
-          "linked_tables": "july_new_walkins, july_portal_users",
+          "linked_tables": "portal_new_walkins, portal_portal_users",
           "primary_key": [
             "log_id"
           ],
@@ -7538,7 +7538,7 @@
             {
               "column_name": "performed_by",
               "data_type": "INT",
-              "key_link": "FK -> july_portal_users.portal_user_id",
+              "key_link": "FK -> portal_portal_users.portal_user_id",
               "default": "None",
               "nullable": true,
               "description": "Stores performed by information utilized by the walkin logs screen.",
@@ -7619,10 +7619,10 @@
           ]
         },
         {
-          "table_name": "july_onboarding_logs",
+          "table_name": "portal_onboarding_logs",
           "description": "Audit trail capturing driver KYC document changes, photo uploads, and approval actions.",
           "portal_screen": "OnboardingForm.tsx (Logs)",
-          "linked_tables": "july_form_onboarding, july_portal_users",
+          "linked_tables": "portal_form_onboarding, portal_portal_users",
           "primary_key": [
             "id"
           ],
@@ -7748,10 +7748,10 @@
           ]
         },
         {
-          "table_name": "july_vehicle_logs",
+          "table_name": "portal_vehicle_logs",
           "description": "Audit log tracking fleet vehicle additions, specifications updates, and deployment status changes.",
           "portal_screen": "VehicleOnboardingForm.tsx (Logs)",
-          "linked_tables": "july_vehicle_onboarding, july_portal_users",
+          "linked_tables": "portal_vehicle_onboarding, portal_portal_users",
           "primary_key": [
             "log_id"
           ],
@@ -7778,7 +7778,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": true,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -7859,10 +7859,10 @@
           ]
         },
         {
-          "table_name": "july_allocation_form_logs",
+          "table_name": "portal_allocation_form_logs",
           "description": "Audit trail recording vehicle assignments, driver handoffs, swaps, and drop-off clearances.",
           "portal_screen": "AllocationForm.tsx (Logs)",
-          "linked_tables": "july_allocation_form, july_portal_users",
+          "linked_tables": "portal_allocation_form, portal_portal_users",
           "primary_key": [
             "log_id"
           ],
@@ -7898,7 +7898,7 @@
             {
               "column_name": "vehicle_number",
               "data_type": "VARCHAR(50)",
-              "key_link": "FK -> july_vehicle_onboarding.vehicle_number",
+              "key_link": "FK -> portal_vehicle_onboarding.vehicle_number",
               "default": "None",
               "nullable": true,
               "description": "RTO registration plate number (e.g. KA01AB1234); validated against VAHAN database. Serves as the master asset key linking allocations, repairs, and challans.",
@@ -7907,7 +7907,7 @@
             {
               "column_name": "driver_id",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_form_onboarding.driver_id",
+              "key_link": "FK -> portal_form_onboarding.driver_id",
               "default": "None",
               "nullable": true,
               "description": "Unique partner alphanumeric code assigned upon onboarding completion; acts as the primary relational link across allocations, hisaabs, and payouts.",
@@ -8015,10 +8015,10 @@
           ]
         },
         {
-          "table_name": "july_approval_chain_logs",
+          "table_name": "portal_approval_chain_logs",
           "description": "Audit trail of managerial decisions (Approve, Reject, Revision Requested) across operational forms.",
           "portal_screen": "ApprovalsDashboard.tsx",
-          "linked_tables": "july_portal_users",
+          "linked_tables": "portal_portal_users",
           "primary_key": [
             "log_id"
           ],
@@ -8099,10 +8099,10 @@
           ]
         },
         {
-          "table_name": "july_user_login_logs",
+          "table_name": "portal_user_login_logs",
           "description": "Security audit log tracking user authentication attempts, timestamps, and client IP addresses.",
           "portal_screen": "SecurityDashboard.tsx",
-          "linked_tables": "july_portal_users",
+          "linked_tables": "portal_portal_users",
           "primary_key": [
             "log_id"
           ],
@@ -8165,7 +8165,7 @@
             {
               "column_name": "city",
               "data_type": "VARCHAR(100)",
-              "key_link": "FK -> july_cities.city_name",
+              "key_link": "FK -> portal_cities.city_name",
               "default": "None",
               "nullable": true,
               "description": "Operating metropolitan hub (e.g. Bengaluru, Hyderabad, Mumbai). Configured during system setup; scopes all vehicle allocations, yard hubs, and rental tariffs by city.",

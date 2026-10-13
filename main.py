@@ -53,7 +53,7 @@ def get_user_for_log(request: Request) -> str:
     try:
         conn = postgreSQL_pool.getconn()
         cur = conn.cursor()
-        cur.execute("SELECT au.username, au.id FROM july_app_sessions s JOIN july_app_users au ON au.id = s.user_id WHERE s.token = %s;", (token,))
+        cur.execute("SELECT au.username, au.id FROM portal_app_sessions s JOIN portal_app_users au ON au.id = s.user_id WHERE s.token = %s;", (token,))
         row = cur.fetchone()
         if row:
             return f"@{row[0]} (ID: {row[1]})"
@@ -138,9 +138,9 @@ def startup_event():
     try:
         cur = conn.cursor()
 
-        # ── july_cities ──────────────────────────────────────
+        # ── portal_cities ──────────────────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_cities (
+            CREATE TABLE IF NOT EXISTS portal_cities (
                 id         SERIAL PRIMARY KEY,
                 city_name  VARCHAR(255) NOT NULL UNIQUE,
                 city_code  VARCHAR(100),
@@ -149,59 +149,59 @@ def startup_event():
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         """)
-        cur.execute("TRUNCATE TABLE july_cities RESTART IDENTITY CASCADE;")
+        cur.execute("TRUNCATE TABLE portal_cities RESTART IDENTITY CASCADE;")
         cur.execute("""
-            INSERT INTO july_cities (id, city_name, city_code, state, status) VALUES
+            INSERT INTO portal_cities (id, city_name, city_code, state, status) VALUES
             (1, 'Bengaluru', 'BLR', 'Karnataka', 'Active'),
             (2, 'Mumbai', 'BOM', 'Maharashtra', 'Active'),
             (3, 'Hyderabad', 'HYD', 'Telangana', 'Active'),
             (4, 'Delhi', 'DEL', 'Delhi', 'Active');
         """)
-        cur.execute("SELECT setval('july_cities_id_seq', (SELECT MAX(id) FROM july_cities));")
+        cur.execute("SELECT setval('july_cities_id_seq', (SELECT MAX(id) FROM portal_cities));")
         conn.commit()
-        print("[OK] july_cities table initialized with Bengaluru, Mumbai, Hyderabad, and Delhi")
+        print("[OK] portal_cities table initialized with Bengaluru, Mumbai, Hyderabad, and Delhi")
 
-        # ── july_cities ──────────────────────────────────────
+        # ── portal_cities ──────────────────────────────────────
         try:
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS july_cities (
+                CREATE TABLE IF NOT EXISTS portal_cities (
                     id   SERIAL PRIMARY KEY,
                     name VARCHAR(255) NOT NULL
                 );
             """)
-            cur.execute("TRUNCATE TABLE july_cities RESTART IDENTITY CASCADE;")
+            cur.execute("TRUNCATE TABLE portal_cities RESTART IDENTITY CASCADE;")
             cur.execute("""
-                INSERT INTO july_cities (id, name) VALUES
+                INSERT INTO portal_cities (id, name) VALUES
                 (1, 'Bengaluru'), (2, 'Mumbai'), (3, 'Hyderabad'), (4, 'Delhi');
             """)
-            cur.execute("SELECT setval('july_cities_id_seq', (SELECT MAX(id) FROM july_cities));")
+            cur.execute("SELECT setval('july_cities_id_seq', (SELECT MAX(id) FROM portal_cities));")
             conn.commit()
         except Exception as err:
             conn.rollback()
-            print(f"[WARN] july_cities setup notice: {err}")
+            print(f"[WARN] portal_cities setup notice: {err}")
 
 
-        # ── july_portal_users (executives / employees) ───────────────
+        # ── portal_portal_users (executives / employees) ───────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_portal_users (
+            CREATE TABLE IF NOT EXISTS portal_portal_users (
                 id   SERIAL PRIMARY KEY,
                 name VARCHAR(255) NOT NULL
             );
         """)
-        cur.execute("ALTER TABLE july_portal_users ADD COLUMN IF NOT EXISTS role VARCHAR(255) DEFAULT 'Executive';")
-        cur.execute("ALTER TABLE july_portal_users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);")
-        cur.execute("ALTER TABLE july_portal_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);")
-        cur.execute("ALTER TABLE july_portal_users ADD COLUMN IF NOT EXISTS company_email VARCHAR(255);")
-        cur.execute("ALTER TABLE july_portal_users ADD COLUMN IF NOT EXISTS department VARCHAR(255);")
-        cur.execute("ALTER TABLE july_portal_users ADD COLUMN IF NOT EXISTS city VARCHAR(255);")
-        cur.execute("ALTER TABLE july_portal_users ADD COLUMN IF NOT EXISTS joining_date VARCHAR(50);")
-        cur.execute("ALTER TABLE july_portal_users ADD COLUMN IF NOT EXISTS employee_id VARCHAR(100);")
-        cur.execute("ALTER TABLE july_portal_users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active';")
+        cur.execute("ALTER TABLE portal_portal_users ADD COLUMN IF NOT EXISTS role VARCHAR(255) DEFAULT 'Executive';")
+        cur.execute("ALTER TABLE portal_portal_users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);")
+        cur.execute("ALTER TABLE portal_portal_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_portal_users ADD COLUMN IF NOT EXISTS company_email VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_portal_users ADD COLUMN IF NOT EXISTS department VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_portal_users ADD COLUMN IF NOT EXISTS city VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_portal_users ADD COLUMN IF NOT EXISTS joining_date VARCHAR(50);")
+        cur.execute("ALTER TABLE portal_portal_users ADD COLUMN IF NOT EXISTS employee_id VARCHAR(100);")
+        cur.execute("ALTER TABLE portal_portal_users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Active';")
 
-        cur.execute("SELECT COUNT(*) FROM july_portal_users;")
+        cur.execute("SELECT COUNT(*) FROM portal_portal_users;")
         if cur.fetchone()[0] == 0:
             cur.execute("""
-                INSERT INTO july_portal_users (name, role) VALUES
+                INSERT INTO portal_portal_users (name, role) VALUES
                 ('D Shiva',      'Driver Relations Manager'),
                 ('Arshad Khan',  'Onboarding Specialist'),
                 ('Priya Sharma', 'Partner Onboarding Lead'),
@@ -212,15 +212,15 @@ def startup_event():
 
         # ── Safe live-data migrations: copy_ → july_ (runs only when old tables still exist) ──
         legacy_renames = [
-            ("july_walkins",                 "july_walkins"),
-            ("july_form_onboarding",         "july_form_onboarding"),
-            ("july_vehicle_onboarding_1",      "july_vehicle_onboarding"),
-            ("july_walkin_form_links",       "july_walkin_form_links"),
-            ("july_walkin_logs",             "july_walkin_logs"),
-            ("july_onboarding_logs",         "july_onboarding_logs"),
-            ("july_vehicle_logs",            "july_vehicle_logs"),
-            ("july_driver_onboarding",       "july_driver_onboarding"),
-            ("july_walkin_onboarding_links", "july_walkin_onboarding_links"),
+            ("portal_walkins",                 "portal_walkins"),
+            ("portal_form_onboarding",         "portal_form_onboarding"),
+            ("portal_vehicle_onboarding_1",      "portal_vehicle_onboarding"),
+            ("portal_walkin_form_links",       "portal_walkin_form_links"),
+            ("portal_walkin_logs",             "portal_walkin_logs"),
+            ("portal_onboarding_logs",         "portal_onboarding_logs"),
+            ("portal_vehicle_logs",            "portal_vehicle_logs"),
+            ("portal_driver_onboarding",       "portal_driver_onboarding"),
+            ("portal_walkin_onboarding_links", "portal_walkin_onboarding_links"),
         ]
         for old_name, new_name in legacy_renames:
             cur.execute("""
@@ -238,14 +238,14 @@ def startup_event():
             """, (old_name, new_name, old_name, new_name))
         print("[OK] Legacy table renames applied")
 
-        # ── july_walkins ──────────────────────────────────────
+        # ── portal_walkins ──────────────────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_walkins (
+            CREATE TABLE IF NOT EXISTS portal_walkins (
                 id             SERIAL PRIMARY KEY,
                 visitor_type   VARCHAR(50),
                 event_date     VARCHAR(20),
                 city           VARCHAR(255),
-                executive_id   INTEGER REFERENCES july_portal_users(id),
+                executive_id   INTEGER REFERENCES portal_portal_users(id),
                 person_name    VARCHAR(255),
                 person_number  VARCHAR(50),
                 aadhaar_number VARCHAR(20),
@@ -275,11 +275,11 @@ def startup_event():
             "visit_tags JSONB DEFAULT '[]'::jsonb",
             "visit_notes TEXT"
         ]:
-            cur.execute(f"ALTER TABLE july_walkins ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_walkins ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── july_new_walkins & july_existing_walkins ─────────
+        # ── portal_new_walkins & portal_existing_walkins ─────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_new_walkins (
+            CREATE TABLE IF NOT EXISTS portal_new_walkins (
                 id SERIAL PRIMARY KEY,
                 first_name VARCHAR(100),
                 last_name VARCHAR(100),
@@ -310,7 +310,7 @@ def startup_event():
             );
         """)
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_existing_walkins (
+            CREATE TABLE IF NOT EXISTS portal_existing_walkins (
                 id SERIAL PRIMARY KEY,
                 person_number VARCHAR(15),
                 first_name VARCHAR(100),
@@ -332,9 +332,9 @@ def startup_event():
         """)
         conn.commit()
 
-        # ── july_driver_onboarding ───────────────────────────
+        # ── portal_driver_onboarding ───────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_driver_onboarding (
+            CREATE TABLE IF NOT EXISTS portal_driver_onboarding (
                 id SERIAL PRIMARY KEY,
                 driver_name VARCHAR(255),
                 phone_number VARCHAR(50),
@@ -359,19 +359,19 @@ def startup_event():
             );
         """)
 
-        # ── july_walkin_onboarding_links ──────────────────────
+        # ── portal_walkin_onboarding_links ──────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_walkin_onboarding_links (
+            CREATE TABLE IF NOT EXISTS portal_walkin_onboarding_links (
                 id SERIAL PRIMARY KEY,
-                walkin_id INTEGER REFERENCES july_walkins(id),
-                onboarding_id INTEGER REFERENCES july_driver_onboarding(id),
+                walkin_id INTEGER REFERENCES portal_walkins(id),
+                onboarding_id INTEGER REFERENCES portal_driver_onboarding(id),
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """)
 
-        # ── july_form_onboarding ───────────────────────────
+        # ── portal_form_onboarding ───────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_form_onboarding (
+            CREATE TABLE IF NOT EXISTS portal_form_onboarding (
                 id SERIAL PRIMARY KEY,
                 vendor_type VARCHAR(50),
                 driver_id VARCHAR(50),
@@ -446,24 +446,27 @@ def startup_event():
             "emergency_contact_aadhaar_doc TEXT",
             "emergency_contact_aadhaar_number VARCHAR(50)"
         ]:
-            cur.execute(f"ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS {col};")
 
         for col in [
             "emergency_contact_aadhaar_doc TEXT",
             "emergency_contact_aadhaar_number VARCHAR(50)"
         ]:
-            cur.execute(f"ALTER TABLE july_onboarding ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_onboarding ADD COLUMN IF NOT EXISTS {col};")
 
         for col in [
             "lead_channel VARCHAR(100)",
             "lead_channel_details VARCHAR(255)",
             "lead_source VARCHAR(100)"
         ]:
-            cur.execute(f"ALTER TABLE july_walkins ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_walkins ADD COLUMN IF NOT EXISTS {col};")
 
-        cur.execute("ALTER TABLE july_form_onboarding DROP CONSTRAINT IF EXISTS copy_form_onboarding_approval_requested_to_fkey;")
+        cur.execute("SELECT column_name, data_type, character_maximum_length FROM information_schema.columns WHERE table_name = 'portal_onboarding';")
+        existing_onboarding_cols = {r[0]: (r[1], r[2]) for r in cur.fetchall()}
         for col_name in ["aadhaar_number", "pan_number", "driving_license", "phone_number", "emergency_phone"]:
-            cur.execute(f"ALTER TABLE july_onboarding ALTER COLUMN {col_name} TYPE VARCHAR(100);")
+            cinfo = existing_onboarding_cols.get(col_name)
+            if cinfo and (cinfo[0] != 'character varying' or cinfo[1] != 100):
+                cur.execute(f"ALTER TABLE portal_onboarding ALTER COLUMN {col_name} TYPE VARCHAR(100);")
 
         # ── Extra columns needed by approval workflow ─────────────────────
         for col in [
@@ -481,9 +484,9 @@ def startup_event():
             "driver_manager_name        VARCHAR(255)",
             "emergency_contact_aadhaar_doc TEXT"
         ]:
-            cur.execute(f"ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── Audit columns: july_walkins ──────────────────────────────────────
+        # ── Audit columns: portal_walkins ──────────────────────────────────────
         for col in [
             "created_by       INTEGER",
             "updated_by       INTEGER",
@@ -492,9 +495,9 @@ def startup_event():
             "current_approver_id INTEGER",
             "approved_by      INTEGER",
         ]:
-            cur.execute(f"ALTER TABLE july_walkins ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_walkins ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── Audit columns: july_form_onboarding ──────────────────────────────
+        # ── Audit columns: portal_form_onboarding ──────────────────────────────
         for col in [
             "created_by          INTEGER",
             "updated_by          INTEGER",
@@ -507,13 +510,13 @@ def startup_event():
             "gst_certificate     TEXT",
             "incorporation_doc   TEXT",
         ]:
-            cur.execute(f"ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS {col};")
 
-        cur.execute("ALTER TABLE july_form_onboarding ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
-        cur.execute("UPDATE july_form_onboarding SET created_at = updated_at WHERE created_at IS NULL;")
-        cur.execute("UPDATE july_form_onboarding SET created_at = NOW() WHERE created_at IS NULL;")
+        cur.execute("ALTER TABLE portal_form_onboarding ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP;")
+        cur.execute("UPDATE portal_form_onboarding SET created_at = updated_at WHERE created_at IS NULL;")
+        cur.execute("UPDATE portal_form_onboarding SET created_at = NOW() WHERE created_at IS NULL;")
 
-        # ── Audit columns: july_vehicle_onboarding ───────────────────────────
+        # ── Audit columns: portal_vehicle_onboarding ───────────────────────────
         for col in [
             "created_by          INTEGER",
             "updated_by          INTEGER",
@@ -524,9 +527,9 @@ def startup_event():
             "approved_by         INTEGER",
             "approval_remarks    TEXT",
         ]:
-            cur.execute(f"ALTER TABLE july_vehicle_onboarding ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_vehicle_onboarding ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── Audit columns: july_partner_adjustment ───────────────────────────
+        # ── Audit columns: portal_partner_adjustment ───────────────────────────
         for col in [
             "created_by          INTEGER",
             "updated_by          INTEGER",
@@ -538,11 +541,11 @@ def startup_event():
             "approval_submitted_at TIMESTAMP",
             "approved_amount     VARCHAR(50)",
         ]:
-            cur.execute(f"ALTER TABLE july_partner_adjustment ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_partner_adjustment ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── july_walkin_logs (audit every change to a walk-in) ───────────────
+        # ── portal_walkin_logs (audit every change to a walk-in) ───────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_walkin_logs (
+            CREATE TABLE IF NOT EXISTS portal_walkin_logs (
                 log_id       SERIAL PRIMARY KEY,
                 walkin_id    VARCHAR(100) NOT NULL,
                 action       VARCHAR(30) NOT NULL,      -- CREATE / UPDATE / DELETE / STATUS_CHANGE
@@ -552,20 +555,20 @@ def startup_event():
                 previous_data  JSONB,                   -- Full row snapshot before edit
                 new_data       JSONB,                   -- Full row snapshot after edit
                 remarks      TEXT,
-                performed_by INTEGER REFERENCES july_portal_users(portal_user_id) ON DELETE SET NULL,
+                performed_by INTEGER REFERENCES portal_portal_users(portal_user_id) ON DELETE SET NULL,
                 performed_by_name VARCHAR(255),
                 performed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             );
 
-            CREATE INDEX IF NOT EXISTS idx_walkin_logs_walkin_id ON july_walkin_logs (walkin_id);
-            CREATE INDEX IF NOT EXISTS idx_walkin_logs_performed_by ON july_walkin_logs (performed_by);
-            CREATE INDEX IF NOT EXISTS idx_walkin_logs_performed_at ON july_walkin_logs (performed_at DESC);
-            CREATE INDEX IF NOT EXISTS idx_walkin_logs_changed_fields ON july_walkin_logs USING GIN (changed_fields);
+            CREATE INDEX IF NOT EXISTS idx_walkin_logs_walkin_id ON portal_walkin_logs (walkin_id);
+            CREATE INDEX IF NOT EXISTS idx_walkin_logs_performed_by ON portal_walkin_logs (performed_by);
+            CREATE INDEX IF NOT EXISTS idx_walkin_logs_performed_at ON portal_walkin_logs (performed_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_walkin_logs_changed_fields ON portal_walkin_logs USING GIN (changed_fields);
         """)
 
-        # ── july_onboarding_logs (audit every change to partner onboarding) ──
+        # ── portal_onboarding_logs (audit every change to partner onboarding) ──
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_onboarding_logs (
+            CREATE TABLE IF NOT EXISTS portal_onboarding_logs (
                 log_id          SERIAL PRIMARY KEY,
                 onboarding_id   INTEGER NOT NULL,
                 action          VARCHAR(30) NOT NULL,   -- CREATE / UPDATE / DELETE / STATUS_CHANGE / SEND_FOR_APPROVAL
@@ -588,13 +591,13 @@ def startup_event():
             "performed_by_name VARCHAR(255)",
             "performed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()"
         ]:
-            cur.execute(f"ALTER TABLE july_onboarding_logs ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_onboarding_logs ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── july_vehicle_logs (audit every change to vehicle onboarding) ─────
+        # ── portal_vehicle_logs (audit every change to vehicle onboarding) ─────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_vehicle_logs (
+            CREATE TABLE IF NOT EXISTS portal_vehicle_logs (
                 log_id          SERIAL PRIMARY KEY,
-                vehicle_ob_id   INTEGER NOT NULL,       -- references july_vehicle_onboarding.id
+                vehicle_ob_id   INTEGER NOT NULL,       -- references portal_vehicle_onboarding.id
                 vehicle_number  VARCHAR(100),
                 action          VARCHAR(30) NOT NULL,   -- CREATE / UPDATE / DELETE / STATUS_CHANGE
                 old_status      VARCHAR(50),
@@ -617,7 +620,7 @@ def startup_event():
             "performed_by_name VARCHAR(255)",
             "performed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()"
         ]:
-            cur.execute(f"ALTER TABLE july_vehicle_logs ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_vehicle_logs ADD COLUMN IF NOT EXISTS {col};")
 
         for col in [
             "insurance_idv VARCHAR(50)",
@@ -645,11 +648,11 @@ def startup_event():
             "invoice_date DATE",
             "invoice_no VARCHAR(100)"
         ]:
-            cur.execute(f"ALTER TABLE july_vehicle_onboarding ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_vehicle_onboarding ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── july_rents ───────────────────────────────────────
+        # ── portal_rents ───────────────────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_rents (
+            CREATE TABLE IF NOT EXISTS portal_rents (
                 id SERIAL PRIMARY KEY,
                 level VARCHAR(50) DEFAULT 'model',
                 vehicle_model VARCHAR(100),
@@ -661,39 +664,39 @@ def startup_event():
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """)
-        cur.execute("ALTER TABLE july_rents ADD COLUMN IF NOT EXISTS level VARCHAR(50) DEFAULT 'model';")
-        cur.execute("ALTER TABLE july_rents ADD COLUMN IF NOT EXISTS vehicle_number VARCHAR(100);")
-        cur.execute("ALTER TABLE july_rents ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';")
-        cur.execute("ALTER TABLE july_rents ADD COLUMN IF NOT EXISTS assigned_to VARCHAR(100);")
-        cur.execute("ALTER TABLE july_rents ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(100);")
-        cur.execute("ALTER TABLE july_rents ADD COLUMN IF NOT EXISTS assigned_time TIMESTAMP;")
+        cur.execute("ALTER TABLE portal_rents ADD COLUMN IF NOT EXISTS level VARCHAR(50) DEFAULT 'model';")
+        cur.execute("ALTER TABLE portal_rents ADD COLUMN IF NOT EXISTS vehicle_number VARCHAR(100);")
+        cur.execute("ALTER TABLE portal_rents ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Pending';")
+        cur.execute("ALTER TABLE portal_rents ADD COLUMN IF NOT EXISTS assigned_to VARCHAR(100);")
+        cur.execute("ALTER TABLE portal_rents ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(100);")
+        cur.execute("ALTER TABLE portal_rents ADD COLUMN IF NOT EXISTS assigned_time TIMESTAMP;")
 
 
-        # ── july_walkin_form_links ──────────────────────
+        # ── portal_walkin_form_links ──────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_walkin_form_links (
+            CREATE TABLE IF NOT EXISTS portal_walkin_form_links (
                 id SERIAL PRIMARY KEY,
-                walkin_id INTEGER REFERENCES july_walkins(id),
-                onboarding_id INTEGER REFERENCES july_form_onboarding(id),
+                walkin_id INTEGER REFERENCES portal_walkins(id),
+                onboarding_id INTEGER REFERENCES portal_form_onboarding(id),
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """)
 
-        cur.execute("ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS operating_place VARCHAR(255);")
-        cur.execute("ALTER TABLE july_walkins ADD COLUMN IF NOT EXISTS operating_place VARCHAR(255);")
-        cur.execute("ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS vendor_name VARCHAR(255);")
-        cur.execute("ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS vendor_id VARCHAR(50);")
-        cur.execute("ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS aadhaar_card_photo TEXT;")
-        cur.execute("ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS father_name VARCHAR(255);")
-        cur.execute("ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255);")
-        cur.execute("ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS other_bank_name VARCHAR(255);")
-        cur.execute("ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS account_number VARCHAR(100);")
-        cur.execute("ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS ifsc_code VARCHAR(50);")
-        cur.execute("ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS upi_id VARCHAR(100);")
+        cur.execute("ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS operating_place VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_walkins ADD COLUMN IF NOT EXISTS operating_place VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS vendor_name VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS vendor_id VARCHAR(50);")
+        cur.execute("ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS aadhaar_card_photo TEXT;")
+        cur.execute("ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS father_name VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS bank_name VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS other_bank_name VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS account_number VARCHAR(100);")
+        cur.execute("ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS ifsc_code VARCHAR(50);")
+        cur.execute("ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS upi_id VARCHAR(100);")
 
-        # ── july_partner_adjustment ───────────────────────────
+        # ── portal_partner_adjustment ───────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_partner_adjustment (
+            CREATE TABLE IF NOT EXISTS portal_partner_adjustment (
                 id SERIAL PRIMARY KEY,
                 partner_name VARCHAR(255),
                 partner_code VARCHAR(100),
@@ -754,11 +757,11 @@ def startup_event():
             "approver_2_name VARCHAR(255)",
             "additional_photos TEXT"
         ]:
-            cur.execute(f"ALTER TABLE july_partner_adjustment ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_partner_adjustment ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── july_allocation_form ───────────────────────────
+        # ── portal_allocation_form ───────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_allocation_form (
+            CREATE TABLE IF NOT EXISTS portal_allocation_form (
                 id SERIAL PRIMARY KEY,
                 allocation_date VARCHAR(50),
                 allocation_type VARCHAR(50),
@@ -788,12 +791,12 @@ def startup_event():
             "dropoff_remarks TEXT",
             "dropoff_photo TEXT"
         ]:
-            cur.execute(f"ALTER TABLE july_allocation_form ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_allocation_form ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── july_allocation_form (new production table) ──────────────────
+        # ── portal_allocation_form (new production table) ──────────────────
         try:
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS july_allocation_form (
+                CREATE TABLE IF NOT EXISTS portal_allocation_form (
                     id                          SERIAL PRIMARY KEY,
 
                     -- Allocation Meta
@@ -893,10 +896,10 @@ def startup_event():
                 "current_approver_id INTEGER",
                 "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
             ]:
-                cur.execute(f"ALTER TABLE july_allocation_form ADD COLUMN IF NOT EXISTS {col};")
+                cur.execute(f"ALTER TABLE portal_allocation_form ADD COLUMN IF NOT EXISTS {col};")
 
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS july_vehicle_dropoffs (
+                CREATE TABLE IF NOT EXISTS portal_vehicle_dropoffs (
                     id SERIAL PRIMARY KEY,
                     dropoff_date VARCHAR(50),
                     dropoff_reason VARCHAR(100),
@@ -922,7 +925,7 @@ def startup_event():
                 );
             """)
 
-            # Additional columns for july_vehicle_dropoffs
+            # Additional columns for portal_vehicle_dropoffs
             for col_def in [
                 "dropoff_date_time VARCHAR(50)",
                 "event_date_time VARCHAR(50)",
@@ -952,23 +955,23 @@ def startup_event():
                 "remarks TEXT",
                 "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"
             ]:
-                cur.execute(f"ALTER TABLE july_vehicle_dropoffs ADD COLUMN IF NOT EXISTS {col_def};")
+                cur.execute(f"ALTER TABLE portal_vehicle_dropoffs ADD COLUMN IF NOT EXISTS {col_def};")
 
-            # Indexes for july_allocation_form
+            # Indexes for portal_allocation_form
             for idx_sql in [
-                "CREATE INDEX IF NOT EXISTS idx_jaf_driver_id       ON july_allocation_form (driver_id);",
-                "CREATE INDEX IF NOT EXISTS idx_jaf_vehicle_number  ON july_allocation_form (vehicle_number);",
-                "CREATE INDEX IF NOT EXISTS idx_jaf_old_vehicle     ON july_allocation_form (old_vehicle_number);",
-                "CREATE INDEX IF NOT EXISTS idx_jaf_city            ON july_allocation_form (city_name);",
-                "CREATE INDEX IF NOT EXISTS idx_jaf_status          ON july_allocation_form (status);",
-                "CREATE INDEX IF NOT EXISTS idx_jaf_alloc_date      ON july_allocation_form (allocation_date DESC);",
-                "CREATE INDEX IF NOT EXISTS idx_jaf_created_at      ON july_allocation_form (created_at DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_jaf_driver_id       ON portal_allocation_form (driver_id);",
+                "CREATE INDEX IF NOT EXISTS idx_jaf_vehicle_number  ON portal_allocation_form (vehicle_number);",
+                "CREATE INDEX IF NOT EXISTS idx_jaf_old_vehicle     ON portal_allocation_form (old_vehicle_number);",
+                "CREATE INDEX IF NOT EXISTS idx_jaf_city            ON portal_allocation_form (city_name);",
+                "CREATE INDEX IF NOT EXISTS idx_jaf_status          ON portal_allocation_form (status);",
+                "CREATE INDEX IF NOT EXISTS idx_jaf_alloc_date      ON portal_allocation_form (allocation_date DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_jaf_created_at      ON portal_allocation_form (created_at DESC);",
             ]:
                 cur.execute(idx_sql)
 
-            # ── july_allocation_form_logs (audit trail) ──────────────────────
+            # ── portal_allocation_form_logs (audit trail) ──────────────────────
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS july_allocation_form_logs (
+                CREATE TABLE IF NOT EXISTS portal_allocation_form_logs (
                     log_id              SERIAL PRIMARY KEY,
 
                     -- Reference (no hard FK so logs survive DELETE)
@@ -999,24 +1002,24 @@ def startup_event():
             """)
 
             for idx_sql in [
-                "CREATE INDEX IF NOT EXISTS idx_jafl_allocation_id  ON july_allocation_form_logs (allocation_id);",
-                "CREATE INDEX IF NOT EXISTS idx_jafl_performed_at   ON july_allocation_form_logs (performed_at DESC);",
-                "CREATE INDEX IF NOT EXISTS idx_jafl_action         ON july_allocation_form_logs (action);",
-                "CREATE INDEX IF NOT EXISTS idx_jafl_driver_id      ON july_allocation_form_logs (driver_id);",
-                "CREATE INDEX IF NOT EXISTS idx_jafl_changed_fields ON july_allocation_form_logs USING GIN (changed_fields);",
+                "CREATE INDEX IF NOT EXISTS idx_jafl_allocation_id  ON portal_allocation_form_logs (allocation_id);",
+                "CREATE INDEX IF NOT EXISTS idx_jafl_performed_at   ON portal_allocation_form_logs (performed_at DESC);",
+                "CREATE INDEX IF NOT EXISTS idx_jafl_action         ON portal_allocation_form_logs (action);",
+                "CREATE INDEX IF NOT EXISTS idx_jafl_driver_id      ON portal_allocation_form_logs (driver_id);",
+                "CREATE INDEX IF NOT EXISTS idx_jafl_changed_fields ON portal_allocation_form_logs USING GIN (changed_fields);",
             ]:
                 cur.execute(idx_sql)
 
             conn.commit()
-            print("[OK] july_allocation_form and july_allocation_form_logs tables ready and committed")
+            print("[OK] portal_allocation_form and portal_allocation_form_logs tables ready and committed")
         except Exception as alloc_err:
             conn.rollback()
             print(f"[ERROR] Failed to create allocation tables: {alloc_err}")
 
 
-        # ── july_partner_expenses ───────────────────────────
+        # ── portal_partner_expenses ───────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_partner_expenses (
+            CREATE TABLE IF NOT EXISTS portal_partner_expenses (
                 id SERIAL PRIMARY KEY,
                 expense_date VARCHAR(50),
                 driver_name VARCHAR(255),
@@ -1039,13 +1042,13 @@ def startup_event():
             "amount_paid VARCHAR(50)",
             "reference_photo TEXT"
         ]:
-            cur.execute(f"ALTER TABLE july_partner_expenses ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_partner_expenses ADD COLUMN IF NOT EXISTS {col};")
 
 
-        cur.execute("SELECT COUNT(*) FROM july_form_onboarding;")
+        cur.execute("SELECT COUNT(*) FROM portal_form_onboarding;")
         if cur.fetchone()[0] < 5:
-            cur.execute("DELETE FROM july_walkin_form_links;")
-            cur.execute("DELETE FROM july_form_onboarding;")
+            cur.execute("DELETE FROM portal_walkin_form_links;")
+            cur.execute("DELETE FROM portal_form_onboarding;")
             
             onboarding_records = [
                 ("Kavitha Nair", "9012345678", "1992-05-15", "Hyderabad", "Banjara Hills", "123 Street, Hyderabad", "123 Street, Hyderabad", "Rahul Nair", "9876543210", "TS0620181234567", "ABCDE1234F", "[Aadhaar Redacted]", "Yes", "FastFleet Logistics", "V-9901", "Gopal Nair"),
@@ -1062,7 +1065,7 @@ def startup_event():
             
             for item in onboarding_records:
                 cur.execute("""
-                    INSERT INTO july_form_onboarding (
+                    INSERT INTO portal_form_onboarding (
                         driver_name, phone_number, dob, city, operating_place, 
                         present_address, permanent_address, emergency_name, emergency_phone, 
                         dl_number, pan_number, aadhaar_number, pan_aadhaar_linked, vendor_name, vendor_id, father_name, vendor_type, candidate_role
@@ -1071,7 +1074,7 @@ def startup_event():
                 onb_id = cur.fetchone()[0]
 
             cur.execute("""
-                INSERT INTO july_form_onboarding (
+                INSERT INTO portal_form_onboarding (
                     driver_name, phone_number, dob, city, operating_place, 
                     present_address, permanent_address, emergency_name, emergency_phone, 
                     dl_number, pan_number, aadhaar_number, pan_aadhaar_linked, 
@@ -1082,7 +1085,7 @@ def startup_event():
             """)
 
             cur.execute("""
-                INSERT INTO july_form_onboarding (
+                INSERT INTO portal_form_onboarding (
                     driver_name, phone_number, dl_number, custom_rent_amount, driver_id,
                     vendor_name, vendor_id, vendor_type, candidate_role,
                     whatsapp_number, dob, city, present_address, permanent_address, 
@@ -1116,33 +1119,33 @@ def startup_event():
             );
         """)
 
-        # ── july_app_users (login accounts) ───────────────────
+        # ── portal_app_users (login accounts) ───────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_app_users (
+            CREATE TABLE IF NOT EXISTS portal_app_users (
                 id           SERIAL PRIMARY KEY,
                 username     VARCHAR(100) NOT NULL UNIQUE,
                 password_hash VARCHAR(255) NOT NULL,
-                executive_id INTEGER REFERENCES july_portal_users(id),
+                executive_id INTEGER REFERENCES portal_portal_users(id),
                 role_id      INTEGER REFERENCES app_roles(id),
                 created_at   TIMESTAMP DEFAULT NOW()
             );
         """)
-        cur.execute("ALTER TABLE july_app_users ADD COLUMN IF NOT EXISTS raw_password VARCHAR(255);")
-        cur.execute("ALTER TABLE july_app_users ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES app_roles(id);")
-        cur.execute("ALTER TABLE july_app_users ADD COLUMN IF NOT EXISTS employee_id VARCHAR(100);")
-        cur.execute("ALTER TABLE july_app_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_app_users ADD COLUMN IF NOT EXISTS raw_password VARCHAR(255);")
+        cur.execute("ALTER TABLE portal_app_users ADD COLUMN IF NOT EXISTS role_id INTEGER REFERENCES app_roles(id);")
+        cur.execute("ALTER TABLE portal_app_users ADD COLUMN IF NOT EXISTS employee_id VARCHAR(100);")
+        cur.execute("ALTER TABLE portal_app_users ADD COLUMN IF NOT EXISTS email VARCHAR(255);")
         
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_app_sessions (
+            CREATE TABLE IF NOT EXISTS portal_app_sessions (
                 token        VARCHAR(255) PRIMARY KEY,
-                user_id      INTEGER REFERENCES july_app_users(id),
+                user_id      INTEGER REFERENCES portal_app_users(id),
                 created_at   TIMESTAMP DEFAULT NOW()
             );
         """)
 
-        # ── july_user_login_logs (Login/Logout Tracking) ────────
+        # ── portal_user_login_logs (Login/Logout Tracking) ────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_user_login_logs (
+            CREATE TABLE IF NOT EXISTS portal_user_login_logs (
                 log_id SERIAL PRIMARY KEY,
                 user_id INTEGER,
                 username VARCHAR(100),
@@ -1160,9 +1163,9 @@ def startup_event():
             );
         """)
 
-        # ── july_vehicle_models ─────────────────────────────────
+        # ── portal_vehicle_models ─────────────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_vehicle_models (
+            CREATE TABLE IF NOT EXISTS portal_vehicle_models (
                 id         SERIAL PRIMARY KEY,
                 brand      VARCHAR(255) NOT NULL,
                 model_name VARCHAR(255) NOT NULL,
@@ -1173,11 +1176,11 @@ def startup_event():
             );
         """)
 
-        # NOTE: july_vehicle_onboarding is now PERMANENT — no DROP TABLE
+        # NOTE: portal_vehicle_onboarding is now PERMANENT — no DROP TABLE
 
-        # ── july_vehicle_onboarding ─────────────────────────────
+        # ── portal_vehicle_onboarding ─────────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_vehicle_onboarding (
+            CREATE TABLE IF NOT EXISTS portal_vehicle_onboarding (
                 id SERIAL PRIMARY KEY,
                 vehicle_number VARCHAR(100),
                 letzryd_unique_no VARCHAR(100),
@@ -1234,9 +1237,9 @@ def startup_event():
             );
         """)
 
-        # ── july_workshop_vendors ───────────────────────────────
+        # ── portal_workshop_vendors ───────────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_workshop_vendors (
+            CREATE TABLE IF NOT EXISTS portal_workshop_vendors (
                 id SERIAL PRIMARY KEY,
                 vendor_name VARCHAR(255),
                 workshop_type VARCHAR(100),
@@ -1262,9 +1265,9 @@ def startup_event():
             );
         """)
 
-        # ── july_hubs_parking ──────────────────────────────────
+        # ── portal_hubs_parking ──────────────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_hubs_parking (
+            CREATE TABLE IF NOT EXISTS portal_hubs_parking (
                 id SERIAL PRIMARY KEY,
                 hub_name VARCHAR(255),
                 city_name VARCHAR(100),
@@ -1285,9 +1288,9 @@ def startup_event():
             );
         """)
 
-        # ── july_accidents_registry ───────────────────────────
+        # ── portal_accidents_registry ───────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_accidents_registry (
+            CREATE TABLE IF NOT EXISTS portal_accidents_registry (
                 id SERIAL PRIMARY KEY,
                 vehicle_number VARCHAR(100),
                 vendor_id VARCHAR(100),
@@ -1330,11 +1333,11 @@ def startup_event():
             "police_ack_copy TEXT",
             "additional_photos TEXT"
         ]:
-            cur.execute(f"ALTER TABLE july_accidents_registry ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_accidents_registry ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── july_inspections ───────────────────────────
+        # ── portal_inspections ───────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_inspections (
+            CREATE TABLE IF NOT EXISTS portal_inspections (
                 id SERIAL PRIMARY KEY,
                 vehicle_number VARCHAR(100),
                 inspection_date VARCHAR(50),
@@ -1379,11 +1382,11 @@ def startup_event():
             "odometer_photo TEXT",
             "stepney_photo TEXT"
         ]:
-            cur.execute(f"ALTER TABLE july_inspections ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_inspections ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── july_maintenance_registry ───────────────────────────
+        # ── portal_maintenance_registry ───────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_maintenance_registry (
+            CREATE TABLE IF NOT EXISTS portal_maintenance_registry (
                 id SERIAL PRIMARY KEY,
                 vehicle_number VARCHAR(100),
                 city_name VARCHAR(100),
@@ -1451,9 +1454,9 @@ def startup_event():
             );
         """)
 
-        # ── july_maintenance_in ─────────────────────────────────
+        # ── portal_maintenance_in ─────────────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_maintenance_in (
+            CREATE TABLE IF NOT EXISTS portal_maintenance_in (
                 id SERIAL PRIMARY KEY,
                 created_at TIMESTAMP DEFAULT NOW(),
                 created_by INTEGER,
@@ -1479,17 +1482,17 @@ def startup_event():
                 closed_at TIMESTAMP,
                 closed_by INTEGER
             );
-            CREATE INDEX IF NOT EXISTS idx_maint_in_veh_closed ON july_maintenance_in (vehicle_number, is_closed);
+            CREATE INDEX IF NOT EXISTS idx_maint_in_veh_closed ON portal_maintenance_in (vehicle_number, is_closed);
         """)
 
         for col in ["insurance_company VARCHAR(255)"]:
-            cur.execute(f"ALTER TABLE july_maintenance_in ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_maintenance_in ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── july_maintenance_out ────────────────────────────────
+        # ── portal_maintenance_out ────────────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_maintenance_out (
+            CREATE TABLE IF NOT EXISTS portal_maintenance_out (
                 id SERIAL PRIMARY KEY,
-                inward_id INTEGER REFERENCES july_maintenance_in(id),
+                inward_id INTEGER REFERENCES portal_maintenance_in(id),
                 vehicle_number VARCHAR(100) NOT NULL,
                 created_at TIMESTAMP DEFAULT NOW(),
                 created_by INTEGER,
@@ -1513,16 +1516,16 @@ def startup_event():
                 final_status VARCHAR(50) DEFAULT 'Completed & RFD',
                 remarks TEXT
             );
-            CREATE INDEX IF NOT EXISTS idx_maint_out_veh ON july_maintenance_out (vehicle_number);
-            CREATE INDEX IF NOT EXISTS idx_maint_out_inward_id ON july_maintenance_out (inward_id);
+            CREATE INDEX IF NOT EXISTS idx_maint_out_veh ON portal_maintenance_out (vehicle_number);
+            CREATE INDEX IF NOT EXISTS idx_maint_out_inward_id ON portal_maintenance_out (inward_id);
         """)
 
         for col in ["hub_name VARCHAR(255)"]:
-            cur.execute(f"ALTER TABLE july_maintenance_out ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_maintenance_out ADD COLUMN IF NOT EXISTS {col};")
 
-        # ── july_rent_ledger ──────────────────────────────────
+        # ── portal_rent_ledger ──────────────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_rent_ledger (
+            CREATE TABLE IF NOT EXISTS portal_rent_ledger (
                 id SERIAL PRIMARY KEY,
                 entity_type VARCHAR(50),
                 entity_id VARCHAR(100),
@@ -1535,9 +1538,9 @@ def startup_event():
             );
         """)
 
-        # ── july_traffic_challans ─────────────────────────────
+        # ── portal_traffic_challans ─────────────────────────────
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_traffic_challans (
+            CREATE TABLE IF NOT EXISTS portal_traffic_challans (
                 id SERIAL PRIMARY KEY,
                 challan_number VARCHAR(100) NOT NULL UNIQUE,
                 vehicle_number VARCHAR(100) NOT NULL,
@@ -1555,9 +1558,9 @@ def startup_event():
             );
         """)
 
-        # ── july_user_form_access (per-user form visibility) ──
+        # ── portal_user_form_access (per-user form visibility) ──
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_user_form_access (
+            CREATE TABLE IF NOT EXISTS portal_user_form_access (
                 id              SERIAL PRIMARY KEY,
                 portal_user_id  INTEGER NOT NULL,
                 form_key        VARCHAR(50) NOT NULL,
@@ -1567,9 +1570,9 @@ def startup_event():
             );
         """)
 
-        # ── july_user_approval_chain (per-user approval routing) ──
+        # ── portal_user_approval_chain (per-user approval routing) ──
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS july_user_approval_chain (
+            CREATE TABLE IF NOT EXISTS portal_user_approval_chain (
                 id                  SERIAL PRIMARY KEY,
                 portal_user_id      INTEGER NOT NULL,
                 level               INTEGER NOT NULL,
@@ -1634,23 +1637,23 @@ def startup_event():
         ]
         default_pw_hash_sys = pwd_context.hash("123456")
         for u in seed_users:
-            cur.execute("SELECT employee_id FROM july_employees WHERE LOWER(company_email) = %s;", (u["email"].lower(),))
+            cur.execute("SELECT employee_id FROM portal_employees WHERE LOWER(company_email) = %s;", (u["email"].lower(),))
             emp_row = cur.fetchone()
             emp_id = emp_row[0] if emp_row else None
             if not emp_id:
                 cur.execute("""
-                    INSERT INTO july_employees (first_name, last_name, company_email, department, city, is_active, role_id, phone)
+                    INSERT INTO portal_employees (first_name, last_name, company_email, department, city, is_active, role_id, phone)
                     VALUES (%s, %s, %s, 'Operations', %s, TRUE, %s, '9999999999')
                     RETURNING employee_id;
                 """, (u["fname"], u["lname"], u["email"], u["city"], u["role_id"]))
                 emp_id = cur.fetchone()[0]
 
-            cur.execute("SELECT portal_user_id FROM july_portal_users WHERE LOWER(username) = %s OR LOWER(email) = %s;", (u["email"].lower(), u["email"].lower()))
+            cur.execute("SELECT portal_user_id FROM portal_portal_users WHERE LOWER(username) = %s OR LOWER(email) = %s;", (u["email"].lower(), u["email"].lower()))
             pu_row = cur.fetchone()
             pu_id = pu_row[0] if pu_row else None
             if not pu_id:
                 cur.execute("""
-                    INSERT INTO july_portal_users (employee_id, username, password_hash, role, role_id, account_status, email, company_email, city)
+                    INSERT INTO portal_portal_users (employee_id, username, password_hash, role, role_id, account_status, email, company_email, city)
                     VALUES (%s, %s, %s, %s, %s, 'Active', %s, %s, %s)
                     RETURNING portal_user_id;
                 """, (emp_id, u["email"], default_pw_hash_sys, u["role"], u["role_id"], u["email"], u["email"], u["city"]))
@@ -1658,17 +1661,17 @@ def startup_event():
 
             for form_key in u["forms"]:
                 cur.execute("""
-                    INSERT INTO july_user_form_access (portal_user_id, form_key, can_access)
+                    INSERT INTO portal_user_form_access (portal_user_id, form_key, can_access)
                     SELECT %s, %s, TRUE
                     WHERE NOT EXISTS (
-                        SELECT 1 FROM july_user_form_access WHERE portal_user_id = %s AND form_key = %s
+                        SELECT 1 FROM portal_user_form_access WHERE portal_user_id = %s AND form_key = %s
                     );
                 """, (pu_id, form_key, pu_id, form_key))
 
-            # Ensure Delhi users have L1 approver set to CM Delhi in july_user_approval_chain
+            # Ensure Delhi users have L1 approver set to CM Delhi in portal_user_approval_chain
             if u["city"] == "Delhi":
                 cur.execute("""
-                    INSERT INTO july_user_approval_chain (portal_user_id, level, approver_role_code, approver_city)
+                    INSERT INTO portal_user_approval_chain (portal_user_id, level, approver_role_code, approver_city)
                     VALUES (%s, 1, 'CM', 'Delhi')
                     ON CONFLICT (portal_user_id, level) DO UPDATE 
                     SET approver_role_code = EXCLUDED.approver_role_code, approver_city = EXCLUDED.approver_city;
@@ -1689,7 +1692,7 @@ def startup_event():
 # Auth helpers
 # ─────────────────────────────────────────────────────────
 def get_current_user(authorization: Optional[str] = Header(None)):
-    """Validate Bearer token and return user profile. Checks july_portal_users first with fallback."""
+    """Validate Bearer token and return user profile. Checks portal_portal_users first with fallback."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     token = authorization.split(" ", 1)[1]
@@ -1697,16 +1700,16 @@ def get_current_user(authorization: Optional[str] = Header(None)):
     try:
         cur = conn.cursor()
         
-        # 1. Try july_portal_users join
+        # 1. Try portal_portal_users join
         cur.execute("""
             SELECT pu.portal_user_id, COALESCE(e.employee_id::text, pu.portal_user_id::text), 
                    COALESCE(NULLIF(TRIM(CONCAT(e.first_name, ' ', e.last_name)), ''), pu.username, 'User'), 
                    COALESCE(r.role_name, pu.role, 'Executive'), pu.username, pu.role_id,
                    COALESCE(r.role_code, 'EXEC'), COALESCE(pu.city, e.city, 'Hyderabad')
-            FROM july_app_sessions s
-            JOIN july_portal_users pu ON pu.portal_user_id = s.user_id
-            LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-            LEFT JOIN july_roles r ON r.role_id = pu.role_id
+            FROM portal_app_sessions s
+            JOIN portal_portal_users pu ON pu.portal_user_id = s.user_id
+            LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+            LEFT JOIN portal_roles r ON r.role_id = pu.role_id
             WHERE s.token = %s AND COALESCE(pu.account_status, 'Active') != 'Disabled';
         """, (token,))
         row = cur.fetchone()
@@ -1717,10 +1720,10 @@ def get_current_user(authorization: Optional[str] = Header(None)):
                            "roles","tickets","employees","maintenance","maintenance_in","maintenance_out","challans","approvals"]
 
         def _fetch_allowed_forms(uid):
-            """Fetch form access list from july_user_form_access."""
+            """Fetch form access list from portal_user_form_access."""
             try:
                 cur.execute(
-                    "SELECT form_key FROM july_user_form_access WHERE portal_user_id = %s AND can_access = TRUE;",
+                    "SELECT form_key FROM portal_user_form_access WHERE portal_user_id = %s AND can_access = TRUE;",
                     (uid,)
                 )
                 return [r[0] for r in cur.fetchall()]
@@ -1729,11 +1732,11 @@ def get_current_user(authorization: Optional[str] = Header(None)):
         
         if row:
             user_id, exec_id, name, role, username, role_id, role_code, city = row
-            # Fetch july_role_permissions
+            # Fetch portal_role_permissions
             cur.execute("""
                 SELECT p.permission_code, rp.can_view, rp.can_create, rp.can_edit, rp.can_approve, rp.can_delete
-                FROM july_role_permissions rp
-                JOIN july_permissions p ON p.permission_id = rp.permission_id
+                FROM portal_role_permissions rp
+                JOIN portal_permissions p ON p.permission_id = rp.permission_id
                 WHERE rp.role_id = %s;
             """, (role_id,))
             perm_rows = cur.fetchall()
@@ -1760,14 +1763,14 @@ def get_current_user(authorization: Optional[str] = Header(None)):
                 "allowed_forms": allowed_forms,
             }
             
-        # 2. Fallback to july_app_users
+        # 2. Fallback to portal_app_users
         cur.execute("""
             SELECT au.id, au.executive_id, COALESCE(NULLIF(TRIM(CONCAT(e.first_name, ' ', e.last_name)), ''), u.username, 'Admin'), COALESCE(r.role_name, 'Executive'), au.username, au.role_id
-            FROM july_app_sessions s
-            JOIN july_app_users au ON au.id = s.user_id
-            LEFT JOIN july_portal_users u ON u.portal_user_id = au.executive_id
-            LEFT JOIN july_employees e ON e.employee_id = u.employee_id
-            LEFT JOIN july_roles r ON r.role_id = au.role_id
+            FROM portal_app_sessions s
+            JOIN portal_app_users au ON au.id = s.user_id
+            LEFT JOIN portal_portal_users u ON u.portal_user_id = au.executive_id
+            LEFT JOIN portal_employees e ON e.employee_id = u.employee_id
+            LEFT JOIN portal_roles r ON r.role_id = au.role_id
             WHERE s.token = %s;
         """, (token,))
         row = cur.fetchone()
@@ -2407,15 +2410,15 @@ def login(req: LoginRequest, request: Request):
         client_ip = request.client.host if request.client else None
         user_agent = request.headers.get("user-agent", "")
         
-        # Check july_portal_users first (matches email ID, username, or alias)
+        # Check portal_portal_users first (matches email ID, username, or alias)
         cur.execute("""
             SELECT pu.portal_user_id, pu.password_hash, pu.employee_id, 
                    COALESCE(NULLIF(TRIM(CONCAT(e.first_name, ' ', COALESCE(e.last_name, ''))), ''), pu.username, 'User'), 
                    COALESCE(r.role_name, pu.role, 'Executive'), pu.username, pu.role_id,
                    COALESCE(r.role_code, 'SA'), COALESCE(pu.city, e.city, 'Hyderabad')
-            FROM july_portal_users pu
-            LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-            LEFT JOIN july_roles r ON r.role_id = pu.role_id
+            FROM portal_portal_users pu
+            LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+            LEFT JOIN portal_roles r ON r.role_id = pu.role_id
             WHERE (LOWER(pu.username) = %s 
                    OR (LOWER(pu.username) = 'admin' AND %s IN ('admin', 'superadmin', 'super_admin'))
                    OR LOWER(e.company_email) = %s 
@@ -2454,7 +2457,7 @@ def login(req: LoginRequest, request: Request):
         def _fetch_allowed_forms(uid):
             try:
                 cur.execute(
-                    "SELECT form_key FROM july_user_form_access WHERE portal_user_id = %s AND can_access = TRUE;",
+                    "SELECT form_key FROM portal_user_form_access WHERE portal_user_id = %s AND can_access = TRUE;",
                     (uid,)
                 )
                 return [r[0] for r in cur.fetchall()]
@@ -2468,25 +2471,25 @@ def login(req: LoginRequest, request: Request):
             
             token = secrets.token_urlsafe(32)
             cur.execute(
-                "INSERT INTO july_app_sessions (token, user_id) VALUES (%s, %s);",
+                "INSERT INTO portal_app_sessions (token, user_id) VALUES (%s, %s);",
                 (token, user_id)
             )
 
             # Record Login Log Entry
             try:
                 cur.execute("""
-                    INSERT INTO july_user_login_logs 
+                    INSERT INTO portal_user_login_logs 
                     (user_id, username, full_name, role_code, role_name, city, session_token, login_time, ip_address, user_agent)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, %s, %s);
                 """, (user_id, username, name.strip(), role_code, role, city, token, client_ip, user_agent))
             except Exception as log_err:
                 print(f"[WARN] Failed to insert login log: {log_err}")
             
-            # Fetch july_role_permissions
+            # Fetch portal_role_permissions
             cur.execute("""
                 SELECT p.permission_code, rp.can_view, rp.can_create, rp.can_edit, rp.can_approve, rp.can_delete
-                FROM july_role_permissions rp
-                JOIN july_permissions p ON p.permission_id = rp.permission_id
+                FROM portal_role_permissions rp
+                JOIN portal_permissions p ON p.permission_id = rp.permission_id
                 WHERE rp.role_id = %s;
             """, (role_id,))
             perm_rows = cur.fetchall()
@@ -2518,13 +2521,13 @@ def login(req: LoginRequest, request: Request):
                 }
             }
         
-        # Fallback to july_app_users if not found in july_portal_users
+        # Fallback to portal_app_users if not found in portal_portal_users
         cur.execute("""
             SELECT au.id, au.password_hash, au.executive_id, COALESCE(NULLIF(TRIM(CONCAT(e.first_name, ' ', e.last_name)), ''), u.username, 'Admin'), COALESCE(r.role_name, 'Executive'), au.username, au.role_id, au.raw_password
-            FROM july_app_users au
-            LEFT JOIN july_portal_users u ON u.portal_user_id = au.executive_id
-            LEFT JOIN july_employees e ON e.employee_id = u.employee_id
-            LEFT JOIN july_roles r ON r.role_id = au.role_id
+            FROM portal_app_users au
+            LEFT JOIN portal_portal_users u ON u.portal_user_id = au.executive_id
+            LEFT JOIN portal_employees e ON e.employee_id = u.employee_id
+            LEFT JOIN portal_roles r ON r.role_id = au.role_id
             WHERE au.username = %s;
         """, (uname,))
         row = cur.fetchone()
@@ -2537,13 +2540,13 @@ def login(req: LoginRequest, request: Request):
         
         token = secrets.token_urlsafe(32)
         cur.execute(
-            "INSERT INTO july_app_sessions (token, user_id) VALUES (%s, %s);",
+            "INSERT INTO portal_app_sessions (token, user_id) VALUES (%s, %s);",
             (token, user_id)
         )
 
         try:
             cur.execute("""
-                INSERT INTO july_user_login_logs 
+                INSERT INTO portal_user_login_logs 
                 (user_id, username, full_name, role_code, role_name, city, session_token, login_time, ip_address, user_agent)
                 VALUES (%s, %s, %s, 'USER', %s, 'Hyderabad', %s, CURRENT_TIMESTAMP, %s, %s);
             """, (user_id, username, name or username, role, token, client_ip, user_agent))
@@ -2597,12 +2600,12 @@ def logout(request: Request, authorization: Optional[str] = Header(None), token:
         cur = conn.cursor()
         if auth_token:
             cur.execute("""
-                UPDATE july_user_login_logs 
+                UPDATE portal_user_login_logs 
                 SET logout_time = CURRENT_TIMESTAMP,
                     session_duration_minutes = ROUND(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - login_time)) / 60.0, 2)
                 WHERE session_token = %s AND logout_time IS NULL;
             """, (auth_token,))
-            cur.execute("DELETE FROM july_app_sessions WHERE token = %s;", (auth_token,))
+            cur.execute("DELETE FROM portal_app_sessions WHERE token = %s;", (auth_token,))
             conn.commit()
         return {"success": True, "message": "Logged out successfully"}
     except Exception as e:
@@ -2621,7 +2624,7 @@ def get_user_login_logs(limit: int = 100, authorization: Optional[str] = Header(
         cur.execute("""
             SELECT log_id, user_id, username, full_name, role_code, role_name, city,
                    login_time, logout_time, session_duration_minutes, ip_address
-            FROM july_user_login_logs
+            FROM portal_user_login_logs
             ORDER BY login_time DESC
             LIMIT %s;
         """, (limit,))
@@ -2680,7 +2683,7 @@ def get_approval_chain(submitter_id: int, authorization: Optional[str] = Header(
         # Get the chain config for this submitter
         cur.execute("""
             SELECT level, approver_role_code, approver_city
-            FROM july_user_approval_chain
+            FROM portal_user_approval_chain
             WHERE portal_user_id = %s
             ORDER BY level ASC;
         """, (submitter_id,))
@@ -2695,9 +2698,9 @@ def get_approval_chain(submitter_id: int, authorization: Optional[str] = Header(
                        pu.username,
                        COALESCE(r.role_name, pu.role, 'Executive') as role_name,
                        r.role_code
-                FROM july_portal_users pu
-                LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-                LEFT JOIN july_roles r ON r.role_id = pu.role_id
+                FROM portal_portal_users pu
+                LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+                LEFT JOIN portal_roles r ON r.role_id = pu.role_id
                 WHERE r.role_code = %s
                   AND COALESCE(pu.city, e.city, '') = %s
                   AND COALESCE(pu.account_status, 'Active') = 'Active'
@@ -2711,8 +2714,8 @@ def get_approval_chain(submitter_id: int, authorization: Optional[str] = Header(
                     SELECT pu.portal_user_id,
                            COALESCE(NULLIF(TRIM(CONCAT(e.first_name, ' ', e.last_name)), ''), pu.username),
                            pu.username, 'Super Admin', 'SA'
-                    FROM july_portal_users pu
-                    LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
+                    FROM portal_portal_users pu
+                    LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
                     WHERE pu.username = 'admin' LIMIT 1;
                 """)
                 approver_row = cur.fetchone()
@@ -2750,7 +2753,7 @@ def logout(authorization: Optional[str] = Header(None)):
         conn = postgreSQL_pool.getconn()
         try:
             cur = conn.cursor()
-            cur.execute("DELETE FROM july_app_sessions WHERE token = %s;", (token,))
+            cur.execute("DELETE FROM portal_app_sessions WHERE token = %s;", (token,))
             conn.commit()
         finally:
             postgreSQL_pool.putconn(conn)
@@ -2797,9 +2800,9 @@ def get_portal_users(authorization: Optional[str] = Header(None)):
                    COALESCE(NULLIF(TRIM(CONCAT(e.first_name, ' ', e.last_name)), ''), pu.username) AS name,
                    COALESCE(r.role_name, pu.role, 'Staff') AS role_name,
                    COALESCE(e.city, pu.city, '') AS city
-            FROM july_portal_users pu
-            LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-            LEFT JOIN july_roles r ON r.role_id = pu.role_id
+            FROM portal_portal_users pu
+            LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+            LEFT JOIN portal_roles r ON r.role_id = pu.role_id
             WHERE COALESCE(pu.account_status, 'Active') = 'Active'
             ORDER BY name ASC;
         """)
@@ -2836,10 +2839,10 @@ def list_app_users(authorization: Optional[str] = Header(None)):
                    COALESCE(pu.city, e.city, '') AS city,
                    r.role_code,
                    ARRAY_AGG(fa.form_key) FILTER (WHERE fa.can_access = TRUE) AS forms
-            FROM july_portal_users pu
-            LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-            LEFT JOIN july_roles r ON r.role_id = pu.role_id
-            LEFT JOIN july_user_form_access fa ON pu.portal_user_id = fa.portal_user_id
+            FROM portal_portal_users pu
+            LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+            LEFT JOIN portal_roles r ON r.role_id = pu.role_id
+            LEFT JOIN portal_user_form_access fa ON pu.portal_user_id = fa.portal_user_id
             GROUP BY pu.portal_user_id, pu.username, e.first_name, e.last_name, r.role_name, pu.role, r.role_code, pu.city, e.city, pu.email, e.employee_id, e.company_email
             ORDER BY pu.portal_user_id DESC;
         """)
@@ -2888,12 +2891,12 @@ def create_app_user(req: AppUserData, authorization: Optional[str] = Header(None
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT portal_user_id FROM july_portal_users WHERE LOWER(username) = %s OR LOWER(email) = %s;", (username_cleaned, email_cleaned))
+        cur.execute("SELECT portal_user_id FROM portal_portal_users WHERE LOWER(username) = %s OR LOWER(email) = %s;", (username_cleaned, email_cleaned))
         if cur.fetchone():
             raise HTTPException(status_code=400, detail="User account with this username or email already exists")
         
-        # 1. Create or match Employee in july_employees
-        cur.execute("SELECT employee_id FROM july_employees WHERE LOWER(company_email) = %s;", (email_cleaned,))
+        # 1. Create or match Employee in portal_employees
+        cur.execute("SELECT employee_id FROM portal_employees WHERE LOWER(company_email) = %s;", (email_cleaned,))
         emp_row = cur.fetchone()
         emp_id = emp_row[0] if emp_row else None
         if not emp_id:
@@ -2901,28 +2904,28 @@ def create_app_user(req: AppUserData, authorization: Optional[str] = Header(None
             fname = name_parts[0]
             lname = name_parts[1] if len(name_parts) > 1 else ""
             cur.execute("""
-                INSERT INTO july_employees (first_name, last_name, company_email, department, city, is_active, role_id, phone)
+                INSERT INTO portal_employees (first_name, last_name, company_email, department, city, is_active, role_id, phone)
                 VALUES (%s, %s, %s, 'Operations', %s, TRUE, %s, '9999999999')
                 RETURNING employee_id;
             """, (fname, lname, email_cleaned, city_val, req.role_id))
             emp_id = cur.fetchone()[0]
 
-        # 2. Insert into july_portal_users
+        # 2. Insert into portal_portal_users
         hashed_password = pwd_context.hash(req.password)
         cur.execute(
-            """INSERT INTO july_portal_users (employee_id, username, password_hash, role, role_id, email, company_email, city, account_status, created_at) 
+            """INSERT INTO portal_portal_users (employee_id, username, password_hash, role, role_id, email, company_email, city, account_status, created_at) 
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'Active', NOW()) RETURNING portal_user_id;""",
             (emp_id, username_cleaned, hashed_password, req.role.strip(), req.role_id, email_cleaned, email_cleaned, city_val)
         )
         user_id = cur.fetchone()[0]
         
-        # 3. Insert granted form access into july_user_form_access
+        # 3. Insert granted form access into portal_user_form_access
         if req.forms:
             for f_key in req.forms:
                 clean_f = f_key.strip().lower()
                 if clean_f:
                     cur.execute("""
-                        INSERT INTO july_user_form_access (portal_user_id, form_key, can_access)
+                        INSERT INTO portal_user_form_access (portal_user_id, form_key, can_access)
                         VALUES (%s, %s, TRUE)
                         ON CONFLICT (portal_user_id, form_key) DO UPDATE SET can_access = TRUE;
                     """, (user_id, clean_f))
@@ -2930,13 +2933,13 @@ def create_app_user(req: AppUserData, authorization: Optional[str] = Header(None
         # 4. If Delhi, auto-set Level 1 approver to Raju / CM
         if city_val.lower() in ["delhi", "del"]:
             cur.execute("""
-                INSERT INTO july_user_approval_chain (portal_user_id, level, approver_role_code, approver_city)
+                INSERT INTO portal_user_approval_chain (portal_user_id, level, approver_role_code, approver_city)
                 VALUES (%s, 1, 'CM', 'Delhi')
                 ON CONFLICT (portal_user_id, level) DO UPDATE SET approver_role_code = 'CM', approver_city = 'Delhi';
             """, (user_id,))
         else:
             cur.execute("""
-                INSERT INTO july_user_approval_chain (portal_user_id, level, approver_role_code, approver_city)
+                INSERT INTO portal_user_approval_chain (portal_user_id, level, approver_role_code, approver_city)
                 VALUES (%s, 1, 'CM', %s)
                 ON CONFLICT (portal_user_id, level) DO NOTHING;
             """, (user_id, city_val))
@@ -2961,8 +2964,8 @@ def update_user_form_permissions(id: int, req: UserFormPermissionsUpdate, author
         # Verify target user exists and is not protected
         cur.execute("""
             SELECT pu.portal_user_id, pu.username, pu.role, r.role_code
-            FROM july_portal_users pu
-            LEFT JOIN july_roles r ON r.role_id = pu.role_id
+            FROM portal_portal_users pu
+            LEFT JOIN portal_roles r ON r.role_id = pu.role_id
             WHERE pu.portal_user_id = %s;
         """, (id,))
         target = cur.fetchone()
@@ -2987,12 +2990,12 @@ def update_user_form_permissions(id: int, req: UserFormPermissionsUpdate, author
             )
 
         # Clear existing form access and insert new selected forms
-        cur.execute("DELETE FROM july_user_form_access WHERE portal_user_id = %s;", (id,))
+        cur.execute("DELETE FROM portal_user_form_access WHERE portal_user_id = %s;", (id,))
         for f_key in req.forms:
             clean_f = f_key.strip().lower()
             if clean_f:
                 cur.execute("""
-                    INSERT INTO july_user_form_access (portal_user_id, form_key, can_access)
+                    INSERT INTO portal_user_form_access (portal_user_id, form_key, can_access)
                     VALUES (%s, %s, TRUE);
                 """, (id, clean_f))
 
@@ -3015,30 +3018,30 @@ def update_app_user(id: int, req: AppUserUpdateData, authorization: Optional[str
     try:
         cur = conn.cursor()
         
-        cur.execute("SELECT portal_user_id FROM july_portal_users WHERE portal_user_id = %s;", (id,))
+        cur.execute("SELECT portal_user_id FROM portal_portal_users WHERE portal_user_id = %s;", (id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="User not found")
         
-        cur.execute("SELECT portal_user_id FROM july_portal_users WHERE LOWER(username) = %s AND portal_user_id != %s;", (username_cleaned, id))
+        cur.execute("SELECT portal_user_id FROM portal_portal_users WHERE LOWER(username) = %s AND portal_user_id != %s;", (username_cleaned, id))
         if cur.fetchone():
             raise HTTPException(status_code=400, detail="Username already exists")
             
         cur.execute(
-            "UPDATE july_portal_users SET username = %s, role = %s, role_id = %s, email = %s WHERE portal_user_id = %s;",
+            "UPDATE portal_portal_users SET username = %s, role = %s, role_id = %s, email = %s WHERE portal_user_id = %s;",
             (username_cleaned, req.role.strip(), req.role_id, req.email, id)
         )
         
         if req.password:
             hashed_password = pwd_context.hash(req.password)
             cur.execute(
-                """UPDATE july_app_users SET username = %s, password_hash = %s, raw_password = %s, 
+                """UPDATE portal_app_users SET username = %s, password_hash = %s, raw_password = %s, 
                           role_id = %s, employee_id = %s, email = %s WHERE id = %s;""",
                 (username_cleaned, hashed_password, req.password, req.role_id, req.employee_id, req.email, id)
             )
         else:
             cur.execute(
-                "UPDATE july_app_users SET username = %s, role_id = %s, employee_id = %s, email = %s WHERE id = %s;",
+                "UPDATE portal_app_users SET username = %s, role_id = %s, employee_id = %s, email = %s WHERE id = %s;",
                 (username_cleaned, req.role_id, req.employee_id, req.email, id)
             )
             
@@ -3061,22 +3064,22 @@ def delete_app_user(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT executive_id FROM july_app_users WHERE id = %s;", (id,))
+        cur.execute("SELECT executive_id FROM portal_app_users WHERE id = %s;", (id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="User not found")
         exec_id = row[0]
         
-        cur.execute("DELETE FROM july_app_sessions WHERE user_id = %s;", (id,))
-        cur.execute("DELETE FROM july_app_users WHERE id = %s;", (id,))
+        cur.execute("DELETE FROM portal_app_sessions WHERE user_id = %s;", (id,))
+        cur.execute("DELETE FROM portal_app_users WHERE id = %s;", (id,))
         
         try:
-            cur.execute("DELETE FROM july_portal_users WHERE id = %s;", (exec_id,))
+            cur.execute("DELETE FROM portal_portal_users WHERE id = %s;", (exec_id,))
         except Exception:
             conn.rollback()
             cur = conn.cursor()
-            cur.execute("DELETE FROM july_app_sessions WHERE user_id = %s;", (id,))
-            cur.execute("DELETE FROM july_app_users WHERE id = %s;", (id,))
+            cur.execute("DELETE FROM portal_app_sessions WHERE user_id = %s;", (id,))
+            cur.execute("DELETE FROM portal_app_users WHERE id = %s;", (id,))
             
         conn.commit()
         return {"success": True}
@@ -3104,7 +3107,7 @@ def list_vehicle_models(authorization: Optional[str] = Header(None)):
         cur = conn.cursor()
         cur.execute("""
             SELECT id, brand, model_name, variant, fuel_type, make_year, created_at
-            FROM july_vehicle_models
+            FROM portal_vehicle_models
             ORDER BY brand, model_name, variant, make_year DESC;
         """)
         rows = cur.fetchall()
@@ -3130,7 +3133,7 @@ def create_vehicle_model(req: VehicleModelData, authorization: Optional[str] = H
     try:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO july_vehicle_models (brand, model_name, variant, fuel_type, make_year) VALUES (%s, %s, %s, %s, %s) RETURNING id;",
+            "INSERT INTO portal_vehicle_models (brand, model_name, variant, fuel_type, make_year) VALUES (%s, %s, %s, %s, %s) RETURNING id;",
             (req.brand.strip(), req.model_name.strip(), req.variant.strip(), req.fuel_type.strip(), req.make_year)
         )
         model_id = cur.fetchone()[0]
@@ -3148,7 +3151,7 @@ def delete_vehicle_model(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_vehicle_models WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_vehicle_models WHERE id = %s RETURNING id;", (id,))
         deleted = cur.fetchone()
         if not deleted:
             raise HTTPException(status_code=404, detail="Vehicle model not found")
@@ -3177,9 +3180,9 @@ def get_driver_managers(city: Optional[str] = None, authorization: Optional[str]
             SELECT e.employee_id, CONCAT(e.first_name, ' ', COALESCE(e.last_name, '')) AS name,
                    e.city, COALESCE(r.role_name, pu.role, 'Driver Manager') AS role_name,
                    COALESCE(r.role_code, 'DM') AS role_code
-            FROM july_employees e
-            LEFT JOIN july_portal_users pu ON pu.employee_id = e.employee_id
-            LEFT JOIN july_roles r ON r.role_id = COALESCE(pu.role_id, e.role_id)
+            FROM portal_employees e
+            LEFT JOIN portal_portal_users pu ON pu.employee_id = e.employee_id
+            LEFT JOIN portal_roles r ON r.role_id = COALESCE(pu.role_id, e.role_id)
             WHERE (r.role_code = 'DM' OR LOWER(r.role_name) = 'driver manager' OR LOWER(r.role_name) LIKE '%%driver manager%%' OR LOWER(pu.role) LIKE '%%driver manager%%')
               AND e.is_active != FALSE
         """
@@ -3216,7 +3219,7 @@ def get_all_executives():
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT portal_user_id, COALESCE(username, email), COALESCE(role,'Executive') FROM july_portal_users ORDER BY portal_user_id;")
+        cur.execute("SELECT portal_user_id, COALESCE(username, email), COALESCE(role,'Executive') FROM portal_portal_users ORDER BY portal_user_id;")
         rows = cur.fetchall()
         return [{"value": r[0], "text": f"{r[1]}  (ID {r[0]})"} for r in rows]
     finally:
@@ -3228,7 +3231,7 @@ def get_executive(user_id: int):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT COALESCE(username, email), COALESCE(role,'Executive') FROM july_portal_users WHERE portal_user_id=%s;", (user_id,))
+        cur.execute("SELECT COALESCE(username, email), COALESCE(role,'Executive') FROM portal_portal_users WHERE portal_user_id=%s;", (user_id,))
         r = cur.fetchone()
         if r:
             return {"id": user_id, "name": r[0], "role": r[1]}
@@ -3262,7 +3265,7 @@ def get_employees(authorization: Optional[str] = Header(None)):
         cur.execute("""
             SELECT id, name, COALESCE(role,'Executive'), phone, email, company_email,
                    department, city, joining_date, employee_id, COALESCE(status,'Active')
-            FROM july_portal_users ORDER BY id;
+            FROM portal_portal_users ORDER BY id;
         """)
         keys = ["id","name","role","phone","email","company_email","department","city","joining_date","employee_id","status"]
         return [dict(zip(keys, row)) for row in cur.fetchall()]
@@ -3276,7 +3279,7 @@ def create_employee(req: EmployeeData, authorization: Optional[str] = Header(Non
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO july_portal_users (name, role, phone, email, company_email, department, city, joining_date, employee_id, status)
+            INSERT INTO portal_portal_users (name, role, phone, email, company_email, department, city, joining_date, employee_id, status)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;
         """, (req.name.strip(), req.role.strip(), req.phone, req.email, req.company_email, req.department,
               req.city, req.joining_date, req.employee_id, req.status or "Active"))
@@ -3296,7 +3299,7 @@ def update_employee(id: int, req: EmployeeData, authorization: Optional[str] = H
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_portal_users SET name=%s, role=%s, phone=%s, email=%s, company_email=%s, department=%s,
+            UPDATE portal_portal_users SET name=%s, role=%s, phone=%s, email=%s, company_email=%s, department=%s,
                 city=%s, joining_date=%s, employee_id=%s, status=%s
             WHERE id=%s RETURNING id;
         """, (req.name.strip(), req.role.strip(), req.phone, req.email, req.company_email, req.department,
@@ -3319,12 +3322,12 @@ def delete_employee(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id FROM july_app_users WHERE executive_id = %s;", (id,))
+        cur.execute("SELECT id FROM portal_app_users WHERE executive_id = %s;", (id,))
         if cur.fetchone():
-            cur.execute("UPDATE july_portal_users SET status = 'Inactive' WHERE id = %s;", (id,))
+            cur.execute("UPDATE portal_portal_users SET status = 'Inactive' WHERE id = %s;", (id,))
             conn.commit()
             return {"success": True, "deactivated": True, "message": "Employee deactivated (has a portal login — not permanently deleted)"}
-        cur.execute("DELETE FROM july_portal_users WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_portal_users WHERE id = %s RETURNING id;", (id,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Employee not found")
         conn.commit()
@@ -3351,7 +3354,7 @@ def get_all_cities():
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id, city_name, city_code, state, status FROM july_cities ORDER BY id;")
+        cur.execute("SELECT id, city_name, city_code, state, status FROM portal_cities ORDER BY id;")
         rows = cur.fetchall()
         if not rows:
             return [
@@ -3404,7 +3407,7 @@ def create_city(req: CityData, authorization: Optional[str] = Header(None)):
 def update_city(id: int, req: CityData, authorization: Optional[str] = Header(None)):
     get_current_user(authorization)
     if id <= 3:
-        raise HTTPException(status_code=400, detail="Pre-existing operating july_cities cannot be edited")
+        raise HTTPException(status_code=400, detail="Pre-existing operating portal_cities cannot be edited")
         
     name_cleaned = req.name.strip()
     if not name_cleaned:
@@ -3435,7 +3438,7 @@ def update_city(id: int, req: CityData, authorization: Optional[str] = Header(No
 def delete_city(id: int, authorization: Optional[str] = Header(None)):
     get_current_user(authorization)
     if id <= 3:
-        raise HTTPException(status_code=400, detail="Pre-existing operating july_cities cannot be deleted")
+        raise HTTPException(status_code=400, detail="Pre-existing operating portal_cities cannot be deleted")
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
@@ -3555,7 +3558,7 @@ def get_stats(
                 SUM(CASE WHEN w.joined_status IN ('No Follow Up Required / Closed', 'Not Interested') THEN 1 ELSE 0 END) as not_interested,
                 SUM(CASE WHEN w.visitor_type ILIKE '%%Driver%%' THEN 1 ELSE 0 END) as individuals,
                 SUM(CASE WHEN w.visitor_type ILIKE '%%Operator%%' THEN 1 ELSE 0 END) as operators
-            FROM july_walkins w
+            FROM portal_walkins w
             {where_clause}
         """
         
@@ -3585,7 +3588,7 @@ def get_stats(
 
 
 # ─────────────────────────────────────────────────────────
-# Walk-ins — List (UNION of july_new_walkins, july_existing_walkins & july_walkins archive)
+# Walk-ins — List (UNION of portal_new_walkins, portal_existing_walkins & portal_walkins archive)
 # ─────────────────────────────────────────────────────────
 @app.get("/api/walkins")
 def get_all_walkins(
@@ -3637,11 +3640,11 @@ def get_all_walkins(
                 COALESCE(n.referred_by_name, '') AS referred_by_name,
                 COALESCE(n.referred_by_phone, '') AS referred_by_phone,
                 n.id::integer AS raw_id
-            FROM july_new_walkins n
-            LEFT JOIN july_portal_users pu ON pu.portal_user_id = COALESCE(n.created_by, n.executive_id)
-            LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-            LEFT JOIN july_portal_users pu_up ON pu_up.portal_user_id = n.updated_by
-            LEFT JOIN july_employees e_up ON e_up.employee_id = pu_up.employee_id
+            FROM portal_new_walkins n
+            LEFT JOIN portal_portal_users pu ON pu.portal_user_id = COALESCE(n.created_by, n.executive_id)
+            LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+            LEFT JOIN portal_portal_users pu_up ON pu_up.portal_user_id = n.updated_by
+            LEFT JOIN portal_employees e_up ON e_up.employee_id = pu_up.employee_id
             WHERE 1=1
         """
 
@@ -3671,11 +3674,11 @@ def get_all_walkins(
                 '' AS referred_by_name,
                 '' AS referred_by_phone,
                 ex.id::integer AS raw_id
-            FROM july_existing_walkins ex
-            LEFT JOIN july_portal_users pu ON pu.portal_user_id = COALESCE(ex.created_by, ex.executive_id)
-            LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-            LEFT JOIN july_portal_users pu_up ON pu_up.portal_user_id = ex.updated_by
-            LEFT JOIN july_employees e_up ON e_up.employee_id = pu_up.employee_id
+            FROM portal_existing_walkins ex
+            LEFT JOIN portal_portal_users pu ON pu.portal_user_id = COALESCE(ex.created_by, ex.executive_id)
+            LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+            LEFT JOIN portal_portal_users pu_up ON pu_up.portal_user_id = ex.updated_by
+            LEFT JOIN portal_employees e_up ON e_up.employee_id = pu_up.employee_id
             WHERE 1=1
         """
 
@@ -3705,11 +3708,11 @@ def get_all_walkins(
                 COALESCE(w.referred_by_name, '') AS referred_by_name,
                 COALESCE(w.referred_by_phone, '') AS referred_by_phone,
                 w.id::integer AS raw_id
-            FROM july_walkins w
-            LEFT JOIN july_portal_users pu ON pu.portal_user_id = COALESCE(w.created_by, w.executive_id)
-            LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-            LEFT JOIN july_portal_users pu_up ON pu_up.portal_user_id = w.updated_by
-            LEFT JOIN july_employees e_up ON e_up.employee_id = pu_up.employee_id
+            FROM portal_walkins w
+            LEFT JOIN portal_portal_users pu ON pu.portal_user_id = COALESCE(w.created_by, w.executive_id)
+            LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+            LEFT JOIN portal_portal_users pu_up ON pu_up.portal_user_id = w.updated_by
+            LEFT JOIN portal_employees e_up ON e_up.employee_id = pu_up.employee_id
             WHERE 1=1
         """
 
@@ -3862,17 +3865,17 @@ def search_walkins(q: str):
         cur.execute("""
             SELECT 'N' || id::text AS id, 'new' AS record_type, first_name, last_name, person_name, person_number, city, interested_position AS visitor_type, visiting_reason, event_date::text, false AS is_existing_partner,
                    dl_number, aadhaar_number, aadhaar_image, dl_image
-            FROM july_new_walkins
+            FROM portal_new_walkins
             WHERE person_number ILIKE %s OR person_name ILIKE %s OR first_name ILIKE %s
             UNION ALL
             SELECT 'E' || id::text AS id, 'existing' AS record_type, first_name, last_name, person_name, person_number, city, partner_type AS visitor_type, visiting_reason, event_date::text, true AS is_existing_partner,
                    '' AS dl_number, '' AS aadhaar_number, NULL AS aadhaar_image, NULL AS dl_image
-            FROM july_existing_walkins
+            FROM portal_existing_walkins
             WHERE person_number ILIKE %s OR person_name ILIKE %s OR first_name ILIKE %s
             UNION ALL
             SELECT 'O' || id::text AS id, 'existing' AS record_type, '' AS first_name, '' AS last_name, driver_name AS person_name, phone_number AS person_number, city, COALESCE(candidate_role, 'Driver') AS visitor_type, 'Partner Visit' AS visiting_reason, created_at::text AS event_date, true AS is_existing_partner,
                    dl_number, aadhaar_number, COALESCE(aadhaar_card_photo, aadhaar_card_front) AS aadhaar_image, dl_front AS dl_image
-            FROM july_form_onboarding
+            FROM portal_form_onboarding
             WHERE (phone_number ILIKE %s OR driver_name ILIKE %s)
               AND approval_status ILIKE 'Approved%%'
             LIMIT 10;
@@ -3933,7 +3936,7 @@ def get_walkin(walkin_id: str):
                 SELECT id, first_name, last_name, person_name, person_number,
                        city, partner_type, visiting_reason, event_date, enquiry_time,
                        visit_notes, submission_status, created_at
-                FROM july_existing_walkins WHERE id = %s;
+                FROM portal_existing_walkins WHERE id = %s;
             """, (raw_id,))
             r = cur.fetchone()
             if r:
@@ -3960,7 +3963,7 @@ def get_walkin(walkin_id: str):
                        event_date, enquiry_time, dl_number, aadhaar_number,
                        aadhaar_image, dl_image, lead_channel, lead_channel_details,
                        referred_by_name, referred_by_phone, joined_status, remarks, created_at
-                FROM july_new_walkins WHERE id = %s;
+                FROM portal_new_walkins WHERE id = %s;
             """, (raw_id,))
             r = cur.fetchone()
             if r:
@@ -3995,9 +3998,9 @@ def get_walkin(walkin_id: str):
                        w.aadhaar_image, w.dl_image,
                        w.lead_channel, w.lead_channel_details,
                        w.is_existing_partner, w.partner_type, w.visit_notes
-                FROM july_walkins w
-                LEFT JOIN july_portal_users u ON u.portal_user_id = COALESCE(w.created_by, w.executive_id)
-                LEFT JOIN july_employees e ON e.employee_id = u.employee_id
+                FROM portal_walkins w
+                LEFT JOIN portal_portal_users u ON u.portal_user_id = COALESCE(w.created_by, w.executive_id)
+                LEFT JOIN portal_employees e ON e.employee_id = u.employee_id
                 WHERE w.id = %s;
             """, (raw_id,))
             r = cur.fetchone()
@@ -4068,13 +4071,13 @@ def create_walkin(data: WalkinData, authorization: Optional[str] = Header(None))
 
         if not user_p_id:
             username = user.get("username") or ""
-            cur.execute("SELECT portal_user_id FROM july_portal_users WHERE username = %s LIMIT 1;", (username,))
+            cur.execute("SELECT portal_user_id FROM portal_portal_users WHERE username = %s LIMIT 1;", (username,))
             row = cur.fetchone()
             if row:
                 user_p_id = row[0]
 
         if user_p_id:
-            cur.execute("SELECT 1 FROM july_portal_users WHERE portal_user_id = %s;", (user_p_id,))
+            cur.execute("SELECT 1 FROM portal_portal_users WHERE portal_user_id = %s;", (user_p_id,))
             if not cur.fetchone():
                 user_p_id = None
 
@@ -4085,7 +4088,7 @@ def create_walkin(data: WalkinData, authorization: Optional[str] = Header(None))
 
         if is_existing:
             cur.execute("""
-                INSERT INTO july_existing_walkins
+                INSERT INTO portal_existing_walkins
                   (first_name, last_name, person_name, person_number, city,
                    partner_type, visiting_reason, event_date, enquiry_time,
                    visit_notes, submission_status, executive_id, created_by, created_at, updated_at, updated_by)
@@ -4106,7 +4109,7 @@ def create_walkin(data: WalkinData, authorization: Optional[str] = Header(None))
             new_id = cur.fetchone()[0]
             try:
                 cur.execute("""
-                    INSERT INTO july_walkin_logs (walkin_id, action, remarks, performed_by, performed_at)
+                    INSERT INTO portal_walkin_logs (walkin_id, action, remarks, performed_by, performed_at)
                     VALUES (%s, 'CREATE', %s, %s, NOW());
                 """, (f"E{new_id}", "Logged returning partner visit", user_p_id))
             except Exception:
@@ -4117,12 +4120,12 @@ def create_walkin(data: WalkinData, authorization: Optional[str] = Header(None))
         else:
             # For non-partner candidates: enforce single entry rule per phone number
             if data.person_number:
-                cur.execute("SELECT id FROM july_new_walkins WHERE person_number = %s LIMIT 1;", (str(data.person_number),))
+                cur.execute("SELECT id FROM portal_new_walkins WHERE person_number = %s LIMIT 1;", (str(data.person_number),))
                 existing_row = cur.fetchone()
                 if existing_row:
                     existing_id = existing_row[0]
                     cur.execute("""
-                        UPDATE july_new_walkins SET
+                        UPDATE portal_new_walkins SET
                             first_name=%s, last_name=%s, person_name=%s, city=%s, operating_place=%s,
                             interested_position=%s, visiting_reason=%s, event_date=%s, enquiry_time=%s,
                             dl_number=%s, aadhaar_number=%s, aadhaar_image=%s, dl_image=%s,
@@ -4145,7 +4148,7 @@ def create_walkin(data: WalkinData, authorization: Optional[str] = Header(None))
                     ))
                     try:
                         cur.execute("""
-                            INSERT INTO july_walkin_logs (walkin_id, action, remarks, performed_by, performed_at)
+                            INSERT INTO portal_walkin_logs (walkin_id, action, remarks, performed_by, performed_at)
                             VALUES (%s, 'UPDATE', %s, %s, NOW());
                         """, (f"N{existing_id}", "Updated candidate walk-in details", user_p_id))
                     except Exception:
@@ -4154,7 +4157,7 @@ def create_walkin(data: WalkinData, authorization: Optional[str] = Header(None))
                     return {"success": True, "walkin_id": f"N{existing_id}", "record_type": "new", "updated_existing": True}
 
             cur.execute("""
-                INSERT INTO july_new_walkins
+                INSERT INTO portal_new_walkins
                   (first_name, last_name, person_name, person_number, city, operating_place,
                    interested_position, visiting_reason, event_date, enquiry_time,
                    dl_number, aadhaar_number, aadhaar_image, dl_image,
@@ -4187,7 +4190,7 @@ def create_walkin(data: WalkinData, authorization: Optional[str] = Header(None))
             new_id = cur.fetchone()[0]
             try:
                 cur.execute("""
-                    INSERT INTO july_walkin_logs (walkin_id, action, remarks, performed_by, performed_at)
+                    INSERT INTO portal_walkin_logs (walkin_id, action, remarks, performed_by, performed_at)
                     VALUES (%s, 'CREATE', %s, %s, NOW());
                 """, (f"N{new_id}", "Created new candidate walk-in", user_p_id))
             except Exception:
@@ -4220,7 +4223,7 @@ def update_walkin(walkin_id: str, data: WalkinData, authorization: Optional[str]
 
         if clean_id_str.startswith("E"):
             cur.execute("""
-                UPDATE july_existing_walkins SET
+                UPDATE portal_existing_walkins SET
                     first_name=%s, last_name=%s, person_name=%s, person_number=%s,
                     city=%s, partner_type=%s, visiting_reason=%s, event_date=%s,
                     enquiry_time=%s, visit_notes=%s, updated_at=NOW(), updated_by=%s
@@ -4228,10 +4231,10 @@ def update_walkin(walkin_id: str, data: WalkinData, authorization: Optional[str]
             """, (f_name, l_name, full_n, data.person_number, data.city, data.partner_type, data.visiting_reason, data.event_date, data.enquiry_time, data.visit_notes, user_p_id, raw_id))
 
         else:
-            cur.execute("SELECT id FROM july_new_walkins WHERE id=%s;", (raw_id,))
+            cur.execute("SELECT id FROM portal_new_walkins WHERE id=%s;", (raw_id,))
             if cur.fetchone() or clean_id_str.startswith("N"):
                 cur.execute("""
-                    UPDATE july_new_walkins SET
+                    UPDATE portal_new_walkins SET
                         first_name=%s, last_name=%s, person_name=%s, person_number=%s,
                         city=%s, operating_place=%s, interested_position=%s, visiting_reason=%s,
                         event_date=%s, enquiry_time=%s, dl_number=%s, aadhaar_number=%s,
@@ -4251,7 +4254,7 @@ def update_walkin(walkin_id: str, data: WalkinData, authorization: Optional[str]
                 ))
             else:
                 cur.execute("""
-                    UPDATE july_walkins SET
+                    UPDATE portal_walkins SET
                         first_name=%s, last_name=%s, person_name=%s, person_number=%s,
                         city=%s, operating_place=%s, visiting_reason=%s, dl_number=%s, aadhaar_number=%s,
                         aadhaar_image=%s, dl_image=%s, lead_channel=%s, lead_channel_details=%s,
@@ -4289,11 +4292,11 @@ def delete_walkin(walkin_id: str, authorization: Optional[str] = Header(None)):
         raw_id = int(digits) if digits else 0
 
         if clean_id_str.startswith("E"):
-            cur.execute("DELETE FROM july_existing_walkins WHERE id = %s;", (raw_id,))
+            cur.execute("DELETE FROM portal_existing_walkins WHERE id = %s;", (raw_id,))
         elif clean_id_str.startswith("N"):
-            cur.execute("DELETE FROM july_new_walkins WHERE id = %s;", (raw_id,))
+            cur.execute("DELETE FROM portal_new_walkins WHERE id = %s;", (raw_id,))
         else:
-            cur.execute("DELETE FROM july_walkins WHERE id = %s;", (raw_id,))
+            cur.execute("DELETE FROM portal_walkins WHERE id = %s;", (raw_id,))
         conn.commit()
         return {"success": True}
     finally:
@@ -4343,15 +4346,15 @@ def get_all_onboarding(search: Optional[str] = None, city: Optional[str] = None,
                 COALESCE(NULLIF(TRIM(CONCAT(e3.first_name, ' ', e3.last_name)), ''), u3.username, 'Driver Manager 1') AS approver_name,
                 COALESCE(NULLIF(TRIM(CONCAT(e4.first_name, ' ', e4.last_name)), ''), u4.username, 'Admin') AS approved_by_name,
                 f.gst_number
-            FROM july_form_onboarding f
-            LEFT JOIN july_portal_users u1 ON u1.portal_user_id = f.created_by
-            LEFT JOIN july_employees e1 ON e1.employee_id = u1.employee_id
-            LEFT JOIN july_portal_users u2 ON u2.portal_user_id = f.updated_by
-            LEFT JOIN july_employees e2 ON e2.employee_id = u2.employee_id
-            LEFT JOIN july_portal_users u3 ON u3.portal_user_id = COALESCE(f.current_approver_id, f.approval_requested_to)
-            LEFT JOIN july_employees e3 ON e3.employee_id = u3.employee_id
-            LEFT JOIN july_portal_users u4 ON u4.portal_user_id = f.approved_by
-            LEFT JOIN july_employees e4 ON e4.employee_id = u4.employee_id
+            FROM portal_form_onboarding f
+            LEFT JOIN portal_portal_users u1 ON u1.portal_user_id = f.created_by
+            LEFT JOIN portal_employees e1 ON e1.employee_id = u1.employee_id
+            LEFT JOIN portal_portal_users u2 ON u2.portal_user_id = f.updated_by
+            LEFT JOIN portal_employees e2 ON e2.employee_id = u2.employee_id
+            LEFT JOIN portal_portal_users u3 ON u3.portal_user_id = COALESCE(f.current_approver_id, f.approval_requested_to)
+            LEFT JOIN portal_employees e3 ON e3.employee_id = u3.employee_id
+            LEFT JOIN portal_portal_users u4 ON u4.portal_user_id = f.approved_by
+            LEFT JOIN portal_employees e4 ON e4.employee_id = u4.employee_id
             WHERE 1=1
         """
         params = []
@@ -4425,7 +4428,7 @@ def create_onboarding(data: OnboardingData, authorization: Optional[str] = Heade
         # Check phone number first (if present)
         if data.phone_number:
             cur.execute(
-                "SELECT id, driver_name FROM july_form_onboarding WHERE phone_number = %s LIMIT 1;",
+                "SELECT id, driver_name FROM portal_form_onboarding WHERE phone_number = %s LIMIT 1;",
                 (data.phone_number,)
             )
             dup = cur.fetchone()
@@ -4437,7 +4440,7 @@ def create_onboarding(data: OnboardingData, authorization: Optional[str] = Heade
         if data.aadhaar_number:
             clean_aadhaar = data.aadhaar_number.replace(" ", "")
             cur.execute(
-                "SELECT id, driver_name FROM july_form_onboarding WHERE REPLACE(aadhaar_number, ' ', '') = %s LIMIT 1;",
+                "SELECT id, driver_name FROM portal_form_onboarding WHERE REPLACE(aadhaar_number, ' ', '') = %s LIMIT 1;",
                 (clean_aadhaar,)
             )
             dup = cur.fetchone()
@@ -4448,7 +4451,7 @@ def create_onboarding(data: OnboardingData, authorization: Optional[str] = Heade
                 )
         if data.pan_number:
             cur.execute(
-                "SELECT id, driver_name FROM july_form_onboarding WHERE UPPER(pan_number) = UPPER(%s) LIMIT 1;",
+                "SELECT id, driver_name FROM portal_form_onboarding WHERE UPPER(pan_number) = UPPER(%s) LIMIT 1;",
                 (data.pan_number,)
             )
             dup = cur.fetchone()
@@ -4467,10 +4470,10 @@ def create_onboarding(data: OnboardingData, authorization: Optional[str] = Heade
             "gst_number VARCHAR(100)", "gst_certificate TEXT", "incorporation_doc TEXT",
             "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP", "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
         ]:
-            cur.execute(f"ALTER TABLE july_form_onboarding ADD COLUMN IF NOT EXISTS {col};")
+            cur.execute(f"ALTER TABLE portal_form_onboarding ADD COLUMN IF NOT EXISTS {col};")
 
         cur.execute("""
-            INSERT INTO july_form_onboarding (
+            INSERT INTO portal_form_onboarding (
                 driver_name, phone_number, whatsapp_number, dob, city, operating_place,
                 present_address, permanent_address, emergency_name, emergency_phone, 
                 dl_number, dl_expiry_date, lead_source, 
@@ -4557,19 +4560,19 @@ def create_onboarding(data: OnboardingData, authorization: Optional[str] = Heade
 
         if not walkin_id and data.phone_number:
             clean_p = data.phone_number.replace(" ", "").replace("-", "")
-            # Check july_new_walkins first
-            cur.execute("SELECT id FROM july_new_walkins WHERE REPLACE(REPLACE(person_number, ' ', ''), '-', '') = %s ORDER BY id DESC LIMIT 1;", (clean_p,))
+            # Check portal_new_walkins first
+            cur.execute("SELECT id FROM portal_new_walkins WHERE REPLACE(REPLACE(person_number, ' ', ''), '-', '') = %s ORDER BY id DESC LIMIT 1;", (clean_p,))
             row = cur.fetchone()
             if row:
                 walkin_id = row[0]
             else:
-                cur.execute("SELECT id FROM july_walkins WHERE REPLACE(REPLACE(person_number, ' ', ''), '-', '') = %s ORDER BY id DESC LIMIT 1;", (clean_p,))
+                cur.execute("SELECT id FROM portal_walkins WHERE REPLACE(REPLACE(person_number, ' ', ''), '-', '') = %s ORDER BY id DESC LIMIT 1;", (clean_p,))
                 row = cur.fetchone()
                 if row:
                     walkin_id = row[0]
                 else:
                     cur.execute("""
-                        INSERT INTO july_walkins (
+                        INSERT INTO portal_walkins (
                             visitor_type, event_date, city, operating_place, 
                             person_name, person_number, aadhaar_number, dl_number,
                             visiting_reason, joined_status, remarks,
@@ -4595,22 +4598,22 @@ def create_onboarding(data: OnboardingData, authorization: Optional[str] = Heade
 
         if walkin_id:
             cur.execute("""
-                INSERT INTO july_walkin_form_links (walkin_id, onboarding_id)
+                INSERT INTO portal_walkin_form_links (walkin_id, onboarding_id)
                 VALUES (%s, %s)
                 ON CONFLICT DO NOTHING;
             """, (walkin_id, new_id))
             
             cur.execute("""
-                UPDATE july_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;
+                UPDATE portal_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;
             """, (walkin_id,))
             cur.execute("""
-                UPDATE july_new_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;
+                UPDATE portal_new_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;
             """, (walkin_id,))
 
         if data.vendor_type == "Operator" and data.operator_drivers:
             for drv in data.operator_drivers:
                 cur.execute("""
-                    INSERT INTO july_form_onboarding (
+                    INSERT INTO portal_form_onboarding (
                         driver_name, phone_number, dl_number, custom_rent_amount, driver_id,
                         vendor_name, vendor_id, vendor_type,
                         whatsapp_number, dob, city, present_address, permanent_address, 
@@ -4644,7 +4647,7 @@ def create_onboarding(data: OnboardingData, authorization: Optional[str] = Heade
 
         # ── Audit log ────────────────────────────────────────────────────────
         cur.execute("""
-            INSERT INTO july_onboarding_logs
+            INSERT INTO portal_onboarding_logs
               (onboarding_id, action, old_status, new_status, changed_fields,
                performed_by, performed_by_name)
             VALUES (%s, 'CREATE', NULL, 'Draft', %s, %s, %s);
@@ -4690,7 +4693,7 @@ def send_onboarding_for_approval(
                    phone_number, father_name, present_address,
                    emergency_name, emergency_phone,
                    dl_number, pan_number, aadhaar_number, approval_status
-            FROM july_form_onboarding
+            FROM portal_form_onboarding
             WHERE id = %s;
         """, (id,))
         row = cur.fetchone()
@@ -4717,8 +4720,8 @@ def send_onboarding_for_approval(
             is_valid_delhi_mgr = False
             if approver_id and approver_id != submitter_id:
                 cur.execute("""
-                    SELECT 1 FROM july_portal_users pu
-                    LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
+                    SELECT 1 FROM portal_portal_users pu
+                    LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
                     WHERE pu.portal_user_id = %s
                       AND (LOWER(COALESCE(pu.city, '')) IN ('delhi', 'del') OR LOWER(COALESCE(e.city, '')) IN ('delhi', 'del'));
                 """, (approver_id,))
@@ -4726,7 +4729,7 @@ def send_onboarding_for_approval(
 
             if not is_valid_delhi_mgr:
                 cur.execute("""
-                    SELECT portal_user_id FROM july_portal_users
+                    SELECT portal_user_id FROM portal_portal_users
                     WHERE LOWER(email) = 'raju@letzryd.com' OR LOWER(username) = 'raju@letzryd.com'
                     LIMIT 1;
                 """)
@@ -4735,10 +4738,10 @@ def send_onboarding_for_approval(
                     approver_id = raju_row[0]
 
         if not approver_id or approver_id == submitter_id:
-            # Look up the user's L1 approver role from july_user_approval_chain
+            # Look up the user's L1 approver role from portal_user_approval_chain
             cur.execute("""
                 SELECT ac.approver_role_code, ac.approver_city
-                FROM july_user_approval_chain ac
+                FROM portal_user_approval_chain ac
                 WHERE ac.portal_user_id = %s AND ac.level = 1;
             """, (submitter_id,))
             chain_row = cur.fetchone()
@@ -4746,9 +4749,9 @@ def send_onboarding_for_approval(
                 l1_role_code, l1_city = chain_row
                 # Resolve to an actual portal user with that role in that city
                 cur.execute("""
-                    SELECT pu.portal_user_id FROM july_portal_users pu
-                    LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-                    LEFT JOIN july_roles r ON r.role_id = pu.role_id
+                    SELECT pu.portal_user_id FROM portal_portal_users pu
+                    LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+                    LEFT JOIN portal_roles r ON r.role_id = pu.role_id
                     WHERE r.role_code = %s
                       AND COALESCE(pu.city, e.city, '') = %s
                       AND COALESCE(pu.account_status,'Active') = 'Active'
@@ -4762,7 +4765,7 @@ def send_onboarding_for_approval(
             if not approver_id or approver_id == submitter_id:
                 if (city or "").strip().lower() in ["delhi", "del"]:
                     cur.execute("""
-                        SELECT portal_user_id FROM july_portal_users
+                        SELECT portal_user_id FROM portal_portal_users
                         WHERE LOWER(email) = 'raju@letzryd.com' OR LOWER(username) = 'raju@letzryd.com'
                         LIMIT 1;
                     """)
@@ -4772,7 +4775,7 @@ def send_onboarding_for_approval(
 
                 if not approver_id or approver_id == submitter_id:
                     cur.execute("""
-                        SELECT portal_user_id FROM july_portal_users
+                        SELECT portal_user_id FROM portal_portal_users
                         WHERE city = %s AND (role ILIKE '%%city manager%%' OR role ILIKE '%%driver manager%%' OR role ILIKE '%%general manager%%' OR role ILIKE '%%admin%%') AND portal_user_id != %s
                         ORDER BY portal_user_id LIMIT 1;
                     """, (city, submitter_id))
@@ -4785,9 +4788,9 @@ def send_onboarding_for_approval(
         if approver_id == submitter_id:
             approver_id = 3 if submitter_id != 3 else 24
 
-        # ── Update july_form_onboarding
+        # ── Update portal_form_onboarding
         cur.execute("""
-            UPDATE july_form_onboarding
+            UPDATE portal_form_onboarding
             SET approval_status    = 'Pending Approval',
                 approval_requested_to = %s,
                 current_approver_id   = %s,
@@ -4798,11 +4801,11 @@ def send_onboarding_for_approval(
             WHERE id = %s;
         """, (approver_id, approver_id, submitter_id, id))
 
-        # ── Upsert into july_onboarding (approval workflow engine table)
-        cur.execute("SELECT onboarding_id FROM july_onboarding WHERE onboarding_id = %s;", (id,))
+        # ── Upsert into portal_onboarding (approval workflow engine table)
+        cur.execute("SELECT onboarding_id FROM portal_onboarding WHERE onboarding_id = %s;", (id,))
         if cur.fetchone():
             cur.execute("""
-                UPDATE july_onboarding
+                UPDATE portal_onboarding
                 SET approval_status    = 'Pending Approval',
                     current_approver_id = %s,
                     updated_by          = %s,
@@ -4811,7 +4814,7 @@ def send_onboarding_for_approval(
             """, (approver_id, submitter_id, id))
         else:
             cur.execute("""
-                INSERT INTO july_onboarding (
+                INSERT INTO portal_onboarding (
                     onboarding_id, driver_id, driver_name, phone_number, city, driver_plan,
                     father_name, present_address, emergency_name, emergency_phone,
                     driving_license, pan_number, aadhaar_number,
@@ -4824,7 +4827,7 @@ def send_onboarding_for_approval(
 
         # ── Audit log
         cur.execute("""
-            INSERT INTO july_onboarding_logs
+            INSERT INTO portal_onboarding_logs
               (onboarding_id, action, old_status, new_status,
                changed_fields, performed_by, performed_by_name)
             VALUES (%s, 'SEND_FOR_APPROVAL', %s, 'Pending Approval',
@@ -4833,9 +4836,9 @@ def send_onboarding_for_approval(
               f'{{"approver_id":{approver_id}}}',
               submitter_id, submitter_name))
 
-        # ── july_approval_chain_logs
+        # ── portal_approval_chain_logs
         cur.execute("""
-            INSERT INTO july_approval_chain_logs
+            INSERT INTO portal_approval_chain_logs
               (module_name, record_id, action, from_user_id, to_user_id, remarks)
             VALUES ('individual_onboarding', %s, 'SUBMITTED', %s, %s,
                     'Submitted for City Manager approval');
@@ -4875,9 +4878,9 @@ def get_city_managers(city: Optional[str] = None, authorization: Optional[str] =
                     COALESCE(NULLIF(TRIM(CONCAT(e.first_name, ' ', e.last_name)), ''), pu.username) AS name,
                     COALESCE(r.role_name, 'City Manager') AS role,
                     e.city
-                FROM july_portal_users pu
-                LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-                LEFT JOIN july_roles r ON r.role_id = pu.role_id
+                FROM portal_portal_users pu
+                LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+                LEFT JOIN portal_roles r ON r.role_id = pu.role_id
                 WHERE (r.role_name ILIKE '%%city manager%%' OR r.role_code = 'CM' OR pu.username ILIKE '%%city_manager%%')
                   AND (e.city = %s OR e.city IS NULL)
                 ORDER BY name;
@@ -4889,9 +4892,9 @@ def get_city_managers(city: Optional[str] = None, authorization: Optional[str] =
                     COALESCE(NULLIF(TRIM(CONCAT(e.first_name, ' ', e.last_name)), ''), pu.username) AS name,
                     COALESCE(r.role_name, 'City Manager') AS role,
                     e.city
-                FROM july_portal_users pu
-                LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-                LEFT JOIN july_roles r ON r.role_id = pu.role_id
+                FROM portal_portal_users pu
+                LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+                LEFT JOIN portal_roles r ON r.role_id = pu.role_id
                 WHERE (r.role_name ILIKE '%%city manager%%' OR r.role_code = 'CM' OR pu.username ILIKE '%%city_manager%%')
                 ORDER BY e.city, name;
             """)
@@ -4919,7 +4922,7 @@ def save_onboarding_draft(id: int, data: OnboardingData, authorization: Optional
         if id == 0:
             # New draft — full insert with all provided fields
             cur.execute("""
-                INSERT INTO july_form_onboarding (
+                INSERT INTO portal_form_onboarding (
                     driver_name, phone_number, whatsapp_number, dob, city, operating_place,
                     present_address, permanent_address, emergency_name, emergency_phone, 
                     emergency_relationship, dl_number, dl_expiry_date, lead_source, 
@@ -5009,7 +5012,7 @@ def save_onboarding_draft(id: int, data: OnboardingData, authorization: Optional
             ))
             new_id = cur.fetchone()[0]
             cur.execute("""
-                INSERT INTO july_onboarding_logs
+                INSERT INTO portal_onboarding_logs
                   (onboarding_id, action, old_status, new_status,
                    changed_fields, performed_by, performed_by_name)
                 VALUES (%s, 'CREATE_DRAFT', NULL, 'Draft', %s, %s, %s);
@@ -5020,13 +5023,13 @@ def save_onboarding_draft(id: int, data: OnboardingData, authorization: Optional
             return {"success": True, "id": new_id, "approval_status": "Draft"}
         else:
             # Existing record — update fields unconditionally (setting nulls to NULL)
-            cur.execute("SELECT approval_status FROM july_form_onboarding WHERE id = %s;", (id,))
+            cur.execute("SELECT approval_status FROM portal_form_onboarding WHERE id = %s;", (id,))
             rec = cur.fetchone()
             if not rec:
                 raise HTTPException(status_code=404, detail="Onboarding record not found")
             current_status = rec[0] or "Draft"
             cur.execute("""
-                UPDATE july_form_onboarding SET
+                UPDATE portal_form_onboarding SET
                     driver_name=%s, phone_number=%s, whatsapp_number=%s,
                     dob=%s, city=%s, operating_place=%s,
                     present_address=%s, permanent_address=%s,
@@ -5103,7 +5106,7 @@ def save_onboarding_draft(id: int, data: OnboardingData, authorization: Optional
                 user_p_id, id
             ))
             cur.execute("""
-                INSERT INTO july_onboarding_logs
+                INSERT INTO portal_onboarding_logs
                   (onboarding_id, action, old_status, new_status,
                    changed_fields, performed_by, performed_by_name)
                 VALUES (%s, 'DRAFT_SAVE', %s, %s, %s, %s, %s);
@@ -5155,7 +5158,7 @@ def get_onboarding(id: int):
                 created_by, updated_by, current_approver_id, approved_by,
                 approval_note, gst_number, gst_certificate, incorporation_doc,
                 emergency_contact_aadhaar_doc, emergency_contact_aadhaar_number
-            FROM july_form_onboarding
+            FROM portal_form_onboarding
             WHERE id = %s;
         """, (id,))
         r = cur.fetchone()
@@ -5213,7 +5216,7 @@ def get_onboarding(id: int):
                         emergency_name, emergency_phone, pan_number, aadhaar_number, father_name,
                         selfie_photo, dl_front, dl_back, pan_card_photo, aadhaar_card_photo,
                         emergency_contact_aadhaar_number, emergency_contact_aadhaar_doc
-                    FROM july_form_onboarding
+                    FROM portal_form_onboarding
                     WHERE (vendor_id = %s OR vendor_name = %s) AND vendor_type = 'Operator' AND driver_id IS NOT NULL;
                 """, (r[17] or "", r[16] or ""))
                 drivers_rows = cur.fetchall()
@@ -5231,8 +5234,8 @@ def get_onboarding(id: int):
                 res["operator_drivers"] = []
             return res
         
-        # Fallback to july_onboarding for July portal entries
-        cur.execute("SELECT * FROM july_onboarding WHERE onboarding_id = %s;", (id,))
+        # Fallback to portal_onboarding for July portal entries
+        cur.execute("SELECT * FROM portal_onboarding WHERE onboarding_id = %s;", (id,))
         jrow = cur.fetchone()
         if jrow:
             jcols = [desc[0] for desc in cur.description]
@@ -5255,7 +5258,7 @@ def update_onboarding(id: int, data: OnboardingData, authorization: Optional[str
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id, approval_status FROM july_form_onboarding WHERE id = %s;", (id,))
+        cur.execute("SELECT id, approval_status FROM portal_form_onboarding WHERE id = %s;", (id,))
         existing = cur.fetchone()
         if not existing:
             raise HTTPException(status_code=404, detail="Onboarding record not found")
@@ -5263,7 +5266,7 @@ def update_onboarding(id: int, data: OnboardingData, authorization: Optional[str
             
         import json
         cur.execute("""
-            UPDATE july_form_onboarding SET
+            UPDATE portal_form_onboarding SET
                 approval_status = 'Draft',
                 current_approver_id = NULL,
                 driver_name=%s, phone_number=%s, whatsapp_number=%s, dob=%s, city=%s, operating_place=%s,
@@ -5338,7 +5341,7 @@ def update_onboarding(id: int, data: OnboardingData, authorization: Optional[str
         ))
 
         cur.execute("""
-            UPDATE july_onboarding
+            UPDATE portal_onboarding
             SET approval_status = 'Draft',
                 current_approver_id = NULL,
                 driver_name = %s,
@@ -5354,16 +5357,16 @@ def update_onboarding(id: int, data: OnboardingData, authorization: Optional[str
                 raw_wid = raw_wid[1:]
             w_id = int(raw_wid) if raw_wid.isdigit() else None
             if w_id:
-                cur.execute("DELETE FROM july_walkin_form_links WHERE onboarding_id = %s;", (id,))
-                cur.execute("INSERT INTO july_walkin_form_links (walkin_id, onboarding_id) VALUES (%s, %s);", (w_id, id))
-                cur.execute("UPDATE july_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;", (w_id,))
-                cur.execute("UPDATE july_new_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;", (w_id,))
+                cur.execute("DELETE FROM portal_walkin_form_links WHERE onboarding_id = %s;", (id,))
+                cur.execute("INSERT INTO portal_walkin_form_links (walkin_id, onboarding_id) VALUES (%s, %s);", (w_id, id))
+                cur.execute("UPDATE portal_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;", (w_id,))
+                cur.execute("UPDATE portal_new_walkins SET joined_status = 'Successfully Onboarded' WHERE id = %s;", (w_id,))
 
         if data.vendor_type == "Operator" and data.operator_drivers:
-            cur.execute("DELETE FROM july_form_onboarding WHERE vendor_id = %s AND vendor_type = 'Operator' AND driver_id IS NOT NULL AND id != %s;", (data.vendor_id or "", id))
+            cur.execute("DELETE FROM portal_form_onboarding WHERE vendor_id = %s AND vendor_type = 'Operator' AND driver_id IS NOT NULL AND id != %s;", (data.vendor_id or "", id))
             for drv in data.operator_drivers:
                 cur.execute("""
-                    INSERT INTO july_form_onboarding (
+                    INSERT INTO portal_form_onboarding (
                         driver_name, phone_number, dl_number, custom_rent_amount, driver_id,
                         vendor_name, vendor_id, vendor_type,
                         whatsapp_number, dob, city, present_address, permanent_address, 
@@ -5403,7 +5406,7 @@ def update_onboarding(id: int, data: OnboardingData, authorization: Optional[str
         new_status = data.approval_status if hasattr(data, 'approval_status') and data.approval_status else old_approval_status
         action = 'STATUS_CHANGE' if old_approval_status != new_status else 'UPDATE'
         cur.execute("""
-            INSERT INTO july_onboarding_logs
+            INSERT INTO portal_onboarding_logs
               (onboarding_id, action, old_status, new_status, changed_fields,
                performed_by, performed_by_name)
             VALUES (%s, %s, %s, %s, %s, %s, %s);
@@ -5446,16 +5449,16 @@ def get_onboarding_stats():
     try:
         cur = conn.cursor()
         
-        cur.execute("SELECT COUNT(*) FROM july_onboarding WHERE (vendor_type ILIKE '%%Driver%%' OR candidate_role ILIKE '%%Driver%%');")
+        cur.execute("SELECT COUNT(*) FROM portal_onboarding WHERE (vendor_type ILIKE '%%Driver%%' OR candidate_role ILIKE '%%Driver%%');")
         driver_count = cur.fetchone()[0]
         
-        cur.execute("SELECT COUNT(*) FROM july_onboarding WHERE (vendor_type ILIKE '%%Operator%%' OR candidate_role ILIKE '%%Operator%%');")
+        cur.execute("SELECT COUNT(*) FROM portal_onboarding WHERE (vendor_type ILIKE '%%Operator%%' OR candidate_role ILIKE '%%Operator%%');")
         operator_count = cur.fetchone()[0]
 
-        cur.execute("SELECT COUNT(*) FROM july_onboarding WHERE created_at >= NOW() - INTERVAL '7 days';")
+        cur.execute("SELECT COUNT(*) FROM portal_onboarding WHERE created_at >= NOW() - INTERVAL '7 days';")
         last_7_days_count = cur.fetchone()[0]
 
-        cur.execute("SELECT COUNT(*) FROM july_onboarding WHERE (approval_status ILIKE '%%Pending%%' OR approval_status = 'Submitted');")
+        cur.execute("SELECT COUNT(*) FROM portal_onboarding WHERE (approval_status ILIKE '%%Pending%%' OR approval_status = 'Submitted');")
         pending_approvals_count = cur.fetchone()[0]
             
         return {
@@ -5475,7 +5478,7 @@ def delete_onboarding(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT driver_name, approval_status FROM july_form_onboarding WHERE id = %s;", (id,))
+        cur.execute("SELECT driver_name, approval_status FROM portal_form_onboarding WHERE id = %s;", (id,))
         old = cur.fetchone()
         if not old:
             raise HTTPException(status_code=404, detail="Record not found")
@@ -5483,7 +5486,7 @@ def delete_onboarding(id: int, authorization: Optional[str] = Header(None)):
 
         # Log before delete
         cur.execute("""
-            INSERT INTO july_onboarding_logs
+            INSERT INTO portal_onboarding_logs
               (onboarding_id, action, old_status, new_status, changed_fields,
                performed_by, performed_by_name)
             VALUES (%s, 'DELETE', %s, 'DELETED', %s, %s, %s);
@@ -5491,8 +5494,8 @@ def delete_onboarding(id: int, authorization: Optional[str] = Header(None)):
               f'{{"driver_name":"{old_name}"}}',
               user_p_id, user_name))
 
-        cur.execute("DELETE FROM july_walkin_form_links WHERE onboarding_id = %s;", (id,))
-        cur.execute("DELETE FROM july_form_onboarding WHERE id = %s;", (id,))
+        cur.execute("DELETE FROM portal_walkin_form_links WHERE onboarding_id = %s;", (id,))
+        cur.execute("DELETE FROM portal_form_onboarding WHERE id = %s;", (id,))
         conn.commit()
         return {"success": True}
     finally:
@@ -5513,7 +5516,7 @@ def get_adjustments(
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        base_query = "SELECT * FROM july_partner_adjustment WHERE 1=1"
+        base_query = "SELECT * FROM portal_partner_adjustment WHERE 1=1"
         params = []
         
         if query:
@@ -5552,21 +5555,21 @@ def get_adjustment_stats():
     try:
         cur = conn.cursor()
         
-        cur.execute("SELECT COUNT(*) FROM july_partner_adjustment;")
+        cur.execute("SELECT COUNT(*) FROM portal_partner_adjustment;")
         total = cur.fetchone()[0]
         
         cur.execute("""
             SELECT COALESCE(SUM(CASE 
                 WHEN enter_amount ~ '^[0-9]+(\\.[0-9]+)?$' THEN CAST(enter_amount AS DOUBLE PRECISION)
                 ELSE 0 
-            END), 0) FROM july_partner_adjustment;
+            END), 0) FROM portal_partner_adjustment;
         """)
         total_amount = cur.fetchone()[0]
         
-        cur.execute("SELECT COUNT(*) FROM july_partner_adjustment WHERE finance_team_status = 'Approved';")
+        cur.execute("SELECT COUNT(*) FROM portal_partner_adjustment WHERE finance_team_status = 'Approved';")
         approved = cur.fetchone()[0]
         
-        cur.execute("SELECT COUNT(*) FROM july_partner_adjustment WHERE status = 'Completed';")
+        cur.execute("SELECT COUNT(*) FROM portal_partner_adjustment WHERE status = 'Completed';")
         completed = cur.fetchone()[0]
         
         return {
@@ -5583,7 +5586,7 @@ def get_adjustment(id: int):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_partner_adjustment WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_partner_adjustment WHERE id = %s;", (id,))
         r = cur.fetchone()
         if not r:
             raise HTTPException(status_code=404, detail="Adjustment record not found")
@@ -5618,7 +5621,7 @@ def create_adjustment(data: AdjustmentData, authorization: Optional[str] = Heade
             "updated_by INTEGER"
         ]:
             try:
-                cur.execute(f"ALTER TABLE july_partner_adjustment ADD COLUMN IF NOT EXISTS {col};")
+                cur.execute(f"ALTER TABLE portal_partner_adjustment ADD COLUMN IF NOT EXISTS {col};")
                 conn.commit()
             except Exception:
                 conn.rollback()
@@ -5626,7 +5629,7 @@ def create_adjustment(data: AdjustmentData, authorization: Optional[str] = Heade
         sent_flag = getattr(data, "sent_for_approval", "No") or "No"
 
         cur.execute("""
-            INSERT INTO july_partner_adjustment (
+            INSERT INTO portal_partner_adjustment (
                 partner_name, partner_code, driver_id, partner_number, vehicle_number, city_name, 
                 partner_type, adjustment_level, adjustment_nature, time_duration, adjustment_type, adjustment_date, enter_amount, 
                 remittance_towards, adjustment_related_to, remarks, first_level_approval_by, 
@@ -5677,20 +5680,20 @@ def create_adjustment(data: AdjustmentData, authorization: Optional[str] = Heade
 
 @app.post("/api/adjustment/send-for-approval/{id}")
 def send_adjustment_for_approval(id: int, authorization: Optional[str] = Header(None)):
-    """Send an adjustment record for L1 → L2 approval using july_user_approval_chain."""
+    """Send an adjustment record for L1 → L2 approval using portal_user_approval_chain."""
     user = get_current_user(authorization)
     uid = user.get("portal_user_id") or user.get("user_id")
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
         try:
-            cur.execute("ALTER TABLE july_partner_adjustment ADD COLUMN IF NOT EXISTS current_approver_id INT;")
-            cur.execute("ALTER TABLE july_partner_adjustment ADD COLUMN IF NOT EXISTS approval_submitted_at TIMESTAMP;")
+            cur.execute("ALTER TABLE portal_partner_adjustment ADD COLUMN IF NOT EXISTS current_approver_id INT;")
+            cur.execute("ALTER TABLE portal_partner_adjustment ADD COLUMN IF NOT EXISTS approval_submitted_at TIMESTAMP;")
             conn.commit()
         except Exception as col_err:
             conn.rollback()
 
-        cur.execute("SELECT id, approval_status, created_by, city_name, approver_1_id FROM july_partner_adjustment WHERE id = %s;", (id,))
+        cur.execute("SELECT id, approval_status, created_by, city_name, approver_1_id FROM portal_partner_adjustment WHERE id = %s;", (id,))
         rec = cur.fetchone()
         if not rec:
             raise HTTPException(status_code=404, detail="Adjustment record not found")
@@ -5704,19 +5707,19 @@ def send_adjustment_for_approval(id: int, authorization: Optional[str] = Header(
 
         if not l1_approver_id:
             submitter_id = created_by_id or uid
-            # Look up L1 approver from july_user_approval_chain
+            # Look up L1 approver from portal_user_approval_chain
             cur.execute("""
                 SELECT ac.approver_role_code, ac.approver_city
-                FROM july_user_approval_chain ac
+                FROM portal_user_approval_chain ac
                 WHERE ac.portal_user_id = %s AND ac.level = 1;
             """, (submitter_id,))
             l1_row = cur.fetchone()
             if l1_row:
                 l1_role_code, l1_city = l1_row
                 cur.execute("""
-                    SELECT pu.portal_user_id FROM july_portal_users pu
-                    LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-                    LEFT JOIN july_roles r ON r.role_id = pu.role_id
+                    SELECT pu.portal_user_id FROM portal_portal_users pu
+                    LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+                    LEFT JOIN portal_roles r ON r.role_id = pu.role_id
                     WHERE r.role_code = %s AND COALESCE(pu.city, e.city, '') = %s
                       AND COALESCE(pu.account_status,'Active') = 'Active' LIMIT 1;
                 """, (l1_role_code, l1_city or ""))
@@ -5729,7 +5732,7 @@ def send_adjustment_for_approval(id: int, authorization: Optional[str] = Header(
                 city = (city_name or "").strip()
                 if city.lower() in ["delhi", "del"]:
                     cur.execute("""
-                        SELECT portal_user_id FROM july_portal_users
+                        SELECT portal_user_id FROM portal_portal_users
                         WHERE LOWER(email) = 'raju@letzryd.com' OR LOWER(username) = 'raju@letzryd.com'
                         LIMIT 1;
                     """)
@@ -5739,9 +5742,9 @@ def send_adjustment_for_approval(id: int, authorization: Optional[str] = Header(
 
                 if not l1_approver_id:
                     cur.execute("""
-                        SELECT pu.portal_user_id FROM july_portal_users pu
-                        LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-                        LEFT JOIN july_roles r ON r.role_id = pu.role_id
+                        SELECT pu.portal_user_id FROM portal_portal_users pu
+                        LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+                        LEFT JOIN portal_roles r ON r.role_id = pu.role_id
                         WHERE r.role_code IN ('BH','CM','SOM','OM','CH')
                           AND COALESCE(pu.city, e.city,'') ILIKE %s
                           AND COALESCE(pu.account_status,'Active') = 'Active' LIMIT 1;
@@ -5754,7 +5757,7 @@ def send_adjustment_for_approval(id: int, authorization: Optional[str] = Header(
             raise HTTPException(status_code=400, detail="Please select an Approver (Manager / TL) before submitting for approval.")
 
         cur.execute("""
-            UPDATE july_partner_adjustment SET
+            UPDATE portal_partner_adjustment SET
                 approval_status = 'Pending Approval',
                 status = 'Pending Approval',
                 current_approver_id = %s,
@@ -5788,7 +5791,7 @@ def update_adjustment(id: int, data: AdjustmentData, authorization: Optional[str
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_partner_adjustment SET
+            UPDATE portal_partner_adjustment SET
                 partner_name=%s, partner_code=%s, driver_id=%s, partner_number=%s, vehicle_number=%s, city_name=%s, 
                 partner_type=%s, adjustment_level=%s, adjustment_nature=%s, time_duration=%s, adjustment_type=%s, adjustment_date=%s, enter_amount=%s, 
                 remittance_towards=%s, adjustment_related_to=%s, remarks=%s, first_level_approval_by=%s, 
@@ -5841,9 +5844,9 @@ def update_adjustment_status(id: int, request: Request, authorization: Optional[
     try:
         cur = conn.cursor()
         if approved_amt is not None:
-            cur.execute("UPDATE july_partner_adjustment SET status = %s, approval_status = %s, first_level_approval_by = %s, approved_amount = %s, updated_at = NOW() WHERE id = %s", (new_status, new_status, user.get("name", ""), str(approved_amt), id))
+            cur.execute("UPDATE portal_partner_adjustment SET status = %s, approval_status = %s, first_level_approval_by = %s, approved_amount = %s, updated_at = NOW() WHERE id = %s", (new_status, new_status, user.get("name", ""), str(approved_amt), id))
         else:
-            cur.execute("UPDATE july_partner_adjustment SET status = %s, approval_status = %s, first_level_approval_by = %s, updated_at = NOW() WHERE id = %s", (new_status, new_status, user.get("name", ""), id))
+            cur.execute("UPDATE portal_partner_adjustment SET status = %s, approval_status = %s, first_level_approval_by = %s, updated_at = NOW() WHERE id = %s", (new_status, new_status, user.get("name", ""), id))
         conn.commit()
         return {"status": "success", "message": f"Adjustment {new_status}"}
     except Exception as e:
@@ -5866,7 +5869,7 @@ def assign_adjustment(id: int, request: Request, authorization: Optional[str] = 
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_partner_adjustment 
+            UPDATE portal_partner_adjustment 
             SET assigned_to = %s, assigned_by = %s, assigned_time = NOW() 
             WHERE id = %s
         """, (assigned_to, user.get("name", ""), id))
@@ -5883,7 +5886,7 @@ def delete_adjustment(id: int):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_partner_adjustment WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_partner_adjustment WHERE id = %s RETURNING id;", (id,))
         deleted = cur.fetchone()
         if not deleted:
             raise HTTPException(status_code=404, detail="Adjustment record not found")
@@ -5913,7 +5916,7 @@ def _clean_dict_decimals(rec: dict) -> dict:
 
 
 # ─────────────────────────────────────────────────────────
-# Vehicle Allocation Endpoints  (→ july_allocation_form)
+# Vehicle Allocation Endpoints  (→ portal_allocation_form)
 # ─────────────────────────────────────────────────────────
 
 def _write_alloc_log(cur, allocation_id, action, old_status, new_status,
@@ -5921,9 +5924,9 @@ def _write_alloc_log(cur, allocation_id, action, old_status, new_status,
                      performed_by, performed_by_name,
                      alloc_date=None, vehicle_number=None,
                      driver_id=None, driver_name=None):
-    """Insert one audit row into july_allocation_form_logs."""
+    """Insert one audit row into portal_allocation_form_logs."""
     cur.execute("""
-        INSERT INTO july_allocation_form_logs (
+        INSERT INTO portal_allocation_form_logs (
             allocation_id, allocation_date, vehicle_number, driver_id, driver_name,
             action, old_status, new_status,
             changed_fields, previous_data, new_data, remarks,
@@ -5954,8 +5957,8 @@ def get_allocations(
         cur = conn.cursor()
         base_query = """
             SELECT a.*, COALESCE(u.username, 'Onboarding Executive 1') AS executive_name
-            FROM july_allocation_form a
-            LEFT JOIN july_portal_users u ON a.created_by = u.portal_user_id
+            FROM portal_allocation_form a
+            LEFT JOIN portal_portal_users u ON a.created_by = u.portal_user_id
             WHERE (a.allocation_type IS NULL OR a.allocation_type != 'Drop-Off')
               AND (a.sub_type IS NULL OR a.sub_type NOT IN ('Drop-Off','Voluntary Return','Contract Completion','Non-payment / Default','Vehicle Breakdown / Maintenance','Other','Driver Attrition'))
         """
@@ -6026,7 +6029,7 @@ def lookup_driver(query: str, authorization: Optional[str] = Header(None)):
     try:
         cur = conn.cursor()
         
-        # 1. Search in july_form_onboarding
+        # 1. Search in portal_form_onboarding
         try:
             cur.execute("""
                 SELECT 
@@ -6037,7 +6040,7 @@ def lookup_driver(query: str, authorization: Optional[str] = Header(None)):
                     COALESCE(NULLIF(rental_model, ''), 'Drive to Rent') AS driver_plan,
                     '' AS type_of_plan,
                     '' AS car_model
-                FROM july_form_onboarding
+                FROM portal_form_onboarding
                 WHERE LOWER(driver_id) LIKE %s 
                    OR phone_number LIKE %s 
                    OR LOWER(driver_name) LIKE %s
@@ -6052,9 +6055,9 @@ def lookup_driver(query: str, authorization: Optional[str] = Header(None)):
                 return rec
         except Exception as e:
             conn.rollback()
-            print("[DEBUG] july_form_onboarding lookup notice:", e)
+            print("[DEBUG] portal_form_onboarding lookup notice:", e)
 
-        # 2. Search in july_driver_onboarding
+        # 2. Search in portal_driver_onboarding
         try:
             cur.execute("""
                 SELECT 
@@ -6065,7 +6068,7 @@ def lookup_driver(query: str, authorization: Optional[str] = Header(None)):
                     COALESCE(NULLIF(rental_model, ''), 'Drive to Rent') AS driver_plan,
                     '' AS type_of_plan,
                     '' AS car_model
-                FROM july_driver_onboarding
+                FROM portal_driver_onboarding
                 WHERE LOWER(driver_id) LIKE %s 
                    OR phone_number LIKE %s 
                    OR LOWER(driver_name) LIKE %s
@@ -6081,7 +6084,7 @@ def lookup_driver(query: str, authorization: Optional[str] = Header(None)):
         except Exception as e:
             conn.rollback()
 
-        # 3. Search in july_walkins
+        # 3. Search in portal_walkins
         try:
             cur.execute("""
                 SELECT 
@@ -6092,7 +6095,7 @@ def lookup_driver(query: str, authorization: Optional[str] = Header(None)):
                     '' AS driver_plan,
                     '' AS type_of_plan,
                     '' AS car_model
-                FROM july_walkins
+                FROM portal_walkins
                 WHERE person_number LIKE %s 
                    OR LOWER(person_name) LIKE %s 
                    OR LOWER(first_name) LIKE %s
@@ -6108,7 +6111,7 @@ def lookup_driver(query: str, authorization: Optional[str] = Header(None)):
         except Exception as e:
             conn.rollback()
 
-        # 4. Fallback search in july_allocation_form
+        # 4. Fallback search in portal_allocation_form
         try:
             cur.execute("""
                 SELECT 
@@ -6119,7 +6122,7 @@ def lookup_driver(query: str, authorization: Optional[str] = Header(None)):
                     driver_plan,
                     type_of_plan,
                     car_model
-                FROM july_allocation_form
+                FROM portal_allocation_form
                 WHERE LOWER(driver_id) LIKE %s 
                    OR driver_phone LIKE %s 
                    OR LOWER(driver_name) LIKE %s
@@ -6176,7 +6179,7 @@ def get_active_allocation(query: str, authorization: Optional[str] = Header(None
                 insp_stepney_photo,
                 allocation_date,
                 created_at
-            FROM july_allocation_form
+            FROM portal_allocation_form
             WHERE (LOWER(driver_id) = LOWER(%s)
                OR driver_phone = %s
                OR UPPER(vehicle_number) = UPPER(%s))
@@ -6215,7 +6218,7 @@ def lookup_vehicle(query: str, authorization: Optional[str] = Header(None)):
                     WHEN received_allocated = 'Allocated' OR received_allocated = 'Deployed' THEN 'Already Deployed'
                     ELSE COALESCE(received_allocated, 'Ready for Deployment')
                 END AS status
-            FROM july_vehicle_onboarding
+            FROM portal_vehicle_onboarding
             WHERE vehicle_number ILIKE %s OR model ILIKE %s
             ORDER BY id DESC LIMIT 10;
         """, (f"%{clean_q}%", f"%{clean_q}%"))
@@ -6235,11 +6238,11 @@ def get_allocation_stats(authorization: Optional[str] = Header(None)):
     try:
         cur = conn.cursor()
 
-        cur.execute("SELECT COUNT(*) FROM july_allocation_form WHERE allocation_type != 'Drop-Off';")
+        cur.execute("SELECT COUNT(*) FROM portal_allocation_form WHERE allocation_type != 'Drop-Off';")
         total = cur.fetchone()[0]
 
         cur.execute("""
-            SELECT COUNT(*) FROM july_allocation_form
+            SELECT COUNT(*) FROM portal_allocation_form
             WHERE (allocation_type IN ('New Allocation', 'Allocation', 'Fresh Allocation')
                    OR (allocation_type = 'Allocation' AND sub_type IN ('New Allocation', 'Rejoining')))
               AND allocation_type != 'Drop-Off';
@@ -6247,13 +6250,13 @@ def get_allocation_stats(authorization: Optional[str] = Header(None)):
         new_alloc = cur.fetchone()[0]
 
         cur.execute("""
-            SELECT COUNT(*) FROM july_allocation_form
+            SELECT COUNT(*) FROM portal_allocation_form
             WHERE (allocation_type = 'Swap' OR sub_type = 'Swap') AND allocation_type != 'Drop-Off';
         """)
         swap_alloc = cur.fetchone()[0]
 
         cur.execute("""
-            SELECT COUNT(*) FROM july_allocation_form
+            SELECT COUNT(*) FROM portal_allocation_form
             WHERE (allocation_type = 'Reallocation' OR sub_type = 'Reallocation') AND allocation_type != 'Drop-Off';
         """)
         realloc_count = cur.fetchone()[0]
@@ -6273,7 +6276,7 @@ def get_allocation_record(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_allocation_form WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_allocation_form WHERE id = %s;", (id,))
         r = cur.fetchone()
         if not r:
             raise HTTPException(status_code=404, detail="Allocation record not found")
@@ -6341,7 +6344,7 @@ def create_allocation_record(data: AllocationData, authorization: Optional[str] 
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO july_allocation_form (
+            INSERT INTO portal_allocation_form (
                 allocation_date, allocation_type, sub_type, city_name,
                 driver_id, driver_name, driver_phone,
                 driver_plan, type_of_plan, car_model,
@@ -6423,7 +6426,7 @@ def create_allocation_record(data: AllocationData, authorization: Optional[str] 
         # Update vehicle status in onboarding table to Allocated ONLY IF approved
         if target_approval_status == "Approved" and data.vehicle_number and data.vehicle_number.strip():
             cur.execute("""
-                UPDATE july_vehicle_onboarding 
+                UPDATE portal_vehicle_onboarding 
                 SET received_allocated = 'Allocated' 
                 WHERE UPPER(vehicle_number) = UPPER(%s);
             """, (data.vehicle_number.strip(),))
@@ -6433,7 +6436,7 @@ def create_allocation_record(data: AllocationData, authorization: Optional[str] 
             dir_text = "earlier" if (dt_val and dt_val < now_utc) else "in advance"
             log_remarks = data.approval_remarks or f"Submitted for 48h deviation approval ({round(diff_hours, 1)} hrs {dir_text})"
             cur.execute("""
-                INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
+                INSERT INTO portal_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                 VALUES ('allocation', %s, %s, %s, 'SUBMITTED', %s);
             """, (new_id, uid, target_approver, log_remarks))
 
@@ -6524,8 +6527,8 @@ def get_dropoffs(status: Optional[str] = None, authorization: Optional[str] = He
                 COALESCE(u.username, 'Executive') AS created_by_name,
                 a.created_at,
                 a.updated_at
-            FROM july_vehicle_dropoffs a
-            LEFT JOIN july_portal_users u ON u.portal_user_id = a.created_by
+            FROM portal_vehicle_dropoffs a
+            LEFT JOIN portal_portal_users u ON u.portal_user_id = a.created_by
             WHERE {where}
             ORDER BY COALESCE(a.updated_at, a.created_at) DESC, a.id DESC;
         """, params)
@@ -6598,13 +6601,13 @@ def get_single_dropoff(id: int, authorization: Optional[str] = Header(None)):
                 COALESCE(u.username, 'Executive') AS created_by_name,
                 a.created_at,
                 a.updated_at
-            FROM july_vehicle_dropoffs a
-            LEFT JOIN july_portal_users u ON u.portal_user_id = a.created_by
+            FROM portal_vehicle_dropoffs a
+            LEFT JOIN portal_portal_users u ON u.portal_user_id = a.created_by
             WHERE a.id = %s;
         """, (id,))
         row = cur.fetchone()
         if not row:
-            # Fallback to july_allocation_form
+            # Fallback to portal_allocation_form
             cur.execute("""
                 SELECT
                     a.id,
@@ -6649,8 +6652,8 @@ def get_single_dropoff(id: int, authorization: Optional[str] = Header(None)):
                     COALESCE(u.username, 'Executive') AS created_by_name,
                     a.created_at,
                     a.updated_at
-                FROM july_allocation_form a
-                LEFT JOIN july_portal_users u ON u.portal_user_id = a.created_by
+                FROM portal_allocation_form a
+                LEFT JOIN portal_portal_users u ON u.portal_user_id = a.created_by
                 WHERE a.id = %s;
             """, (id,))
             row = cur.fetchone()
@@ -6719,7 +6722,7 @@ def create_dropoff(data: DropOffData, authorization: Optional[str] = Header(None
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO july_allocation_form (
+            INSERT INTO portal_allocation_form (
                 allocation_date, allocation_type, sub_type, city_name,
                 dropoff_location, manual_dropoff_location, customer_address,
                 driver_id, driver_name, driver_phone,
@@ -6776,9 +6779,9 @@ def create_dropoff(data: DropOffData, authorization: Optional[str] = Header(None
         ))
         new_id = cur.fetchone()[0]
 
-        # Synchronize into july_vehicle_dropoffs
+        # Synchronize into portal_vehicle_dropoffs
         cur.execute("""
-            INSERT INTO july_vehicle_dropoffs (
+            INSERT INTO portal_vehicle_dropoffs (
                 id, dropoff_date, dropoff_reason, city_name,
                 dropoff_location, manual_dropoff_location, customer_address,
                 driver_id, driver_name, driver_phone,
@@ -6850,14 +6853,14 @@ def create_dropoff(data: DropOffData, authorization: Optional[str] = Header(None
         # Link End-to-End: Update vehicle status in onboarding table to Ready for Deployment ONLY IF approved
         if target_approval_status == "Approved" and data.vehicle_number and data.vehicle_number.strip():
             cur.execute("""
-                UPDATE july_vehicle_onboarding 
+                UPDATE portal_vehicle_onboarding 
                 SET received_allocated = 'Ready for Deployment' 
                 WHERE UPPER(vehicle_number) = UPPER(%s);
             """, (data.vehicle_number.strip(),))
             
             # Close active allocation entry for this vehicle
             cur.execute("""
-                UPDATE july_allocation_form 
+                UPDATE portal_allocation_form 
                 SET status = 'Returned', approval_status = 'Returned'
                 WHERE UPPER(vehicle_number) = UPPER(%s) 
                   AND allocation_type != 'Drop-Off' 
@@ -6869,7 +6872,7 @@ def create_dropoff(data: DropOffData, authorization: Optional[str] = Header(None
             dir_text = "earlier" if (dt_val and dt_val < now_utc) else "in advance"
             log_remarks = data.approval_remarks or f"Submitted for 48h deviation approval ({round(diff_hours, 1)} hrs {dir_text})"
             cur.execute("""
-                INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
+                INSERT INTO portal_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                 VALUES ('dropoff', %s, %s, %s, 'SUBMITTED', %s);
             """, (new_id, uid, target_approver, log_remarks))
 
@@ -6932,7 +6935,7 @@ def update_dropoff(id: int, data: DropOffData, authorization: Optional[str] = He
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_allocation_form SET
+            UPDATE portal_allocation_form SET
                 allocation_date=%s, allocation_type='Drop-Off', sub_type=%s, city_name=%s,
                 dropoff_location=%s, manual_dropoff_location=%s, customer_address=%s,
                 driver_id=%s, driver_name=%s, driver_phone=%s,
@@ -6978,9 +6981,9 @@ def update_dropoff(id: int, data: DropOffData, authorization: Optional[str] = He
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Drop-off record not found")
 
-        # Synchronize update into july_vehicle_dropoffs
+        # Synchronize update into portal_vehicle_dropoffs
         cur.execute("""
-            UPDATE july_vehicle_dropoffs SET
+            UPDATE portal_vehicle_dropoffs SET
                 dropoff_date=%s, dropoff_reason=%s, city_name=%s,
                 dropoff_location=%s, manual_dropoff_location=%s, customer_address=%s,
                 driver_id=%s, driver_name=%s, driver_phone=%s,
@@ -7028,13 +7031,13 @@ def update_dropoff(id: int, data: DropOffData, authorization: Optional[str] = He
         # If approved, update vehicle status and close active allocation
         if target_approval_status == "Approved" and data.vehicle_number and data.vehicle_number.strip():
             cur.execute("""
-                UPDATE july_vehicle_onboarding 
+                UPDATE portal_vehicle_onboarding 
                 SET received_allocated = 'Ready for Deployment' 
                 WHERE UPPER(vehicle_number) = UPPER(%s);
             """, (data.vehicle_number.strip(),))
             
             cur.execute("""
-                UPDATE july_allocation_form 
+                UPDATE portal_allocation_form 
                 SET status = 'Returned', approval_status = 'Returned'
                 WHERE UPPER(vehicle_number) = UPPER(%s) 
                   AND allocation_type != 'Drop-Off' 
@@ -7046,7 +7049,7 @@ def update_dropoff(id: int, data: DropOffData, authorization: Optional[str] = He
             dir_text = "earlier" if (dt_val and dt_val < now_utc) else "in advance"
             log_remarks = data.approval_remarks or f"Resubmitted for 48h deviation approval ({round(diff_hours, 1)} hrs {dir_text})"
             cur.execute("""
-                INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
+                INSERT INTO portal_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                 VALUES ('dropoff', %s, %s, %s, 'SUBMITTED', %s);
             """, (id, uid, target_approver, log_remarks))
 
@@ -7066,9 +7069,9 @@ def delete_dropoff(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_allocation_form WHERE id=%s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_allocation_form WHERE id=%s RETURNING id;", (id,))
         del1 = cur.fetchone()
-        cur.execute("DELETE FROM july_vehicle_dropoffs WHERE id=%s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_vehicle_dropoffs WHERE id=%s RETURNING id;", (id,))
         del2 = cur.fetchone()
         if not del1 and not del2:
             raise HTTPException(status_code=404, detail="Drop-off record not found")
@@ -7099,7 +7102,7 @@ def update_allocation_record(id: int, data: AllocationData, authorization: Optio
         cur = conn.cursor()
 
         # Snapshot previous state for the audit log
-        cur.execute("SELECT * FROM july_allocation_form WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_allocation_form WHERE id = %s;", (id,))
         prev_row = cur.fetchone()
         if not prev_row:
             raise HTTPException(status_code=404, detail="Allocation record not found")
@@ -7148,7 +7151,7 @@ def update_allocation_record(id: int, data: AllocationData, authorization: Optio
             target_approver = None
 
         cur.execute("""
-            UPDATE july_allocation_form SET
+            UPDATE portal_allocation_form SET
                 allocation_date=%s, allocation_type=%s, sub_type=%s, city_name=%s,
                 driver_id=%s, driver_name=%s, driver_phone=%s,
                 driver_plan=%s, type_of_plan=%s, car_model=%s,
@@ -7215,7 +7218,7 @@ def update_allocation_record(id: int, data: AllocationData, authorization: Optio
         # If approved, update vehicle status to Allocated
         if target_approval_status == "Approved" and data.vehicle_number and data.vehicle_number.strip():
             cur.execute("""
-                UPDATE july_vehicle_onboarding 
+                UPDATE portal_vehicle_onboarding 
                 SET received_allocated = 'Allocated' 
                 WHERE UPPER(vehicle_number) = UPPER(%s);
             """, (data.vehicle_number.strip(),))
@@ -7225,7 +7228,7 @@ def update_allocation_record(id: int, data: AllocationData, authorization: Optio
             dir_text = "earlier" if (dt_val and dt_val < now_utc) else "in advance"
             log_remarks = data.approval_remarks or f"Resubmitted for 48h deviation approval ({round(diff_hours, 1)} hrs {dir_text})"
             cur.execute("""
-                INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
+                INSERT INTO portal_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                 VALUES ('allocation', %s, %s, %s, 'SUBMITTED', %s);
             """, (id, uid, target_approver, log_remarks))
 
@@ -7274,14 +7277,14 @@ def delete_allocation_record(id: int, authorization: Optional[str] = Header(None
         # Snapshot before delete so the log captures who was deleted
         cur.execute("""
             SELECT driver_id, driver_name, vehicle_number, allocation_date, status
-            FROM july_allocation_form WHERE id = %s;
+            FROM portal_allocation_form WHERE id = %s;
         """, (id,))
         snap = cur.fetchone()
         if not snap:
             raise HTTPException(status_code=404, detail="Allocation record not found")
         drv_id, drv_name, veh_num, alloc_dt, status = snap
 
-        cur.execute("DELETE FROM july_allocation_form WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_allocation_form WHERE id = %s RETURNING id;", (id,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Allocation record not found")
 
@@ -7320,7 +7323,7 @@ def get_expenses(
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        base_query = "SELECT * FROM july_partner_expenses WHERE 1=1"
+        base_query = "SELECT * FROM portal_partner_expenses WHERE 1=1"
         params = []
         
         if query:
@@ -7349,16 +7352,16 @@ def get_expense_stats():
     try:
         cur = conn.cursor()
         
-        cur.execute("SELECT amount_paid FROM july_partner_expenses;")
+        cur.execute("SELECT amount_paid FROM portal_partner_expenses;")
         total = sum(float(r[0]) for r in cur.fetchall() if r[0] and r[0].replace('.', '', 1).isdigit())
         
-        cur.execute("SELECT amount_paid FROM july_partner_expenses WHERE expenses_type = 'CNG';")
+        cur.execute("SELECT amount_paid FROM portal_partner_expenses WHERE expenses_type = 'CNG';")
         cng = sum(float(r[0]) for r in cur.fetchall() if r[0] and r[0].replace('.', '', 1).isdigit())
         
-        cur.execute("SELECT amount_paid FROM july_partner_expenses WHERE expenses_type = 'Toll';")
+        cur.execute("SELECT amount_paid FROM portal_partner_expenses WHERE expenses_type = 'Toll';")
         toll = sum(float(r[0]) for r in cur.fetchall() if r[0] and r[0].replace('.', '', 1).isdigit())
         
-        cur.execute("SELECT amount_paid FROM july_partner_expenses WHERE expenses_type IN ('OLA - CL Balance', 'Paid to Company');")
+        cur.execute("SELECT amount_paid FROM portal_partner_expenses WHERE expenses_type IN ('OLA - CL Balance', 'Paid to Company');")
         other = sum(float(r[0]) for r in cur.fetchall() if r[0] and r[0].replace('.', '', 1).isdigit())
         
         return {
@@ -7375,7 +7378,7 @@ def get_expense_record(id: int):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_partner_expenses WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_partner_expenses WHERE id = %s;", (id,))
         r = cur.fetchone()
         if not r:
             raise HTTPException(status_code=404, detail="Expense record not found")
@@ -7390,7 +7393,7 @@ def create_expense_record(data: ExpenseData):
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO july_partner_expenses (
+            INSERT INTO portal_partner_expenses (
                 expense_date, driver_name, phone_number, vehicle_number, 
                 expenses_type, amount_paid, reference_photo
             ) VALUES (%s,%s,%s,%s,%s,%s,%s)
@@ -7411,7 +7414,7 @@ def update_expense_record(id: int, data: ExpenseData):
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_partner_expenses SET
+            UPDATE portal_partner_expenses SET
                 expense_date=%s, driver_name=%s, phone_number=%s, vehicle_number=%s, 
                 expenses_type=%s, amount_paid=%s, reference_photo=%s
             WHERE id=%s RETURNING id;
@@ -7433,7 +7436,7 @@ def delete_expense_record(id: int):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_partner_expenses WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_partner_expenses WHERE id = %s RETURNING id;", (id,))
         deleted = cur.fetchone()
         if not deleted:
             raise HTTPException(status_code=404, detail="Expense record not found")
@@ -7452,7 +7455,7 @@ def get_all_vehicles(search: Optional[str] = None, city: Optional[str] = None, t
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        query = "SELECT * FROM july_vehicle_onboarding WHERE 1=1"
+        query = "SELECT * FROM portal_vehicle_onboarding WHERE 1=1"
         params = []
         if search:
             query += " AND (vehicle_number ILIKE %s OR model ILIKE %s OR letzryd_unique_no ILIKE %s)"
@@ -7486,13 +7489,13 @@ def get_vehicle_stats(authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM july_vehicle_onboarding;")
+        cur.execute("SELECT COUNT(*) FROM portal_vehicle_onboarding;")
         total = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM july_vehicle_onboarding WHERE received_allocated = 'In Process';")
+        cur.execute("SELECT COUNT(*) FROM portal_vehicle_onboarding WHERE received_allocated = 'In Process';")
         receiving = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM july_vehicle_onboarding WHERE received_allocated = 'PDI Done';")
+        cur.execute("SELECT COUNT(*) FROM portal_vehicle_onboarding WHERE received_allocated = 'PDI Done';")
         allocation = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM july_vehicle_onboarding WHERE cng_installed = 'Yes';")
+        cur.execute("SELECT COUNT(*) FROM portal_vehicle_onboarding WHERE cng_installed = 'Yes';")
         cng = cur.fetchone()[0]
         return {
             "total_fleet": total,
@@ -7509,7 +7512,7 @@ def get_single_vehicle(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_vehicle_onboarding WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_vehicle_onboarding WHERE id = %s;", (id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Vehicle record not found")
@@ -7541,7 +7544,7 @@ def create_vehicle_record(data: VehicleOnboardingData, authorization: Optional[s
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO july_vehicle_onboarding (
+            INSERT INTO portal_vehicle_onboarding (
                 vehicle_number, letzryd_unique_no, city_name, model, received_allocated, delivery_month,
                 registration_date, rto_tax_validity, permit_validity, fitness_validity, pollution_validity, insurance_validity,
                 insurance_broker, insurance_underwriter, insurance_start_date,
@@ -7596,7 +7599,7 @@ def create_vehicle_record(data: VehicleOnboardingData, authorization: Optional[s
 
         import json
         cur.execute("""
-            INSERT INTO july_vehicle_logs
+            INSERT INTO portal_vehicle_logs
               (vehicle_ob_id, vehicle_number, action, old_status, new_status,
                changed_fields, performed_by, performed_by_name)
             VALUES (%s, %s, 'CREATE', NULL, %s, %s, %s, %s);
@@ -7628,7 +7631,7 @@ def update_vehicle_record(id: int, data: VehicleOnboardingData, authorization: O
         if id == 0:
             return create_vehicle_record(data, authorization)
 
-        cur.execute("SELECT approval_status, vehicle_number, approval_remarks FROM july_vehicle_onboarding WHERE id=%s;", (id,))
+        cur.execute("SELECT approval_status, vehicle_number, approval_remarks FROM portal_vehicle_onboarding WHERE id=%s;", (id,))
         old_veh = cur.fetchone()
         if not old_veh:
             return create_vehicle_record(data, authorization)
@@ -7638,7 +7641,7 @@ def update_vehicle_record(id: int, data: VehicleOnboardingData, authorization: O
         old_approval_remarks = old_veh[2]
 
         cur.execute("""
-            UPDATE july_vehicle_onboarding SET
+            UPDATE portal_vehicle_onboarding SET
                 vehicle_number=%s, letzryd_unique_no=%s, city_name=%s, model=%s, received_allocated=%s, delivery_month=%s,
                 registration_date=%s, rto_tax_validity=%s, permit_validity=%s, fitness_validity=%s, pollution_validity=%s, insurance_validity=%s, 
                 insurance_broker=%s, insurance_underwriter=%s, insurance_start_date=%s,
@@ -7684,7 +7687,7 @@ def update_vehicle_record(id: int, data: VehicleOnboardingData, authorization: O
 
         import json
         cur.execute("""
-            INSERT INTO july_vehicle_logs
+            INSERT INTO portal_vehicle_logs
               (vehicle_ob_id, vehicle_number, action, old_status, new_status,
                changed_fields, performed_by, performed_by_name)
             VALUES (%s, %s, 'UPDATE', %s, %s, %s, %s, %s);
@@ -7704,7 +7707,7 @@ def delete_vehicle_record(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_vehicle_onboarding WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_vehicle_onboarding WHERE id = %s RETURNING id;", (id,))
         deleted = cur.fetchone()
         if not deleted:
             raise HTTPException(status_code=404, detail="Vehicle record not found")
@@ -7723,7 +7726,7 @@ def get_all_workshops(search: Optional[str] = None, city: Optional[str] = None, 
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        query = "SELECT * FROM july_workshop_vendors WHERE 1=1"
+        query = "SELECT * FROM portal_workshop_vendors WHERE 1=1"
         params = []
         if search:
             query += " AND (vendor_name ILIKE %s OR contact_person ILIKE %s OR owner_name ILIKE %s)"
@@ -7747,13 +7750,13 @@ def get_workshop_stats(authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM july_workshop_vendors;")
+        cur.execute("SELECT COUNT(*) FROM portal_workshop_vendors;")
         total = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM july_workshop_vendors WHERE workshop_status = 'Active';")
+        cur.execute("SELECT COUNT(*) FROM portal_workshop_vendors WHERE workshop_status = 'Active';")
         active = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM july_workshop_vendors WHERE workshop_type = 'EV Specialist';")
+        cur.execute("SELECT COUNT(*) FROM portal_workshop_vendors WHERE workshop_type = 'EV Specialist';")
         ev_specialist = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM july_workshop_vendors WHERE workshop_status = 'Onboarding';")
+        cur.execute("SELECT COUNT(*) FROM portal_workshop_vendors WHERE workshop_status = 'Onboarding';")
         onboarding = cur.fetchone()[0]
         return {
             "total_workshops": total,
@@ -7770,7 +7773,7 @@ def get_single_workshop(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_workshop_vendors WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_workshop_vendors WHERE id = %s;", (id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Workshop vendor not found")
@@ -7786,7 +7789,7 @@ def create_workshop_record(data: WorkshopData, authorization: Optional[str] = He
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO july_workshop_vendors (
+            INSERT INTO portal_workshop_vendors (
                 vendor_name, workshop_type, city_name, address, gst_number,
                 contact_person, mobile_number, email_id, pan_card, bank_name,
                 account_number, ifsc_code, workshop_status, workshop_photo,
@@ -7811,7 +7814,7 @@ def update_workshop_record(id: int, data: WorkshopData, authorization: Optional[
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_workshop_vendors SET
+            UPDATE portal_workshop_vendors SET
                 vendor_name=%s, workshop_type=%s, city_name=%s, address=%s, gst_number=%s,
                 contact_person=%s, mobile_number=%s, email_id=%s, pan_card=%s, bank_name=%s,
                 account_number=%s, ifsc_code=%s, workshop_status=%s, workshop_photo=%s,
@@ -7838,7 +7841,7 @@ def delete_workshop_record(id: int, authorization: Optional[str] = Header(None))
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_workshop_vendors WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_workshop_vendors WHERE id = %s RETURNING id;", (id,))
         deleted = cur.fetchone()
         if not deleted:
             raise HTTPException(status_code=404, detail="Workshop vendor not found")
@@ -7857,7 +7860,7 @@ def get_all_hubs(search: Optional[str] = None, city: Optional[str] = None, type:
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        query = "SELECT * FROM july_hubs_parking WHERE 1=1"
+        query = "SELECT * FROM portal_hubs_parking WHERE 1=1"
         params = []
         if search:
             query += " AND (hub_name ILIKE %s OR address ILIKE %s OR hub_manager ILIKE %s)"
@@ -7881,13 +7884,13 @@ def get_hub_stats(authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM july_hubs_parking;")
+        cur.execute("SELECT COUNT(*) FROM portal_hubs_parking;")
         total = cur.fetchone()[0]
-        cur.execute("SELECT COALESCE(SUM(CAST(NULLIF(total_capacity, '') AS INTEGER)), 0) FROM july_hubs_parking;")
+        cur.execute("SELECT COALESCE(SUM(CAST(NULLIF(total_capacity, '') AS INTEGER)), 0) FROM portal_hubs_parking;")
         capacity = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM july_hubs_parking WHERE ev_charging = 'Yes';")
+        cur.execute("SELECT COUNT(*) FROM portal_hubs_parking WHERE ev_charging = 'Yes';")
         ev = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM july_hubs_parking WHERE security_cctv = 'Yes';")
+        cur.execute("SELECT COUNT(*) FROM portal_hubs_parking WHERE security_cctv = 'Yes';")
         cctv = cur.fetchone()[0]
         return {
             "total_hubs": total,
@@ -7904,7 +7907,7 @@ def get_single_hub(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_hubs_parking WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_hubs_parking WHERE id = %s;", (id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Hub record not found")
@@ -7920,7 +7923,7 @@ def create_hub_record(data: HubData, authorization: Optional[str] = Header(None)
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO july_hubs_parking (
+            INSERT INTO portal_hubs_parking (
                 hub_name, city_name, address, pincode, facility_type,
                 total_capacity, ev_charging, security_cctv, hub_manager,
                 manager_phone, operating_hours, hub_photo, contact_person, designation
@@ -7944,7 +7947,7 @@ def update_hub_record(id: int, data: HubData, authorization: Optional[str] = Hea
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_hubs_parking SET
+            UPDATE portal_hubs_parking SET
                 hub_name=%s, city_name=%s, address=%s, pincode=%s, facility_type=%s,
                 total_capacity=%s, ev_charging=%s, security_cctv=%s, hub_manager=%s,
                 manager_phone=%s, operating_hours=%s, hub_photo=%s, contact_person=%s, designation=%s
@@ -7970,7 +7973,7 @@ def delete_hub_record(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_hubs_parking WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_hubs_parking WHERE id = %s RETURNING id;", (id,))
         deleted = cur.fetchone()
         if not deleted:
             raise HTTPException(status_code=404, detail="Hub record not found")
@@ -8118,7 +8121,7 @@ def create_rent(data: RentData, authorization: Optional[str] = Header(None)):
         entity_id = partner_val or data.vehicle_number or v_model or f"Plan-{new_id}"
 
         cur.execute("""
-            INSERT INTO july_rent_ledger (entity_type, entity_id, change_type, old_amount, new_amount, modified_by, effective_date)
+            INSERT INTO portal_rent_ledger (entity_type, entity_id, change_type, old_amount, new_amount, modified_by, effective_date)
             VALUES (%s, %s, %s, %s, %s, %s, %s);
         """, (entity_type, entity_id, "Created", 0, rent_val, user.get("name") or user.get("username"), v_from))
 
@@ -8172,7 +8175,7 @@ def update_rent(id: int, data: RentData, authorization: Optional[str] = Header(N
         entity_id = partner_val or data.vehicle_number or v_model or f"Plan-{id}"
 
         cur.execute("""
-            INSERT INTO july_rent_ledger (entity_type, entity_id, change_type, old_amount, new_amount, modified_by, effective_date)
+            INSERT INTO portal_rent_ledger (entity_type, entity_id, change_type, old_amount, new_amount, modified_by, effective_date)
             VALUES (%s, %s, %s, %s, %s, %s, %s);
         """, (entity_type, entity_id, "Updated", old_rent, rent_val, user.get("name") or user.get("username"), today_str))
 
@@ -8252,7 +8255,7 @@ def delete_rent(id: int, authorization: Optional[str] = Header(None)):
         today_str = date.today().isoformat()
 
         cur.execute("""
-            INSERT INTO july_rent_ledger (entity_type, entity_id, change_type, old_amount, new_amount, modified_by, effective_date)
+            INSERT INTO portal_rent_ledger (entity_type, entity_id, change_type, old_amount, new_amount, modified_by, effective_date)
             VALUES (%s, %s, %s, %s, %s, %s, %s);
         """, (entity_type, entity_id, "Deleted", old_rent, 0, user.get("name") or user.get("username"), today_str))
 
@@ -8267,7 +8270,7 @@ def get_rent_ledger(authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_rent_ledger ORDER BY id DESC;")
+        cur.execute("SELECT * FROM portal_rent_ledger ORDER BY id DESC;")
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
     finally:
@@ -8291,7 +8294,7 @@ def get_accidents(
         query = """
             SELECT id, vehicle_number, vendor_name, city_name, date_of_accident, 
                    time_of_accident, driver_name, vehicle_status, repair_cost, created_at 
-            FROM july_accidents_registry WHERE 1=1
+            FROM portal_accidents_registry WHERE 1=1
         """
         params = []
         if search:
@@ -8318,16 +8321,16 @@ def get_accident_stats(authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*), COALESCE(SUM(CAST(NULLIF(repair_cost, '') AS NUMERIC)), 0) FROM july_accidents_registry;")
+        cur.execute("SELECT COUNT(*), COALESCE(SUM(CAST(NULLIF(repair_cost, '') AS NUMERIC)), 0) FROM portal_accidents_registry;")
         total, total_cost = cur.fetchone()
         
-        cur.execute("SELECT COUNT(*) FROM july_accidents_registry WHERE vehicle_status = 'Drivable';")
+        cur.execute("SELECT COUNT(*) FROM portal_accidents_registry WHERE vehicle_status = 'Drivable';")
         drivable = cur.fetchone()[0]
         
-        cur.execute("SELECT COUNT(*) FROM july_accidents_registry WHERE vehicle_status = 'Needs Towing';")
+        cur.execute("SELECT COUNT(*) FROM portal_accidents_registry WHERE vehicle_status = 'Needs Towing';")
         needs_towing = cur.fetchone()[0]
 
-        cur.execute("SELECT COUNT(*) FROM july_accidents_registry WHERE vehicle_status = 'Impounded by Police';")
+        cur.execute("SELECT COUNT(*) FROM portal_accidents_registry WHERE vehicle_status = 'Impounded by Police';")
         impounded = cur.fetchone()[0]
         
         return {
@@ -8346,7 +8349,7 @@ def get_accident(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_accidents_registry WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_accidents_registry WHERE id = %s;", (id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Accident record not found")
@@ -8363,7 +8366,7 @@ def create_accident(data: AccidentData, authorization: Optional[str] = Header(No
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO july_accidents_registry (
+            INSERT INTO portal_accidents_registry (
                 vehicle_number, vendor_id, vendor_name, city_name, date_of_accident, time_of_accident, place_of_accident, vehicle_status,
                 driver_id, driver_name, driver_phone, no_of_persons, third_party_involvement, fir_filed,
                 accident_reason, accident_inspection, insurance_status, repair_cost, toeing_cost, challan_amount, fine_amount, comments,
@@ -8402,7 +8405,7 @@ def update_accident(id: int, data: AccidentData, authorization: Optional[str] = 
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_accidents_registry SET 
+            UPDATE portal_accidents_registry SET 
                 vehicle_number=%s, vendor_id=%s, vendor_name=%s, city_name=%s, date_of_accident=%s, time_of_accident=%s, place_of_accident=%s, vehicle_status=%s,
                 driver_id=%s, driver_name=%s, driver_phone=%s, no_of_persons=%s, third_party_involvement=%s, fir_filed=%s,
                 accident_reason=%s, accident_inspection=%s, insurance_status=%s, repair_cost=%s, toeing_cost=%s, challan_amount=%s, fine_amount=%s, comments=%s,
@@ -8436,7 +8439,7 @@ def delete_accident(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_accidents_registry WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_accidents_registry WHERE id = %s RETURNING id;", (id,))
         deleted = cur.fetchone()
         if not deleted:
             raise HTTPException(status_code=404, detail="Accident record not found")
@@ -8458,7 +8461,7 @@ def get_inspections(
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        query = "SELECT * FROM july_inspections WHERE 1=1"
+        query = "SELECT * FROM portal_inspections WHERE 1=1"
         params = []
         if search:
             query += " AND (vehicle_number ILIKE %s OR remarks ILIKE %s)"
@@ -8477,7 +8480,7 @@ def get_inspection_stats(authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*), COUNT(DISTINCT vehicle_number) FROM july_inspections;")
+        cur.execute("SELECT COUNT(*), COUNT(DISTINCT vehicle_number) FROM portal_inspections;")
         total, unique_vehicles = cur.fetchone()
         return {
             "total_inspections": total,
@@ -8492,7 +8495,7 @@ def get_last_inspection(vehicle_number: str, authorization: Optional[str] = Head
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_inspections WHERE vehicle_number ILIKE %s ORDER BY id DESC LIMIT 1;", (vehicle_number.strip(),))
+        cur.execute("SELECT * FROM portal_inspections WHERE vehicle_number ILIKE %s ORDER BY id DESC LIMIT 1;", (vehicle_number.strip(),))
         row = cur.fetchone()
         if not row:
             return None
@@ -8507,7 +8510,7 @@ def get_inspection(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_inspections WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_inspections WHERE id = %s;", (id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Inspection record not found")
@@ -8523,7 +8526,7 @@ def create_inspection(data: InspectionData, authorization: Optional[str] = Heade
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO july_inspections (
+            INSERT INTO portal_inspections (
                 vehicle_number, inspection_date, odometer_reading, jack, jack_rod, spanner, 
                 parking_triangle, fire_extinguishers, seat_cover, floor_carpet, key_quantity,
                 driver_id, driver_name, driver_phone, city_name, hub_name, inspection_stage,
@@ -8561,7 +8564,7 @@ def update_inspection(id: int, data: InspectionData, authorization: Optional[str
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_inspections SET 
+            UPDATE portal_inspections SET 
                 vehicle_number=%s, inspection_date=%s, odometer_reading=%s, jack=%s, jack_rod=%s, spanner=%s, 
                 parking_triangle=%s, fire_extinguishers=%s, seat_cover=%s, floor_carpet=%s, key_quantity=%s,
                 driver_id=%s, driver_name=%s, driver_phone=%s, city_name=%s, hub_name=%s, inspection_stage=%s,
@@ -8601,7 +8604,7 @@ def delete_inspection(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_inspections WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_inspections WHERE id = %s RETURNING id;", (id,))
         deleted = cur.fetchone()
         if not deleted:
             raise HTTPException(status_code=404, detail="Inspection record not found")
@@ -8713,10 +8716,10 @@ def get_tickets(authorization: Optional[str] = Header(None)):
                    t.created_at, 
                    CASE WHEN t.ticket_status = 'Resolved' THEN t.updated_at ELSE NULL END AS resolved_at, 
                    t.approval_remarks AS resolution_notes
-            FROM july_tickets t
-            LEFT JOIN july_portal_users sub ON sub.portal_user_id = t.created_by
-            LEFT JOIN july_portal_users app_u ON app_u.portal_user_id = t.current_approver_id
-            LEFT JOIN july_employees app_e ON app_e.employee_id = app_u.employee_id
+            FROM portal_tickets t
+            LEFT JOIN portal_portal_users sub ON sub.portal_user_id = t.created_by
+            LEFT JOIN portal_portal_users app_u ON app_u.portal_user_id = t.current_approver_id
+            LEFT JOIN portal_employees app_e ON app_e.employee_id = app_u.employee_id
             ORDER BY t.created_at DESC;
         """)
         keys = ["id", "title", "description", "source", "status", "created_by_name", "assigned_to", "assignee_name", "created_at", "resolved_at", "resolution_notes"]
@@ -8742,7 +8745,7 @@ def create_ticket(req: TicketData, authorization: Optional[str] = Header(None)):
         uid = user.get("portal_user_id") or user.get("id") or 3
         ticket_num = f"TCK-{datetime.now().strftime('%m%d%H%M%S')}"
         cur.execute("""
-            INSERT INTO july_tickets (ticket_number, issue_type, description, city, ticket_status, created_by, current_approver_id, created_at)
+            INSERT INTO portal_tickets (ticket_number, issue_type, description, city, ticket_status, created_by, current_approver_id, created_at)
             VALUES (%s, %s, %s, %s, %s, %s, %s, NOW()) RETURNING ticket_id;
         """, (ticket_num, req.title, req.description, req.source, req.status or "Open", uid, req.assigned_to))
         ticket_id = cur.fetchone()[0]
@@ -8762,7 +8765,7 @@ def resolve_ticket(id: int, data: dict, authorization: Optional[str] = Header(No
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_tickets 
+            UPDATE portal_tickets 
             SET ticket_status = 'Resolved', updated_at = NOW(), approval_remarks = %s 
             WHERE ticket_id = %s RETURNING ticket_id;
         """, (notes, id))
@@ -8852,7 +8855,7 @@ def get_all_maintenance_jobs(authorization: Optional[str] = Header(None)):
         cur.execute("""
             SELECT id, vehicle_in_date, vehicle_number, workshop_name, repair_type, 
                    city_name, estimated_amount, maintenance_status, created_at 
-            FROM july_maintenance_registry ORDER BY id DESC;
+            FROM portal_maintenance_registry ORDER BY id DESC;
         """)
         cols = [d[0] for d in cur.description]
         result = [dict(zip(cols, row)) for row in cur.fetchall()]
@@ -8866,7 +8869,7 @@ def get_maintenance_job(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_maintenance_registry WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_maintenance_registry WHERE id = %s;", (id,))
         r = cur.fetchone()
         if not r: raise HTTPException(status_code=404, detail="Record not found")
         cols = [d[0] for d in cur.description]
@@ -8881,7 +8884,7 @@ def create_maintenance_job(data: MaintenanceData, authorization: Optional[str] =
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO july_maintenance_registry (
+            INSERT INTO portal_maintenance_registry (
                 vehicle_number, city_name, model, vehicle_k_m_s, repair_type, vehicle_location, vehicle_in_date, initial_remarks, vehicle_damage_photos,
                 workshop_name, allocation_date, estimated_delivery_date, estimated_amount, insurance_claimed, claim_number, insurance_brokerage, approved_by, approval_date, approval_file,
                 maintenance_status, vehicle_status_date, daily_vehicle_remarks, rfd_date, delivered_date, final_status, tat, pdi_status,
@@ -8917,7 +8920,7 @@ def update_maintenance_job(id: int, data: MaintenanceData, authorization: Option
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_maintenance_registry SET 
+            UPDATE portal_maintenance_registry SET 
                 vehicle_number=%s, city_name=%s, model=%s, vehicle_k_m_s=%s, repair_type=%s, vehicle_location=%s, vehicle_in_date=%s, initial_remarks=%s, vehicle_damage_photos=%s,
                 workshop_name=%s, allocation_date=%s, estimated_delivery_date=%s, estimated_amount=%s, insurance_claimed=%s, claim_number=%s, insurance_brokerage=%s, approved_by=%s, approval_date=%s, approval_file=%s,
                 maintenance_status=%s, vehicle_status_date=%s, daily_vehicle_remarks=%s, rfd_date=%s, delivered_date=%s, final_status=%s, tat=%s, pdi_status=%s,
@@ -8946,7 +8949,7 @@ def delete_maintenance_job(id: int, authorization: Optional[str] = Header(None))
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_maintenance_registry WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_maintenance_registry WHERE id = %s RETURNING id;", (id,))
         deleted = cur.fetchone()
         if not deleted:
             raise HTTPException(status_code=404, detail="Maintenance job not found")
@@ -9033,7 +9036,7 @@ def create_maintenance_in(data: MaintenanceInCreate, authorization: Optional[str
         # Check if an active (unclosed) inward ticket already exists for this vehicle
         cur.execute("""
             SELECT id, workshop_name, vehicle_in_date_time 
-            FROM july_maintenance_in 
+            FROM portal_maintenance_in 
             WHERE UPPER(TRIM(vehicle_number)) = %s AND is_closed = FALSE 
             ORDER BY id DESC LIMIT 1;
         """, (vnum,))
@@ -9045,7 +9048,7 @@ def create_maintenance_in(data: MaintenanceInCreate, authorization: Optional[str
             )
 
         cur.execute("""
-            INSERT INTO july_maintenance_in (
+            INSERT INTO portal_maintenance_in (
                 created_by, user_email, city_name, vehicle_number, vehicle_location,
                 vehicle_in_date_time, vehicle_k_m_s, repair_type, workshop_name,
                 estimated_delivery_date, estimated_amount, insurance_claimed,
@@ -9067,7 +9070,7 @@ def create_maintenance_in(data: MaintenanceInCreate, authorization: Optional[str
         ))
         row = cur.fetchone()
         cur.execute("""
-            UPDATE july_vehicle_onboarding 
+            UPDATE portal_vehicle_onboarding 
             SET received_allocated = 'In Maintenance' 
             WHERE UPPER(vehicle_number) = UPPER(%s);
         """, (vnum,))
@@ -9120,7 +9123,7 @@ def list_maintenance_in(
                    insurance_claimed, insurance_brokerage, claim_number, approved_by,
                    approval_date, approval_file, vehicle_damage_photos, remarks,
                    is_closed, closed_at, closed_by
-            FROM july_maintenance_in
+            FROM portal_maintenance_in
             {where_clause}
             ORDER BY id DESC
             LIMIT %s OFFSET %s;
@@ -9155,7 +9158,7 @@ def check_active_maintenance_in(vehicle_number: str, authorization: Optional[str
                    insurance_claimed, insurance_brokerage, claim_number,
                    approved_by, approval_date, approval_file, vehicle_damage_photos,
                    remarks, created_at, user_email
-            FROM july_maintenance_in
+            FROM portal_maintenance_in
             WHERE UPPER(TRIM(vehicle_number)) = %s AND is_closed = FALSE
             ORDER BY id DESC LIMIT 1;
         """, (vnum,))
@@ -9176,7 +9179,7 @@ def get_maintenance_in(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_maintenance_in WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_maintenance_in WHERE id = %s;", (id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Inward record not found")
@@ -9205,7 +9208,7 @@ def update_maintenance_in(id: int, data: MaintenanceInCreate, authorization: Opt
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_maintenance_in
+            UPDATE portal_maintenance_in
             SET city_name = %s,
                 vehicle_number = %s,
                 vehicle_location = %s,
@@ -9249,8 +9252,8 @@ def delete_maintenance_in(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_maintenance_out WHERE inward_id = %s;", (id,))
-        cur.execute("DELETE FROM july_maintenance_in WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_maintenance_out WHERE inward_id = %s;", (id,))
+        cur.execute("DELETE FROM portal_maintenance_in WHERE id = %s RETURNING id;", (id,))
         deleted = cur.fetchone()
         if not deleted:
             raise HTTPException(status_code=404, detail="Inward record not found")
@@ -9275,7 +9278,7 @@ def search_maintenance_vehicle(vehicle_number: str, authorization: Optional[str]
                    estimated_amount, insurance_claimed, insurance_brokerage, claim_number,
                    approved_by, approval_date, approval_file, vehicle_damage_photos,
                    remarks, created_at, user_email
-            FROM july_maintenance_in
+            FROM portal_maintenance_in
             WHERE UPPER(TRIM(vehicle_number)) = %s AND is_closed = FALSE
             ORDER BY id DESC LIMIT 1;
         """, (vnum,))
@@ -9307,7 +9310,7 @@ def create_maintenance_out(data: MaintenanceOutCreate, authorization: Optional[s
         cur = conn.cursor()
         vnum = data.vehicle_number.strip().upper()
         if data.inward_id:
-            cur.execute("SELECT id, is_closed FROM july_maintenance_in WHERE id = %s;", (data.inward_id,))
+            cur.execute("SELECT id, is_closed FROM portal_maintenance_in WHERE id = %s;", (data.inward_id,))
             inw = cur.fetchone()
             if not inw:
                 raise HTTPException(status_code=404, detail="Associated inward maintenance record not found")
@@ -9319,7 +9322,7 @@ def create_maintenance_out(data: MaintenanceOutCreate, authorization: Optional[s
         else:
             # Require an active open inward ticket for this vehicle
             cur.execute("""
-                SELECT id, is_closed FROM july_maintenance_in 
+                SELECT id, is_closed FROM portal_maintenance_in 
                 WHERE UPPER(TRIM(vehicle_number)) = %s AND is_closed = FALSE 
                 ORDER BY id DESC LIMIT 1;
             """, (vnum,))
@@ -9341,7 +9344,7 @@ def create_maintenance_out(data: MaintenanceOutCreate, authorization: Optional[s
                 payable = data.invoice_amount
 
         cur.execute("""
-            INSERT INTO july_maintenance_out (
+            INSERT INTO portal_maintenance_out (
                 inward_id, vehicle_number, created_by, user_email, rfd_date,
                 vehicle_out_date_time, vehicle_out_k_m_s, invoice_no, invoice_date,
                 invoice_amount, insurance_liability_discounts, letzryd_payable,
@@ -9373,14 +9376,14 @@ def create_maintenance_out(data: MaintenanceOutCreate, authorization: Optional[s
 
         if data.inward_id:
             cur.execute("""
-                UPDATE july_maintenance_in
+                UPDATE portal_maintenance_in
                 SET is_closed = TRUE, closed_at = NOW(), closed_by = %s
                 WHERE id = %s;
             """, (uid, data.inward_id))
 
         if data.final_status == "Completed & RFD":
             cur.execute("""
-                UPDATE july_vehicle_onboarding 
+                UPDATE portal_vehicle_onboarding 
                 SET received_allocated = 'Ready for Deployment' 
                 WHERE UPPER(vehicle_number) = UPPER(%s);
             """, (vnum,))
@@ -9432,8 +9435,8 @@ def list_maintenance_out(
                    o.handover, o.partner_id, o.partner_name, o.partner_phone,
                    o.driver_id, o.driver_name, o.driver_phone,
                    i.workshop_name, i.vehicle_in_date_time, i.city_name, i.vehicle_k_m_s as vehicle_in_kms
-            FROM july_maintenance_out o
-            LEFT JOIN july_maintenance_in i ON i.id = o.inward_id
+            FROM portal_maintenance_out o
+            LEFT JOIN portal_maintenance_in i ON i.id = o.inward_id
             {where_clause}
             ORDER BY o.id DESC
             LIMIT %s OFFSET %s;
@@ -9461,8 +9464,8 @@ def get_maintenance_out(id: int, authorization: Optional[str] = Header(None)):
         cur = conn.cursor()
         cur.execute("""
             SELECT o.*, i.workshop_name, i.vehicle_in_date_time, i.city_name, i.vehicle_k_m_s as vehicle_in_kms
-            FROM july_maintenance_out o
-            LEFT JOIN july_maintenance_in i ON i.id = o.inward_id
+            FROM portal_maintenance_out o
+            LEFT JOIN portal_maintenance_in i ON i.id = o.inward_id
             WHERE o.id = %s;
         """, (id,))
         row = cur.fetchone()
@@ -9500,7 +9503,7 @@ def update_maintenance_out(id: int, data: MaintenanceOutCreate, authorization: O
                 payable = data.invoice_amount
 
         cur.execute("""
-            UPDATE july_maintenance_out
+            UPDATE portal_maintenance_out
             SET vehicle_number = %s,
                 rfd_date = %s,
                 vehicle_out_date_time = %s,
@@ -9555,17 +9558,17 @@ def delete_maintenance_out(id: int, authorization: Optional[str] = Header(None))
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT inward_id FROM july_maintenance_out WHERE id = %s;", (id,))
+        cur.execute("SELECT inward_id FROM portal_maintenance_out WHERE id = %s;", (id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Outward record not found")
         inw_id = row[0]
 
-        cur.execute("DELETE FROM july_maintenance_out WHERE id = %s;", (id,))
-        cur.execute("UPDATE july_maintenance_in SET is_closed = FALSE, closed_at = NULL, closed_by = NULL WHERE id = %s RETURNING vehicle_number;", (inw_id,))
+        cur.execute("DELETE FROM portal_maintenance_out WHERE id = %s;", (id,))
+        cur.execute("UPDATE portal_maintenance_in SET is_closed = FALSE, closed_at = NULL, closed_by = NULL WHERE id = %s RETURNING vehicle_number;", (inw_id,))
         inw_row = cur.fetchone()
         if inw_row and inw_row[0]:
-            cur.execute("UPDATE july_vehicle_onboarding SET received_allocated = 'In Maintenance' WHERE UPPER(vehicle_number) = UPPER(%s);", (inw_row[0],))
+            cur.execute("UPDATE portal_vehicle_onboarding SET received_allocated = 'In Maintenance' WHERE UPPER(vehicle_number) = UPPER(%s);", (inw_row[0],))
         conn.commit()
         return {"success": True, "message": "Outward record deleted and inward ticket re-opened"}
     except Exception as e:
@@ -9598,7 +9601,7 @@ def get_all_challans(authorization: Optional[str] = Header(None)):
             SELECT id, challan_number, vehicle_number, driver_id, driver_name, 
                    violation_date, violation_location, challan_amount, internal_fine_amount,
                    recovery_status, recovered_amount, remarks, created_at
-            FROM july_traffic_challans ORDER BY id DESC;
+            FROM portal_traffic_challans ORDER BY id DESC;
         """)
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
@@ -9611,7 +9614,7 @@ def get_challan(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM july_traffic_challans WHERE id = %s;", (id,))
+        cur.execute("SELECT * FROM portal_traffic_challans WHERE id = %s;", (id,))
         row = cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Challan not found")
@@ -9626,12 +9629,12 @@ def create_challan(data: ChallanData, authorization: Optional[str] = Header(None
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("SELECT id FROM july_traffic_challans WHERE challan_number = %s;", (data.challan_number,))
+        cur.execute("SELECT id FROM portal_traffic_challans WHERE challan_number = %s;", (data.challan_number,))
         if cur.fetchone():
             raise HTTPException(status_code=400, detail="Challan number already exists")
 
         cur.execute("""
-            INSERT INTO july_traffic_challans (
+            INSERT INTO portal_traffic_challans (
                 challan_number, vehicle_number, driver_id, driver_name, 
                 violation_date, violation_location, challan_amount, internal_fine_amount,
                 recovery_status, recovered_amount, remarks, challan_photo
@@ -9657,7 +9660,7 @@ def update_challan(id: int, data: ChallanData, authorization: Optional[str] = He
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE july_traffic_challans SET 
+            UPDATE portal_traffic_challans SET 
                 challan_number=%s, vehicle_number=%s, driver_id=%s, driver_name=%s, 
                 violation_date=%s, violation_location=%s, challan_amount=%s, internal_fine_amount=%s,
                 recovery_status=%s, recovered_amount=%s, remarks=%s, challan_photo=%s
@@ -9684,7 +9687,7 @@ def delete_challan(id: int, authorization: Optional[str] = Header(None)):
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM july_traffic_challans WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_traffic_challans WHERE id = %s RETURNING id;", (id,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Challan not found")
         conn.commit()
@@ -9701,7 +9704,7 @@ def delete_challan(id: int, authorization: Optional[str] = Header(None)):
 # ─────────────────────────────────────────────────────────
 
 def get_july_user(authorization: Optional[str] = Header(None)):
-    """Get current user from july_portal_users via session token with clean fallback."""
+    """Get current user from portal_portal_users via session token with clean fallback."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     token = authorization.split(" ", 1)[1]
@@ -9709,25 +9712,25 @@ def get_july_user(authorization: Optional[str] = Header(None)):
     try:
         cur = conn.cursor()
         
-        # 1. Try direct match on july_portal_users.portal_user_id
+        # 1. Try direct match on portal_portal_users.portal_user_id
         cur.execute("""
             SELECT pu.portal_user_id, COALESCE(NULLIF(TRIM(CONCAT(e.first_name, ' ', e.last_name)), ''), pu.username, 'User'), 
                    COALESCE(r.role_name, pu.role, 'Executive'), pu.username, COALESCE(pu.city, e.city, 'Hyderabad'), pu.role_id,
                    COALESCE(r.role_code, 'EXEC')
-            FROM july_app_sessions s
-            JOIN july_portal_users pu ON pu.portal_user_id = s.user_id
-            LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-            LEFT JOIN july_roles r ON r.role_id = pu.role_id
+            FROM portal_app_sessions s
+            JOIN portal_portal_users pu ON pu.portal_user_id = s.user_id
+            LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+            LEFT JOIN portal_roles r ON r.role_id = pu.role_id
             WHERE s.token = %s;
         """, (token,))
         row = cur.fetchone()
         
-        # 2. If session token was created by legacy july_app_users, map by july_app_users.username or role
+        # 2. If session token was created by legacy portal_app_users, map by portal_app_users.username or role
         if not row:
             cur.execute("""
                 SELECT s.user_id, cau.username, ar.name
-                FROM july_app_sessions s
-                LEFT JOIN july_app_users cau ON cau.id = s.user_id
+                FROM portal_app_sessions s
+                LEFT JOIN portal_app_users cau ON cau.id = s.user_id
                 LEFT JOIN app_roles ar ON ar.id = cau.role_id
                 WHERE s.token = %s;
             """, (token,))
@@ -9752,9 +9755,9 @@ def get_july_user(authorization: Optional[str] = Header(None)):
                     SELECT pu.portal_user_id, COALESCE(NULLIF(TRIM(CONCAT(e.first_name, ' ', e.last_name)), ''), pu.username, 'User'), 
                            COALESCE(r.role_name, pu.role, 'Executive'), pu.username, COALESCE(pu.city, e.city, 'Hyderabad'), pu.role_id,
                            COALESCE(r.role_code, 'EXEC')
-                    FROM july_portal_users pu
-                    LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-                    LEFT JOIN july_roles r ON r.role_id = pu.role_id
+                    FROM portal_portal_users pu
+                    LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+                    LEFT JOIN portal_roles r ON r.role_id = pu.role_id
                     WHERE pu.username = %s;
                 """, (target_username,))
                 row = cur.fetchone()
@@ -9765,9 +9768,9 @@ def get_july_user(authorization: Optional[str] = Header(None)):
                 SELECT pu.portal_user_id, COALESCE(NULLIF(TRIM(CONCAT(e.first_name, ' ', e.last_name)), ''), pu.username, 'User'), 
                        COALESCE(r.role_name, pu.role, 'Executive'), pu.username, COALESCE(pu.city, e.city, 'Hyderabad'), pu.role_id,
                        COALESCE(r.role_code, 'SA')
-                FROM july_portal_users pu
-                LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-                LEFT JOIN july_roles r ON r.role_id = pu.role_id
+                FROM portal_portal_users pu
+                LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+                LEFT JOIN portal_roles r ON r.role_id = pu.role_id
                 WHERE pu.username = 'super_admin' OR pu.portal_user_id = 3
                 LIMIT 1;
             """)
@@ -9803,9 +9806,9 @@ def get_approvers(authorization: Optional[str] = Header(None)):
             SELECT pu.portal_user_id, pu.username, 
                    e.first_name || ' ' || COALESCE(e.last_name, '') AS full_name,
                    r.role_name, COALESCE(e.city, 'Hyderabad')
-            FROM july_portal_users pu
-            JOIN july_employees e ON e.employee_id = pu.employee_id
-            JOIN july_roles r ON r.role_id = pu.role_id
+            FROM portal_portal_users pu
+            JOIN portal_employees e ON e.employee_id = pu.employee_id
+            JOIN portal_roles r ON r.role_id = pu.role_id
             WHERE pu.account_status = 'Active'
               AND pu.portal_user_id != %s
             ORDER BY 
@@ -9885,13 +9888,13 @@ def get_pending_approvals(authorization: Optional[str] = Header(None)):
                    app_u.username AS current_approver,
                    COALESCE(app_e.first_name || ' ' || COALESCE(app_e.last_name,'') || ' (' || COALESCE(app_r.role_name, 'City Manager') || ' — ' || COALESCE(app_e.city, 'Hyderabad') || ')', app_u.username, 'City Manager 1 (City Manager — Hyderabad)') AS current_approver_name,
                    o.daily_rent, o.security_deposit
-            FROM july_onboarding o
-            LEFT JOIN july_portal_users sub ON sub.portal_user_id = COALESCE(o.updated_by, o.created_by)
-            LEFT JOIN july_employees sub_e ON sub_e.employee_id = sub.employee_id
-            LEFT JOIN july_roles sub_r ON sub_r.role_id = sub.role_id
-            LEFT JOIN july_portal_users app_u ON app_u.portal_user_id = o.current_approver_id
-            LEFT JOIN july_employees app_e ON app_e.employee_id = app_u.employee_id
-            LEFT JOIN july_roles app_r ON app_r.role_id = app_u.role_id
+            FROM portal_onboarding o
+            LEFT JOIN portal_portal_users sub ON sub.portal_user_id = COALESCE(o.updated_by, o.created_by)
+            LEFT JOIN portal_employees sub_e ON sub_e.employee_id = sub.employee_id
+            LEFT JOIN portal_roles sub_r ON sub_r.role_id = sub.role_id
+            LEFT JOIN portal_portal_users app_u ON app_u.portal_user_id = o.current_approver_id
+            LEFT JOIN portal_employees app_e ON app_e.employee_id = app_u.employee_id
+            LEFT JOIN portal_roles app_r ON app_r.role_id = app_u.role_id
             {where_cond} ORDER BY COALESCE(o.updated_at, o.created_at) DESC;
         """)
         for r in cur.fetchall():
@@ -9905,7 +9908,7 @@ def get_pending_approvals(authorization: Optional[str] = Header(None)):
                             "daily_rent": float(r[11]) if r[11] is not None else 850.0,
                             "security_deposit": float(r[12]) if r[12] is not None else 10000.0})
 
-        # Vehicles pending — query july_vehicle_onboarding (correct table)
+        # Vehicles pending — query portal_vehicle_onboarding (correct table)
         cur.execute(f"""
             SELECT v.id, 'vehicle_onboarding' AS module,
                    COALESCE(v.vehicle_number, 'DRAFT-VEH') AS title, v.city_name AS city, v.model AS subtitle,
@@ -9914,13 +9917,13 @@ def get_pending_approvals(authorization: Optional[str] = Header(None)):
                    COALESCE(sub_e.first_name || ' ' || COALESCE(sub_e.last_name,'') || ' (' || COALESCE(sub_r.role_name, 'Onboarding Executive') || ' — ' || COALESCE(sub_e.city, 'Hyderabad') || ')', sub.username, 'Onboarding Executive 1 (Onboarding Executive — Hyderabad)') AS submitted_by_name,
                    app_u.username AS current_approver,
                    COALESCE(app_e.first_name || ' ' || COALESCE(app_e.last_name,'') || ' (' || COALESCE(app_r.role_name, 'City Manager') || ' — ' || COALESCE(app_e.city, 'Hyderabad') || ')', app_u.username, 'City Manager 1 (City Manager — Hyderabad)') AS current_approver_name
-            FROM july_vehicle_onboarding v
-            LEFT JOIN july_portal_users sub ON sub.portal_user_id = v.created_by
-            LEFT JOIN july_employees sub_e ON sub_e.employee_id = sub.employee_id
-            LEFT JOIN july_roles sub_r ON sub_r.role_id = sub.role_id
-            LEFT JOIN july_portal_users app_u ON app_u.portal_user_id = v.current_approver_id
-            LEFT JOIN july_employees app_e ON app_e.employee_id = app_u.employee_id
-            LEFT JOIN july_roles app_r ON app_r.role_id = app_u.role_id
+            FROM portal_vehicle_onboarding v
+            LEFT JOIN portal_portal_users sub ON sub.portal_user_id = v.created_by
+            LEFT JOIN portal_employees sub_e ON sub_e.employee_id = sub.employee_id
+            LEFT JOIN portal_roles sub_r ON sub_r.role_id = sub.role_id
+            LEFT JOIN portal_portal_users app_u ON app_u.portal_user_id = v.current_approver_id
+            LEFT JOIN portal_employees app_e ON app_e.employee_id = app_u.employee_id
+            LEFT JOIN portal_roles app_r ON app_r.role_id = app_u.role_id
             WHERE (v.current_approver_id = {uid} OR (v.current_approver_id IS NULL AND {city_sql_v}) OR {str(is_global).lower()})
               AND (v.approval_status LIKE 'Pending%%' OR v.approval_status = 'Submitted')
             ORDER BY v.created_at DESC;
@@ -9946,13 +9949,13 @@ def get_pending_approvals(authorization: Optional[str] = Header(None)):
                    COALESCE(sub_e.first_name || ' ' || COALESCE(sub_e.last_name,'') || ' (' || COALESCE(sub_r.role_name, 'Executive') || ' — ' || COALESCE(sub_e.city, 'Hyderabad') || ')', sub.username, 'Executive') AS submitted_by_name,
                    app_u.username AS current_approver,
                    COALESCE(app_e.first_name || ' ' || COALESCE(app_e.last_name,'') || ' (' || COALESCE(app_r.role_name, 'Manager') || ' — ' || COALESCE(app_e.city, 'Hyderabad') || ')', app_u.username, 'Manager') AS current_approver_name
-            FROM july_partner_adjustment a
-            LEFT JOIN july_portal_users sub ON sub.portal_user_id = a.created_by
-            LEFT JOIN july_employees sub_e ON sub_e.employee_id = sub.employee_id
-            LEFT JOIN july_roles sub_r ON sub_r.role_id = sub.role_id
-            LEFT JOIN july_portal_users app_u ON app_u.portal_user_id = a.current_approver_id
-            LEFT JOIN july_employees app_e ON app_e.employee_id = app_u.employee_id
-            LEFT JOIN july_roles app_r ON app_r.role_id = app_u.role_id
+            FROM portal_partner_adjustment a
+            LEFT JOIN portal_portal_users sub ON sub.portal_user_id = a.created_by
+            LEFT JOIN portal_employees sub_e ON sub_e.employee_id = sub.employee_id
+            LEFT JOIN portal_roles sub_r ON sub_r.role_id = sub.role_id
+            LEFT JOIN portal_portal_users app_u ON app_u.portal_user_id = a.current_approver_id
+            LEFT JOIN portal_employees app_e ON app_e.employee_id = app_u.employee_id
+            LEFT JOIN portal_roles app_r ON app_r.role_id = app_u.role_id
             WHERE (a.current_approver_id = {uid} OR (a.current_approver_id IS NULL AND {city_sql_a}) OR {str(is_global).lower()})
               AND (a.approval_status LIKE 'Pending%%')
             ORDER BY COALESCE(a.updated_at, a.created_at) DESC;
@@ -9982,13 +9985,13 @@ def get_pending_approvals(authorization: Optional[str] = Header(None)):
                    COALESCE(sub_e.first_name || ' ' || COALESCE(sub_e.last_name,'') || ' (' || COALESCE(sub_r.role_name, 'Executive') || ' — ' || COALESCE(sub_e.city, 'Hyderabad') || ')', sub.username, 'Executive') AS submitted_by_name,
                    app_u.username AS current_approver,
                    COALESCE(app_e.first_name || ' ' || COALESCE(app_e.last_name,'') || ' (' || COALESCE(app_r.role_name, 'Manager') || ' — ' || COALESCE(app_e.city, 'Hyderabad') || ')', app_u.username, 'Manager') AS current_approver_name
-            FROM july_allocation_form a
-            LEFT JOIN july_portal_users sub ON sub.portal_user_id = a.created_by
-            LEFT JOIN july_employees sub_e ON sub_e.employee_id = sub.employee_id
-            LEFT JOIN july_roles sub_r ON sub_r.role_id = sub.role_id
-            LEFT JOIN july_portal_users app_u ON app_u.portal_user_id = a.current_approver_id
-            LEFT JOIN july_employees app_e ON app_e.employee_id = app_u.employee_id
-            LEFT JOIN july_roles app_r ON app_r.role_id = app_u.role_id
+            FROM portal_allocation_form a
+            LEFT JOIN portal_portal_users sub ON sub.portal_user_id = a.created_by
+            LEFT JOIN portal_employees sub_e ON sub_e.employee_id = sub.employee_id
+            LEFT JOIN portal_roles sub_r ON sub_r.role_id = sub.role_id
+            LEFT JOIN portal_portal_users app_u ON app_u.portal_user_id = a.current_approver_id
+            LEFT JOIN portal_employees app_e ON app_e.employee_id = app_u.employee_id
+            LEFT JOIN portal_roles app_r ON app_r.role_id = app_u.role_id
             WHERE (a.current_approver_id = {uid} OR (a.current_approver_id IS NULL AND {city_sql_a}) OR {str(is_global).lower()})
               AND (a.approval_status LIKE 'Pending%%')
             ORDER BY COALESCE(a.updated_at, a.created_at) DESC;
@@ -10033,14 +10036,14 @@ def get_my_submissions(authorization: Optional[str] = Header(None)):
                    sub.username,
                    COALESCE(sub_e.first_name || ' ' || COALESCE(sub_e.last_name,'') || ' (' || COALESCE(sub_r.role_name, 'Onboarding Executive') || ' — ' || COALESCE(sub_e.city, 'Hyderabad') || ')', sub.username, 'Onboarding Executive 1 (Onboarding Executive — Hyderabad)') AS submitted_by_name,
                    o.daily_rent, o.security_deposit
-            FROM july_onboarding o
-            LEFT JOIN july_portal_users app_u ON app_u.portal_user_id = o.current_approver_id
-            LEFT JOIN july_employees app_e ON app_e.employee_id = app_u.employee_id
-            LEFT JOIN july_roles app_r ON app_r.role_id = app_u.role_id
-            LEFT JOIN july_portal_users sub ON sub.portal_user_id = COALESCE(o.updated_by, o.created_by)
-            LEFT JOIN july_employees sub_e ON sub_e.employee_id = sub.employee_id
-            LEFT JOIN july_roles sub_r ON sub_r.role_id = sub.role_id
-            WHERE (o.created_by = %s OR o.updated_by = %s OR o.onboarding_id IN (SELECT record_id FROM july_approval_chain_logs WHERE from_user_id = %s))
+            FROM portal_onboarding o
+            LEFT JOIN portal_portal_users app_u ON app_u.portal_user_id = o.current_approver_id
+            LEFT JOIN portal_employees app_e ON app_e.employee_id = app_u.employee_id
+            LEFT JOIN portal_roles app_r ON app_r.role_id = app_u.role_id
+            LEFT JOIN portal_portal_users sub ON sub.portal_user_id = COALESCE(o.updated_by, o.created_by)
+            LEFT JOIN portal_employees sub_e ON sub_e.employee_id = sub.employee_id
+            LEFT JOIN portal_roles sub_r ON sub_r.role_id = sub.role_id
+            WHERE (o.created_by = %s OR o.updated_by = %s OR o.onboarding_id IN (SELECT record_id FROM portal_approval_chain_logs WHERE from_user_id = %s))
             ORDER BY COALESCE(o.updated_at, o.created_at) DESC;
         """, (uid, uid, uid))
         for r in cur.fetchall():
@@ -10062,13 +10065,13 @@ def get_my_submissions(authorization: Optional[str] = Header(None)):
                    NULL AS approval_remarks,
                    sub.username,
                    COALESCE(sub_e.first_name || ' ' || COALESCE(sub_e.last_name,'') || ' (' || COALESCE(sub_r.role_name, 'Onboarding Executive') || ' — ' || COALESCE(sub_e.city, 'Hyderabad') || ')', sub.username, 'Onboarding Executive 1 (Onboarding Executive — Hyderabad)') AS submitted_by_name
-            FROM july_vehicle_onboarding v
-            LEFT JOIN july_portal_users app_u ON app_u.portal_user_id = v.current_approver_id
-            LEFT JOIN july_employees app_e ON app_e.employee_id = app_u.employee_id
-            LEFT JOIN july_roles app_r ON app_r.role_id = app_u.role_id
-            LEFT JOIN july_portal_users sub ON sub.portal_user_id = v.created_by
-            LEFT JOIN july_employees sub_e ON sub_e.employee_id = sub.employee_id
-            LEFT JOIN july_roles sub_r ON sub_r.role_id = sub.role_id
+            FROM portal_vehicle_onboarding v
+            LEFT JOIN portal_portal_users app_u ON app_u.portal_user_id = v.current_approver_id
+            LEFT JOIN portal_employees app_e ON app_e.employee_id = app_u.employee_id
+            LEFT JOIN portal_roles app_r ON app_r.role_id = app_u.role_id
+            LEFT JOIN portal_portal_users sub ON sub.portal_user_id = v.created_by
+            LEFT JOIN portal_employees sub_e ON sub_e.employee_id = sub.employee_id
+            LEFT JOIN portal_roles sub_r ON sub_r.role_id = sub.role_id
             WHERE v.created_by = %s OR v.updated_by = %s ORDER BY COALESCE(v.updated_at, v.created_at) DESC;
         """, (uid, uid))
         for r in cur.fetchall():
@@ -10093,15 +10096,15 @@ def get_my_submissions(authorization: Optional[str] = Header(None)):
                    a.approval_remarks,
                    sub.username,
                    COALESCE(sub_e.first_name || ' ' || COALESCE(sub_e.last_name,'') || ' (' || COALESCE(sub_r.role_name, 'Executive') || ' — ' || COALESCE(sub_e.city, 'Hyderabad') || ')', sub.username, 'Executive') AS submitted_by_name
-            FROM july_partner_adjustment a
-            LEFT JOIN july_portal_users app_u ON app_u.portal_user_id = a.current_approver_id
-            LEFT JOIN july_employees app_e ON app_e.employee_id = app_u.employee_id
-            LEFT JOIN july_roles app_r ON app_r.role_id = app_u.role_id
-            LEFT JOIN july_portal_users sub ON sub.portal_user_id = a.created_by
-            LEFT JOIN july_employees sub_e ON sub_e.employee_id = sub.employee_id
-            LEFT JOIN july_roles sub_r ON sub_r.role_id = sub.role_id
+            FROM portal_partner_adjustment a
+            LEFT JOIN portal_portal_users app_u ON app_u.portal_user_id = a.current_approver_id
+            LEFT JOIN portal_employees app_e ON app_e.employee_id = app_u.employee_id
+            LEFT JOIN portal_roles app_r ON app_r.role_id = app_u.role_id
+            LEFT JOIN portal_portal_users sub ON sub.portal_user_id = a.created_by
+            LEFT JOIN portal_employees sub_e ON sub_e.employee_id = sub.employee_id
+            LEFT JOIN portal_roles sub_r ON sub_r.role_id = sub.role_id
             WHERE a.created_by = %s OR a.updated_by = %s
-               OR a.id IN (SELECT record_id FROM july_approval_chain_logs WHERE module_name IN ('adjustment_form', 'adjustment') AND from_user_id = %s)
+               OR a.id IN (SELECT record_id FROM portal_approval_chain_logs WHERE module_name IN ('adjustment_form', 'adjustment') AND from_user_id = %s)
             ORDER BY COALESCE(a.updated_at, a.created_at) DESC;
         """, (uid, uid, uid))
         for r in cur.fetchall():
@@ -10133,15 +10136,15 @@ def get_my_submissions(authorization: Optional[str] = Header(None)):
                    a.approval_remarks,
                    sub.username,
                    COALESCE(sub_e.first_name || ' ' || COALESCE(sub_e.last_name,'') || ' (' || COALESCE(sub_r.role_name, 'Executive') || ' — ' || COALESCE(sub_e.city, 'Hyderabad') || ')', sub.username, 'Executive') AS submitted_by_name
-            FROM july_allocation_form a
-            LEFT JOIN july_portal_users app_u ON app_u.portal_user_id = a.current_approver_id
-            LEFT JOIN july_employees app_e ON app_e.employee_id = app_u.employee_id
-            LEFT JOIN july_roles app_r ON app_r.role_id = app_u.role_id
-            LEFT JOIN july_portal_users sub ON sub.portal_user_id = a.created_by
-            LEFT JOIN july_employees sub_e ON sub_e.employee_id = sub.employee_id
-            LEFT JOIN july_roles sub_r ON sub_r.role_id = sub.role_id
+            FROM portal_allocation_form a
+            LEFT JOIN portal_portal_users app_u ON app_u.portal_user_id = a.current_approver_id
+            LEFT JOIN portal_employees app_e ON app_e.employee_id = app_u.employee_id
+            LEFT JOIN portal_roles app_r ON app_r.role_id = app_u.role_id
+            LEFT JOIN portal_portal_users sub ON sub.portal_user_id = a.created_by
+            LEFT JOIN portal_employees sub_e ON sub_e.employee_id = sub.employee_id
+            LEFT JOIN portal_roles sub_r ON sub_r.role_id = sub.role_id
             WHERE a.created_by = %s OR a.updated_by = %s 
-               OR a.id IN (SELECT record_id FROM july_approval_chain_logs WHERE module_name IN ('allocation', 'dropoff') AND from_user_id = %s)
+               OR a.id IN (SELECT record_id FROM portal_approval_chain_logs WHERE module_name IN ('allocation', 'dropoff') AND from_user_id = %s)
             ORDER BY COALESCE(a.updated_at, a.created_at) DESC;
         """, (uid, uid, uid))
         for r in cur.fetchall():
@@ -10168,17 +10171,17 @@ class ApprovalAction(BaseModel):
 
 
 MODULE_TABLE_MAP = {
-    "individual_onboarding": ("july_onboarding", "onboarding_id"),
-    "operator_onboarding": ("july_onboarding", "onboarding_id"),
-    "onboarding": ("july_onboarding", "onboarding_id"),
-    "vehicle_onboarding": ("july_vehicle_onboarding", "id"),
-    "tickets_desk": ("july_tickets", "ticket_id"),
-    "adjustment_form": ("july_partner_adjustment", "id"),
-    "accidents_form": ("july_accidents_registry", "id"),
-    "expenses_form": ("july_partner_expenses", "id"),
-    "workshops_desk": ("july_maintenance_registry", "id"),
-    "allocation": ("july_allocation_form", "id"),
-    "dropoff": ("july_allocation_form", "id"),
+    "individual_onboarding": ("portal_onboarding", "onboarding_id"),
+    "operator_onboarding": ("portal_onboarding", "onboarding_id"),
+    "onboarding": ("portal_onboarding", "onboarding_id"),
+    "vehicle_onboarding": ("portal_vehicle_onboarding", "id"),
+    "tickets_desk": ("portal_tickets", "ticket_id"),
+    "adjustment_form": ("portal_partner_adjustment", "id"),
+    "accidents_form": ("portal_accidents_registry", "id"),
+    "expenses_form": ("portal_partner_expenses", "id"),
+    "workshops_desk": ("portal_maintenance_registry", "id"),
+    "allocation": ("portal_allocation_form", "id"),
+    "dropoff": ("portal_allocation_form", "id"),
 }
 
 
@@ -10219,16 +10222,16 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
                 # Fetch L2 approver if L1 is approving
                 cur.execute("""
                     SELECT ac.approver_role_code, ac.approver_city
-                    FROM july_user_approval_chain ac
+                    FROM portal_user_approval_chain ac
                     WHERE ac.portal_user_id = %s AND ac.level = 2;
                 """, (created_by_id,))
                 l2_row = cur.fetchone()
                 if l2_row:
                     l2_role_code, l2_city = l2_row
                     cur.execute("""
-                        SELECT pu.portal_user_id FROM july_portal_users pu
-                        LEFT JOIN july_employees e ON e.employee_id = pu.employee_id
-                        LEFT JOIN july_roles r ON r.role_id = pu.role_id
+                        SELECT pu.portal_user_id FROM portal_portal_users pu
+                        LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
+                        LEFT JOIN portal_roles r ON r.role_id = pu.role_id
                         WHERE r.role_code = %s AND COALESCE(pu.city, e.city, '') = %s
                           AND COALESCE(pu.account_status,'Active') = 'Active' LIMIT 1;
                     """, (l2_role_code, l2_city or ""))
@@ -10238,17 +10241,17 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
 
                     # SA fallback
                     if not next_approver_id and l2_role_code == "SA":
-                        cur.execute("SELECT portal_user_id FROM july_portal_users WHERE username='admin' LIMIT 1;")
+                        cur.execute("SELECT portal_user_id FROM portal_portal_users WHERE username='admin' LIMIT 1;")
                         r = cur.fetchone()
                         if r: next_approver_id = r[0]
 
             if next_approver_id:
                 # L1 approved → route to L2
-                if table == "july_partner_adjustment" and body.approved_amount is not None:
+                if table == "portal_partner_adjustment" and body.approved_amount is not None:
                     try:
                         val_amt = float(body.approved_amount)
                         cur.execute("""
-                            UPDATE july_partner_adjustment 
+                            UPDATE portal_partner_adjustment 
                             SET approved_amount = %s, approval_status = 'Pending L2 Approval',
                                 current_approver_id = %s, approval_remarks = %s, updated_at = NOW()
                             WHERE id = %s RETURNING id;
@@ -10267,36 +10270,36 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
                     """, (next_approver_id, body.remarks, record_id))
                 if not cur.fetchone():
                     raise HTTPException(status_code=403, detail="Update failed")
-                if table == "july_onboarding":
+                if table == "portal_onboarding":
                     cur.execute("""
-                        UPDATE july_form_onboarding
+                        UPDATE portal_form_onboarding
                         SET approval_status = 'Pending L2 Approval', current_approver_id = %s,
                             approval_note = %s, updated_by = %s, updated_at = NOW()
                         WHERE id = %s;
                     """, (next_approver_id, body.remarks, uid, record_id))
                 if module == "dropoff":
                     cur.execute("""
-                        UPDATE july_vehicle_dropoffs 
+                        UPDATE portal_vehicle_dropoffs 
                         SET approval_status = 'Pending L2 Approval', current_approver_id = %s,
                             approval_remarks = %s, updated_at = NOW()
                         WHERE id = %s;
                     """, (next_approver_id, body.remarks, record_id))
 
                 log_rem = body.remarks
-                if table == "july_partner_adjustment" and body.approved_amount is not None:
+                if table == "portal_partner_adjustment" and body.approved_amount is not None:
                     log_rem = f"[L1 Approved Amount: ₹{body.approved_amount}] {body.remarks or ''}".strip()
                 cur.execute("""
-                    INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
+                    INSERT INTO portal_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                     VALUES (%s, %s, %s, %s, 'APPROVED_L1', %s);
                 """, (module, record_id, uid, next_approver_id, log_rem))
             else:
                 # L2 approval (or no chain) → fully approve
                 final_approval_status = "Approved"
                 existing_app_amt = None
-                if table == "july_partner_adjustment":
+                if table == "portal_partner_adjustment":
                     app_amt = body.approved_amount
                     try:
-                        cur.execute("SELECT enter_amount, approved_amount FROM july_partner_adjustment WHERE id = %s;", (record_id,))
+                        cur.execute("SELECT enter_amount, approved_amount FROM portal_partner_adjustment WHERE id = %s;", (record_id,))
                         ent_row = cur.fetchone()
                         req_amt = float(ent_row[0]) if ent_row and ent_row[0] else 0.0
                         existing_app_amt = ent_row[1] if ent_row else None
@@ -10306,7 +10309,7 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
                             if val_amt > 0 and val_amt < req_amt:
                                 final_approval_status = "Partially Approved"
                             cur.execute("""
-                                UPDATE july_partner_adjustment 
+                                UPDATE portal_partner_adjustment 
                                 SET approved_amount = %s, status = %s
                                 WHERE id = %s;
                             """, (str(val_amt), final_approval_status, record_id))
@@ -10320,58 +10323,58 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
                 """, (final_approval_status, uid, body.remarks, uid, record_id, uid, is_admin_or_cm))
                 if not cur.fetchone():
                     raise HTTPException(status_code=403, detail="Not authorized or record not found")
-                if table == "july_onboarding":
+                if table == "portal_onboarding":
                     cur.execute("""
-                        UPDATE july_form_onboarding
+                        UPDATE portal_form_onboarding
                         SET approval_status = 'Approved', current_approver_id = NULL, approved_by = %s, approval_note = %s, updated_by = %s, updated_at = NOW()
                         WHERE id = %s;
                     """, (uid, body.remarks, uid, record_id))
 
                 log_rem = body.remarks
-                if table == "july_partner_adjustment":
+                if table == "portal_partner_adjustment":
                     disp_amt = body.approved_amount if body.approved_amount is not None else existing_app_amt
                     if disp_amt is not None:
                         log_rem = f"[{final_approval_status}: ₹{disp_amt}] {body.remarks or ''}".strip()
 
                 cur.execute("""
-                    INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
+                    INSERT INTO portal_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                     VALUES (%s, %s, %s, NULL, 'APPROVED', %s);
                 """, (module, record_id, uid, log_rem))
 
                 if module == "allocation":
                     cur.execute("""
-                        UPDATE july_vehicle_onboarding 
+                        UPDATE portal_vehicle_onboarding 
                         SET received_allocated = 'Allocated' 
                         WHERE UPPER(vehicle_number) = (
-                            SELECT UPPER(vehicle_number) FROM july_allocation_form WHERE id = %s
+                            SELECT UPPER(vehicle_number) FROM portal_allocation_form WHERE id = %s
                         );
                     """, (record_id,))
-                    cur.execute("UPDATE july_allocation_form SET status = 'Submitted' WHERE id = %s;", (record_id,))
+                    cur.execute("UPDATE portal_allocation_form SET status = 'Submitted' WHERE id = %s;", (record_id,))
                 elif module == "dropoff":
                     cur.execute("""
-                        UPDATE july_vehicle_onboarding 
+                        UPDATE portal_vehicle_onboarding 
                         SET received_allocated = 'Ready for Deployment' 
                         WHERE UPPER(vehicle_number) = (
-                            SELECT UPPER(vehicle_number) FROM july_allocation_form WHERE id = %s
+                            SELECT UPPER(vehicle_number) FROM portal_allocation_form WHERE id = %s
                         );
                     """, (record_id,))
                     cur.execute("""
-                        UPDATE july_allocation_form 
+                        UPDATE portal_allocation_form 
                         SET status = 'Returned', approval_status = 'Returned'
                         WHERE UPPER(vehicle_number) = (
-                            SELECT UPPER(vehicle_number) FROM july_allocation_form WHERE id = %s
+                            SELECT UPPER(vehicle_number) FROM portal_allocation_form WHERE id = %s
                         )
                           AND allocation_type != 'Drop-Off'
                           AND (status IS NULL OR status NOT IN ('Returned', 'Completed'));
                     """, (record_id,))
                     cur.execute("""
-                        UPDATE july_allocation_form 
+                        UPDATE portal_allocation_form 
                         SET status = 'Submitted', approval_status = 'Approved',
                             current_approver_id = NULL, approval_remarks = %s, updated_at = NOW()
                         WHERE id = %s;
                     """, (body.remarks, record_id))
                     cur.execute("""
-                        UPDATE july_vehicle_dropoffs 
+                        UPDATE portal_vehicle_dropoffs 
                         SET approval_status = 'Approved', current_approver_id = NULL,
                             approval_remarks = %s, status = 'Submitted', updated_at = NOW()
                         WHERE id = %s;
@@ -10387,25 +10390,25 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
             if not cur.fetchone():
                 raise HTTPException(status_code=403, detail="Not authorized or record not found")
             
-            if table == "july_onboarding":
+            if table == "portal_onboarding":
                 cur.execute("""
-                    UPDATE july_form_onboarding
+                    UPDATE portal_form_onboarding
                     SET approval_status = 'Rejected', current_approver_id = NULL, approved_by = %s, approval_note = %s, updated_by = %s, updated_at = NOW()
                     WHERE id = %s;
                 """, (uid, body.remarks, uid, record_id))
 
             if module in ["allocation", "dropoff"]:
-                cur.execute("UPDATE july_allocation_form SET status = 'Rejected' WHERE id = %s;", (record_id,))
+                cur.execute("UPDATE portal_allocation_form SET status = 'Rejected' WHERE id = %s;", (record_id,))
             if module == "dropoff":
                 cur.execute("""
-                    UPDATE july_vehicle_dropoffs 
+                    UPDATE portal_vehicle_dropoffs 
                     SET approval_status = 'Rejected', current_approver_id = NULL,
                         approval_remarks = %s, status = 'Rejected', updated_at = NOW()
                     WHERE id = %s;
                 """, (body.remarks, record_id))
 
             cur.execute("""
-                INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
+                INSERT INTO portal_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                 VALUES (%s, %s, %s, NULL, 'REJECTED', %s);
             """, (module, record_id, uid, body.remarks))
 
@@ -10413,7 +10416,7 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
             if not body.forward_to_user_id:
                 raise HTTPException(status_code=400, detail="forward_to_user_id is required")
             
-            if table == "july_partner_adjustment" and body.approved_amount is not None:
+            if table == "portal_partner_adjustment" and body.approved_amount is not None:
                 try:
                     val_amt = float(body.approved_amount)
                     cur.execute(f"""
@@ -10433,26 +10436,26 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
             if not cur.fetchone():
                 raise HTTPException(status_code=403, detail="Not authorized or record not found")
             
-            if table == "july_onboarding":
+            if table == "portal_onboarding":
                 cur.execute("""
-                    UPDATE july_form_onboarding
+                    UPDATE portal_form_onboarding
                     SET current_approver_id = %s, approval_requested_to = %s, approval_note = %s, updated_by = %s, updated_at = NOW()
                     WHERE id = %s;
                 """, (body.forward_to_user_id, body.forward_to_user_id, body.remarks, uid, record_id))
 
             if module == "dropoff":
                 cur.execute("""
-                    UPDATE july_vehicle_dropoffs 
+                    UPDATE portal_vehicle_dropoffs 
                     SET current_approver_id = %s, approval_remarks = %s, updated_at = NOW()
                     WHERE id = %s;
                 """, (body.forward_to_user_id, body.remarks, record_id))
 
             log_rem = body.remarks
-            if table == "july_partner_adjustment" and body.approved_amount is not None:
+            if table == "portal_partner_adjustment" and body.approved_amount is not None:
                 log_rem = f"[Forwarded with Proposed Amount: ₹{body.approved_amount}] {body.remarks or ''}".strip()
 
             cur.execute("""
-                INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
+                INSERT INTO portal_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                 VALUES (%s, %s, %s, %s, 'FORWARDED', %s);
             """, (module, record_id, uid, body.forward_to_user_id, log_rem))
 
@@ -10465,23 +10468,23 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
             if not cur.fetchone():
                 raise HTTPException(status_code=403, detail="Not authorized or record not found")
             
-            if table == "july_onboarding":
+            if table == "portal_onboarding":
                 cur.execute("""
-                    UPDATE july_form_onboarding
+                    UPDATE portal_form_onboarding
                     SET approval_status = 'Changes Requested', current_approver_id = created_by, approval_note = %s, updated_by = %s, updated_at = NOW()
                     WHERE id = %s;
                 """, (body.remarks, uid, record_id))
 
             if module == "dropoff":
                 cur.execute("""
-                    UPDATE july_vehicle_dropoffs 
+                    UPDATE portal_vehicle_dropoffs 
                     SET approval_status = 'Changes Requested', current_approver_id = created_by,
                         approval_remarks = %s, updated_at = NOW()
                     WHERE id = %s;
                 """, (body.remarks, record_id))
 
             cur.execute("""
-                INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
+                INSERT INTO portal_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                 VALUES (%s, %s, %s, NULL, 'SENT_BACK', %s);
             """, (module, record_id, uid, body.remarks))
 
@@ -10513,11 +10516,11 @@ def get_approval_logs(module: str, record_id: int, authorization: Optional[str] 
             SELECT l.action, l.remarks, l.action_at,
                    fe.first_name || ' ' || COALESCE(fe.last_name,'') AS from_name, fu.username AS from_user,
                    te.first_name || ' ' || COALESCE(te.last_name,'') AS to_name, tu.username AS to_user
-            FROM july_approval_chain_logs l
-            LEFT JOIN july_portal_users fu ON fu.portal_user_id = l.from_user_id
-            LEFT JOIN july_employees fe ON fe.employee_id = fu.employee_id
-            LEFT JOIN july_portal_users tu ON tu.portal_user_id = l.to_user_id
-            LEFT JOIN july_employees te ON te.employee_id = tu.employee_id
+            FROM portal_approval_chain_logs l
+            LEFT JOIN portal_portal_users fu ON fu.portal_user_id = l.from_user_id
+            LEFT JOIN portal_employees fe ON fe.employee_id = fu.employee_id
+            LEFT JOIN portal_portal_users tu ON tu.portal_user_id = l.to_user_id
+            LEFT JOIN portal_employees te ON te.employee_id = tu.employee_id
             WHERE (l.module_name = %s OR (l.module_name IN ('individual_onboarding', 'operator_onboarding', 'onboarding') AND %s IN ('individual_onboarding', 'operator_onboarding', 'onboarding'))) AND l.record_id = %s
             ORDER BY l.action_at ASC;
         """, (module, module, record_id))
@@ -10543,10 +10546,10 @@ def get_approval_logs(module: str, record_id: int, authorization: Optional[str] 
                        COALESCE(sub_e.first_name || ' ' || COALESCE(sub_e.last_name,''), sub_u.username) AS sub_name, sub_u.username,
                        COALESCE(app_e.first_name || ' ' || COALESCE(app_e.last_name,''), app_u.username) AS app_name, app_u.username
                 FROM {table} r
-                LEFT JOIN july_portal_users sub_u ON sub_u.portal_user_id = r.created_by
-                LEFT JOIN july_employees sub_e ON sub_e.employee_id = sub_u.employee_id
-                LEFT JOIN july_portal_users app_u ON app_u.portal_user_id = r.current_approver_id
-                LEFT JOIN july_employees app_e ON app_e.employee_id = app_u.employee_id
+                LEFT JOIN portal_portal_users sub_u ON sub_u.portal_user_id = r.created_by
+                LEFT JOIN portal_employees sub_e ON sub_e.employee_id = sub_u.employee_id
+                LEFT JOIN portal_portal_users app_u ON app_u.portal_user_id = r.current_approver_id
+                LEFT JOIN portal_employees app_e ON app_e.employee_id = app_u.employee_id
                 WHERE r.{pk} = %s;
             """, (record_id,))
             rec = cur.fetchone()
@@ -10595,54 +10598,54 @@ def process_batch_approval(body: BatchApprovalAction, authorization: Optional[st
                 """, (uid, body.remarks, rec_id, uid, is_admin_or_cm))
                 if cur.fetchone():
                     processed_count += 1
-                    if table == "july_onboarding":
+                    if table == "portal_onboarding":
                         cur.execute("""
-                            UPDATE july_form_onboarding
+                            UPDATE portal_form_onboarding
                             SET approval_status = 'Approved', current_approver_id = NULL, approved_by = %s, approval_note = %s, updated_by = %s, updated_at = NOW()
                             WHERE id = %s;
                         """, (uid, body.remarks, uid, rec_id))
 
                     if mod == "allocation":
                         cur.execute("""
-                            UPDATE july_vehicle_onboarding 
+                            UPDATE portal_vehicle_onboarding 
                             SET received_allocated = 'Allocated' 
                             WHERE UPPER(vehicle_number) = (
-                                SELECT UPPER(vehicle_number) FROM july_allocation_form WHERE id = %s
+                                SELECT UPPER(vehicle_number) FROM portal_allocation_form WHERE id = %s
                             );
                         """, (rec_id,))
-                        cur.execute("UPDATE july_allocation_form SET status = 'Submitted' WHERE id = %s;", (rec_id,))
+                        cur.execute("UPDATE portal_allocation_form SET status = 'Submitted' WHERE id = %s;", (rec_id,))
                     elif mod == "dropoff":
                         cur.execute("""
-                            UPDATE july_vehicle_onboarding 
+                            UPDATE portal_vehicle_onboarding 
                             SET received_allocated = 'Ready for Deployment' 
                             WHERE UPPER(vehicle_number) = (
-                                SELECT UPPER(vehicle_number) FROM july_allocation_form WHERE id = %s
+                                SELECT UPPER(vehicle_number) FROM portal_allocation_form WHERE id = %s
                             );
                         """, (rec_id,))
                         cur.execute("""
-                            UPDATE july_allocation_form 
+                            UPDATE portal_allocation_form 
                             SET status = 'Returned', approval_status = 'Returned'
                             WHERE UPPER(vehicle_number) = (
-                                SELECT UPPER(vehicle_number) FROM july_allocation_form WHERE id = %s
+                                SELECT UPPER(vehicle_number) FROM portal_allocation_form WHERE id = %s
                             )
                               AND allocation_type != 'Drop-Off'
                               AND (status IS NULL OR status NOT IN ('Returned', 'Completed'));
                         """, (rec_id,))
                         cur.execute("""
-                            UPDATE july_allocation_form 
+                            UPDATE portal_allocation_form 
                             SET status = 'Submitted', approval_status = 'Approved',
                                 current_approver_id = NULL, approval_remarks = %s, updated_at = NOW()
                             WHERE id = %s;
                         """, (body.remarks, rec_id))
                         cur.execute("""
-                            UPDATE july_vehicle_dropoffs 
+                            UPDATE portal_vehicle_dropoffs 
                             SET approval_status = 'Approved', current_approver_id = NULL,
                                 approval_remarks = %s, status = 'Submitted', updated_at = NOW()
                             WHERE id = %s;
                         """, (body.remarks, rec_id))
 
                     cur.execute("""
-                        INSERT INTO july_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
+                        INSERT INTO portal_approval_chain_logs (module_name, record_id, from_user_id, to_user_id, action, remarks)
                         VALUES (%s, %s, %s, NULL, 'APPROVED', %s);
                     """, (mod, rec_id, uid, body.remarks))
         conn.commit()

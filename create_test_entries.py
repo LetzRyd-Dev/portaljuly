@@ -25,7 +25,7 @@ cur = conn.cursor()
 
 # 1. New Candidate Walk-In
 cur.execute("""
-INSERT INTO july_walkins (
+INSERT INTO portal_walkins (
     first_name, last_name, person_name, person_number, city, visitor_type, partner_type,
     visiting_reason, joined_status, lead_channel, lead_channel_details,
     aadhaar_number, dl_number, is_existing_partner, submission_status, created_at, updated_at
@@ -39,7 +39,7 @@ id1 = cur.fetchone()[0]
 
 # 2. Existing Partner Walk-In
 cur.execute("""
-INSERT INTO july_walkins (
+INSERT INTO portal_walkins (
     first_name, last_name, person_name, person_number, city, visitor_type, partner_type,
     visiting_reason, joined_status, visit_notes, is_existing_partner, submission_status, created_at, updated_at
 ) VALUES (

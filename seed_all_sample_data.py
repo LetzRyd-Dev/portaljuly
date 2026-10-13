@@ -27,8 +27,8 @@ print("[OK] Connected to PostgreSQL Database!")
 # ── 1. Fetch Users & Roles ───────────────────────────────────────────────────
 cur.execute("""
     SELECT pu.portal_user_id, pu.username, r.role_code, r.role_name
-    FROM july_portal_users pu
-    LEFT JOIN july_roles r ON r.role_id = pu.role_id
+    FROM portal_portal_users pu
+    LEFT JOIN portal_roles r ON r.role_id = pu.role_id
     ORDER BY pu.portal_user_id;
 """)
 users = cur.fetchall()
@@ -41,26 +41,26 @@ cm_id   = user_map.get("city_manager", 20)
 bh_id   = user_map.get("business", 17)
 dm_id   = user_map.get("driver_manager", 21)
 
-# Ensure GM role exists in july_roles
-cur.execute("SELECT role_id FROM july_roles WHERE role_code = 'GM';")
+# Ensure GM role exists in portal_roles
+cur.execute("SELECT role_id FROM portal_roles WHERE role_code = 'GM';")
 gm_row = cur.fetchone()
 if not gm_row:
-    cur.execute("INSERT INTO july_roles (role_name, role_code) VALUES ('General Manager', 'GM') RETURNING role_id;")
+    cur.execute("INSERT INTO portal_roles (role_name, role_code) VALUES ('General Manager', 'GM') RETURNING role_id;")
     gm_role_id = cur.fetchone()[0]
     print(f"[OK] Inserted General Manager (GM) role_id={gm_role_id}")
 else:
     gm_role_id = gm_row[0]
 
 # Ensure GM portal user exists
-cur.execute("SELECT portal_user_id FROM july_portal_users WHERE username = 'general_manager';")
+cur.execute("SELECT portal_user_id FROM portal_portal_users WHERE username = 'general_manager';")
 gm_user_row = cur.fetchone()
 if not gm_user_row:
-    cur.execute("SELECT employee_id FROM july_employees LIMIT 1;")
+    cur.execute("SELECT employee_id FROM portal_employees LIMIT 1;")
     emp_row = cur.fetchone()
     gm_emp_id = emp_row[0] if emp_row else 1
     
     cur.execute("""
-        INSERT INTO july_portal_users (username, password_hash, role_id, account_status, employee_id)
+        INSERT INTO portal_portal_users (username, password_hash, role_id, account_status, employee_id)
         VALUES ('general_manager', '$2b$12$OyO0RrmQfRDxkQRNVStnbuXCN.aVzcrNrHqq.wot441EF3mqC2Jm6', %s, 'Active', %s)
         RETURNING portal_user_id;
     """, (gm_role_id, gm_emp_id))
@@ -70,8 +70,8 @@ else:
     gm_id = gm_user_row[0]
 
 # Ensure columns exist
-cur.execute("ALTER TABLE july_onboarding ADD COLUMN IF NOT EXISTS security_deposit VARCHAR(100);")
-cur.execute("ALTER TABLE july_vehicles ADD COLUMN IF NOT EXISTS approval_remarks TEXT;")
+cur.execute("ALTER TABLE portal_onboarding ADD COLUMN IF NOT EXISTS security_deposit VARCHAR(100);")
+cur.execute("ALTER TABLE portal_vehicles ADD COLUMN IF NOT EXISTS approval_remarks TEXT;")
 cur.execute("ALTER TABLE copy_vehicle_allocation ADD COLUMN IF NOT EXISTS approval_status VARCHAR(100);")
 cur.execute("ALTER TABLE copy_vehicle_allocation ADD COLUMN IF NOT EXISTS current_approver_id INTEGER;")
 cur.execute("ALTER TABLE copy_vehicle_allocation ADD COLUMN IF NOT EXISTS approval_remarks TEXT;")
@@ -115,12 +115,12 @@ onboarding_samples = [
 ]
 
 for name, city, plan, status, approver, remarks, rent, deposit in onboarding_samples:
-    cur.execute("SELECT onboarding_id FROM july_onboarding WHERE driver_name = %s AND city = %s;", (name, city))
+    cur.execute("SELECT onboarding_id FROM portal_onboarding WHERE driver_name = %s AND city = %s;", (name, city))
     row = cur.fetchone()
     if not row:
         phone = f"9{abs(hash(name)) % 900000000 + 100000000}"
         cur.execute("""
-            INSERT INTO july_onboarding (
+            INSERT INTO portal_onboarding (
                 driver_name, city, driver_plan, approval_status, current_approver_id,
                 approval_remarks, created_by, phone_number, security_deposit
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -131,7 +131,7 @@ for name, city, plan, status, approver, remarks, rent, deposit in onboarding_sam
         
         if approver in (gm_id, bh_id):
             cur.execute("""
-                INSERT INTO july_approval_chain_logs (
+                INSERT INTO portal_approval_chain_logs (
                     module_name, record_id, action, from_user_id, to_user_id, remarks
                 ) VALUES (%s, %s, 'FORWARDED', %s, %s, %s);
             """, ("individual_onboarding", oid, cm_id, approver, remarks or "Forwarded for review"))
@@ -147,10 +147,10 @@ vehicle_samples = [
 ]
 
 for veh_no, city, model, status, approver, remarks, fuel in vehicle_samples:
-    cur.execute("SELECT vehicle_id FROM july_vehicles WHERE vehicle_number = %s;", (veh_no,))
+    cur.execute("SELECT vehicle_id FROM portal_vehicles WHERE vehicle_number = %s;", (veh_no,))
     if not cur.fetchone():
         cur.execute("""
-            INSERT INTO july_vehicles (
+            INSERT INTO portal_vehicles (
                 vehicle_number, city, model, approval_status, current_approver_id,
                 approval_remarks, created_by, manufacturer, fuel_type
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, 'Tata Motors', %s)

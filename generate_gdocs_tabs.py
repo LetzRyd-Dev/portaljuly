@@ -160,7 +160,7 @@ t2_content = [
         "Odometer + 5 condition photos, pending dues, damage penalty, deposit refund status (Pending Assessment, Approved, Deductions, Forfeited), Saved Drafts tab, live search, city/reason filters, 10/page pagination, CSV export."
     ], None),
     ("4. Walk-In & Returning Partner Visit Logger", [
-        "Two-Table Architecture: july_new_walkins (candidates) and july_existing_walkins (returning partners).",
+        "Two-Table Architecture: portal_new_walkins (candidates) and portal_existing_walkins (returning partners).",
         "Lookup by phone number auto-fills partner name and city, tags operational visit reason, and displays prior visit history modal."
     ], None)
 ]
@@ -201,12 +201,12 @@ t4_content = [
     ], (
         ["Audit Log Table", "Module Tracked", "Actions Logged", "Data Recorded"],
         [
-            ["july_allocation_form_logs", "Allocation & Drop-Off", "CREATE, UPDATE, DELETE", "Allocation ID, Executive ID, IST Timestamp, JSON diff"],
-            ["july_walkin_logs", "Walk-In & Visits", "CREATE, UPDATE, DELETE", "Walkin ID (N1, E1), Executive ID, IST Timestamp, Remarks"],
-            ["july_onboarding_logs", "Partner Onboarding", "CREATE, UPDATE, DRAFT", "Onboarding ID, Executive ID, Full Snapshot & JSON diff"],
-            ["july_vehicle_logs", "Fleet Master", "CREATE, UPDATE, STATUS", "Vehicle ID, Status, Executive ID, Snapshot & JSON diff"],
-            ["july_approval_chain_logs", "Approvals Workflow", "APPROVE, REJECT, REVISION", "Module, Record ID, From/To User, Remarks & Timestamp"],
-            ["july_user_login_logs", "Authentication Engine", "LOGIN, LOGOUT", "User ID, Username, Role Code, IP Address & Session Token"]
+            ["portal_allocation_form_logs", "Allocation & Drop-Off", "CREATE, UPDATE, DELETE", "Allocation ID, Executive ID, IST Timestamp, JSON diff"],
+            ["portal_walkin_logs", "Walk-In & Visits", "CREATE, UPDATE, DELETE", "Walkin ID (N1, E1), Executive ID, IST Timestamp, Remarks"],
+            ["portal_onboarding_logs", "Partner Onboarding", "CREATE, UPDATE, DRAFT", "Onboarding ID, Executive ID, Full Snapshot & JSON diff"],
+            ["portal_vehicle_logs", "Fleet Master", "CREATE, UPDATE, STATUS", "Vehicle ID, Status, Executive ID, Snapshot & JSON diff"],
+            ["portal_approval_chain_logs", "Approvals Workflow", "APPROVE, REJECT, REVISION", "Module, Record ID, From/To User, Remarks & Timestamp"],
+            ["portal_user_login_logs", "Authentication Engine", "LOGIN, LOGOUT", "User ID, Username, Role Code, IP Address & Session Token"]
         ],
         [1.8, 1.5, 1.5, 2.0]
     ))
@@ -216,10 +216,10 @@ create_tab_doc("Tab_4_Audit_Logs_and_Tracking.docx", "Tab 4 — Audit Logs & Eve
 # TAB 5: DATABASE SCHEMA & WORKFLOWS
 t5_content = [
     ("1. Database Schema & Tables Overview", [
-        "july_portal_users: Executive accounts, roles, employee IDs, cities, joining dates.",
-        "july_form_onboarding: Master candidate onboarding registry & KYC document URLs.",
-        "july_allocation_form: Vehicle allocation and vehicle drop-off entries.",
-        "july_new_walkins & july_existing_walkins: Walk-in candidate and returning partner visit logs."
+        "portal_portal_users: Executive accounts, roles, employee IDs, cities, joining dates.",
+        "portal_form_onboarding: Master candidate onboarding registry & KYC document URLs.",
+        "portal_allocation_form: Vehicle allocation and vehicle drop-off entries.",
+        "portal_new_walkins & portal_existing_walkins: Walk-in candidate and returning partner visit logs."
     ], None),
     ("2. Approval Workflows State Machine", [
         "Draft State -> Pending Approval State -> Approved State / Rejected State / Revision Required State."

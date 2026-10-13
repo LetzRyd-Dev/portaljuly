@@ -238,7 +238,7 @@ data = [
         "2026-08-05", 29,
         "Two-Table Architecture (New Walk-Ins & Existing Partners)",
         "Vivek", "Anurag", "Done", "Walk-In Form & Database",
-        "Implemented two-table database architecture (july_new_walkins & july_existing_walkins) with UNION registry listing."
+        "Implemented two-table database architecture (portal_new_walkins & portal_existing_walkins) with UNION registry listing."
     ],
     [
         "2026-08-05", 30,

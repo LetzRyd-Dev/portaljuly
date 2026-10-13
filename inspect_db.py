@@ -11,21 +11,21 @@ with open('.env') as f:
 conn = psycopg2.connect(dsn=env['DATABASE_URL'])
 cur = conn.cursor()
 
-# Get schema of july_portal_users
-cur.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name='july_portal_users' ORDER BY ordinal_position;")
+# Get schema of portal_portal_users
+cur.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name='portal_portal_users' ORDER BY ordinal_position;")
 cols = cur.fetchall()
-print('july_portal_users columns:')
+print('portal_portal_users columns:')
 for c in cols:
     print(f'  {c[0]} ({c[1]})')
 
-cur.execute("SELECT * FROM july_portal_users LIMIT 5;")
+cur.execute("SELECT * FROM portal_portal_users LIMIT 5;")
 rows = cur.fetchall()
 print('\nSample users:')
 for r in rows:
     print(' ', r)
 
-# Check july_onboarding schema
-cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='july_onboarding' ORDER BY ordinal_position;")
+# Check portal_onboarding schema
+cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='portal_onboarding' ORDER BY ordinal_position;")
 ocols = [r[0] for r in cur.fetchall()]
 print('\njuly_onboarding columns:', ocols)
 

@@ -16,7 +16,7 @@ conn = psycopg2.connect(dsn=env['DATABASE_URL'])
 cur = conn.cursor()
 
 # Get portal users
-cur.execute("SELECT portal_user_id, username, role_id FROM july_portal_users ORDER BY role_id LIMIT 5;")
+cur.execute("SELECT portal_user_id, username, role_id FROM portal_portal_users ORDER BY role_id LIMIT 5;")
 portal_users = cur.fetchall()
 print('Portal users:', portal_users)
 
@@ -57,7 +57,7 @@ for w in walkin_data:
         conn.rollback()
         print(f'Walk-in error {w[0]}: {e}')
 
-# 2. Seed Onboarding records in july_onboarding
+# 2. Seed Onboarding records in portal_onboarding
 onboarding_data = [
     ('Arun Prasad Driver', '9871234567', 'Hyderabad', 'Drive to Rent', 'Pending Approval', approver_id, executive_id),
     ('Divya Nair Driver', '9845678901', 'Bangalore', 'Drive to Own', 'Approved', None, executive_id),
@@ -70,7 +70,7 @@ for o in onboarding_data:
     try:
         remarks = 'Please verify the DL expiry date and resubmit' if o[4] == 'Changes Requested' else None
         cur.execute("""
-            INSERT INTO july_onboarding 
+            INSERT INTO portal_onboarding 
             (driver_name, phone_number, city, driver_plan, approval_status, 
              current_approver_id, created_by, created_at, approval_remarks)
             VALUES (%s,%s,%s,%s,%s,%s,%s,NOW(),%s)
@@ -81,7 +81,7 @@ for o in onboarding_data:
         conn.rollback()
         print(f'Onboarding error {o[0]}: {e}')
 
-# 3. Seed Vehicle records in july_vehicles
+# 3. Seed Vehicle records in portal_vehicles
 vehicle_data = [
     ('TS09AB1234', 'Hyderabad', 'Tata', 'Nexon EV', 'EV', 'Pending Approval', approver_id, executive_id),
     ('KA03CD5678', 'Bangalore', 'Tata', 'Xpres-T EV', 'EV', 'Approved', None, executive_id),
@@ -92,7 +92,7 @@ vehicle_data = [
 for v in vehicle_data:
     try:
         cur.execute("""
-            INSERT INTO july_vehicles
+            INSERT INTO portal_vehicles
             (vehicle_number, city, manufacturer, model, fuel_type, approval_status,
              current_approver_id, created_by, created_at)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())
@@ -107,7 +107,7 @@ for v in vehicle_data:
 for mod in ['individual_onboarding', 'vehicle_onboarding']:
     try:
         cur.execute("""
-            INSERT INTO july_approval_chain_logs 
+            INSERT INTO portal_approval_chain_logs 
             (module_name, record_id, from_user_id, to_user_id, action, remarks, action_at)
             VALUES (%s, 1, %s, %s, 'SUBMITTED', 'Submitted for review and approval', NOW())
         """, (mod, executive_id, approver_id))

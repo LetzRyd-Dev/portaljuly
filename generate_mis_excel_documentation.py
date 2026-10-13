@@ -494,7 +494,7 @@ repo_matrix = [
     (
         "https://github.com/aayush-letzryd/bangalore-challan",
         "Bangalore Traffic Police (BTP) Challan Scraper",
-        "challan_1, challan_15, challan_16, july_traffic_challans, core_challans",
+        "challan_1, challan_15, challan_16, portal_traffic_challans, core_challans",
         "(vehicle_reg_no, notice_no, week_cycle)",
         "Daily scrape batches",
         "Regex vehicle validation, eliminates paid challan duplicates, matches violation timestamps with driver custody."
