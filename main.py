@@ -6298,7 +6298,7 @@ def create_allocation_record(data: AllocationData, authorization: Optional[str] 
     user = None
     if authorization:
         try:
-            user = get_july_user(authorization)
+            user = get_portal_user(authorization)
         except Exception:
             pass
     uid   = user["portal_user_id"] if user else None
@@ -6677,7 +6677,7 @@ def create_dropoff(data: DropOffData, authorization: Optional[str] = Header(None
     user = None
     if authorization:
         try:
-            user = get_july_user(authorization)
+            user = get_portal_user(authorization)
         except Exception:
             pass
     uid = user["portal_user_id"] if user else None
@@ -6890,7 +6890,7 @@ def update_dropoff(id: int, data: DropOffData, authorization: Optional[str] = He
     user = None
     if authorization:
         try:
-            user = get_july_user(authorization)
+            user = get_portal_user(authorization)
         except Exception:
             pass
     uid = user["portal_user_id"] if user else None
@@ -7091,7 +7091,7 @@ def update_allocation_record(id: int, data: AllocationData, authorization: Optio
     user = None
     if authorization:
         try:
-            user = get_july_user(authorization)
+            user = get_portal_user(authorization)
         except Exception:
             pass
     uid   = user["portal_user_id"] if user else None
@@ -7265,7 +7265,7 @@ def delete_allocation_record(id: int, authorization: Optional[str] = Header(None
     user = None
     if authorization:
         try:
-            user = get_july_user(authorization)
+            user = get_portal_user(authorization)
         except Exception:
             pass
     uid   = user["portal_user_id"] if user else None
@@ -9703,7 +9703,7 @@ def delete_challan(id: int, authorization: Optional[str] = Header(None)):
 # JULY RBAC — Approval System APIs
 # ─────────────────────────────────────────────────────────
 
-def get_july_user(authorization: Optional[str] = Header(None)):
+def get_portal_user(authorization: Optional[str] = Header(None)):
     """Get current user from portal_portal_users via session token with clean fallback."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -9798,7 +9798,7 @@ def get_july_user(authorization: Optional[str] = Header(None)):
 @app.get("/api/july/approvers")
 def get_approvers(authorization: Optional[str] = Header(None)):
     """Return list of valid approvers for current user (excluding Super Admin)."""
-    user = get_july_user(authorization)
+    user = get_portal_user(authorization)
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
@@ -9841,7 +9841,7 @@ def to_ist_iso(dt):
 @app.get("/api/july/pending-approvals")
 def get_pending_approvals(authorization: Optional[str] = Header(None)):
     """Get pending approvals assigned specifically to the current user (Strict Personal Inbox for ALL roles)."""
-    user = get_july_user(authorization)
+    user = get_portal_user(authorization)
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
@@ -10018,7 +10018,7 @@ def get_pending_approvals(authorization: Optional[str] = Header(None)):
 @app.get("/api/july/my-submissions")
 def get_my_submissions(authorization: Optional[str] = Header(None)):
     """Get all records submitted by the current user across all modules."""
-    user = get_july_user(authorization)
+    user = get_portal_user(authorization)
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
@@ -10189,7 +10189,7 @@ MODULE_TABLE_MAP = {
 def process_approval(module: str, record_id: int, body: ApprovalAction,
                      authorization: Optional[str] = Header(None)):
     """Process an approval action: Approve, Reject, or Forward to another user."""
-    user = get_july_user(authorization)
+    user = get_portal_user(authorization)
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
@@ -10505,7 +10505,7 @@ def process_approval(module: str, record_id: int, body: ApprovalAction,
 @app.get("/api/july/approval-logs/{module}/{record_id}")
 def get_approval_logs(module: str, record_id: int, authorization: Optional[str] = Header(None)):
     """Get full approval chain history for a specific record, including initial SUBMITTED log."""
-    get_july_user(authorization)
+    get_portal_user(authorization)
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
@@ -10578,7 +10578,7 @@ class BatchApprovalAction(BaseModel):
 @app.post("/api/july/batch-approval")
 def process_batch_approval(body: BatchApprovalAction, authorization: Optional[str] = Header(None)):
     """Approve multiple pending records at once."""
-    user = get_july_user(authorization)
+    user = get_portal_user(authorization)
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
@@ -10660,7 +10660,7 @@ def process_batch_approval(body: BatchApprovalAction, authorization: Optional[st
 @app.get("/api/july/record-details/{module}/{record_id}")
 def get_record_details(module: str, record_id: int, authorization: Optional[str] = Header(None)):
     """Fetch all columns from a specific record table dynamically."""
-    get_july_user(authorization)
+    get_portal_user(authorization)
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()

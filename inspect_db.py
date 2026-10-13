@@ -27,6 +27,6 @@ for r in rows:
 # Check portal_onboarding schema
 cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='portal_onboarding' ORDER BY ordinal_position;")
 ocols = [r[0] for r in cur.fetchall()]
-print('\njuly_onboarding columns:', ocols)
+print('\nportal_onboarding columns:', ocols)
 
 conn.close()
