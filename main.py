@@ -3263,9 +3263,9 @@ def get_employees(authorization: Optional[str] = Header(None)):
     try:
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, name, COALESCE(role,'Executive'), phone, email, company_email,
+            SELECT portal_user_id, username, COALESCE(role,'Executive'), phone, email, company_email,
                    department, city, joining_date, employee_id, COALESCE(status,'Active')
-            FROM portal_portal_users ORDER BY id;
+            FROM portal_portal_users ORDER BY portal_user_id;
         """)
         keys = ["id","name","role","phone","email","company_email","department","city","joining_date","employee_id","status"]
         return [dict(zip(keys, row)) for row in cur.fetchall()]
@@ -3279,8 +3279,8 @@ def create_employee(req: EmployeeData, authorization: Optional[str] = Header(Non
     try:
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO portal_portal_users (name, role, phone, email, company_email, department, city, joining_date, employee_id, status)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id;
+            INSERT INTO portal_portal_users (username, role, phone, email, company_email, department, city, joining_date, employee_id, status)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING portal_user_id;
         """, (req.name.strip(), req.role.strip(), req.phone, req.email, req.company_email, req.department,
               req.city, req.joining_date, req.employee_id, req.status or "Active"))
         new_id = cur.fetchone()[0]
@@ -3299,9 +3299,9 @@ def update_employee(id: int, req: EmployeeData, authorization: Optional[str] = H
     try:
         cur = conn.cursor()
         cur.execute("""
-            UPDATE portal_portal_users SET name=%s, role=%s, phone=%s, email=%s, company_email=%s, department=%s,
+            UPDATE portal_portal_users SET username=%s, role=%s, phone=%s, email=%s, company_email=%s, department=%s,
                 city=%s, joining_date=%s, employee_id=%s, status=%s
-            WHERE id=%s RETURNING id;
+            WHERE portal_user_id=%s RETURNING portal_user_id;
         """, (req.name.strip(), req.role.strip(), req.phone, req.email, req.company_email, req.department,
               req.city, req.joining_date, req.employee_id, req.status or "Active", id))
         if not cur.fetchone():
@@ -3324,10 +3324,10 @@ def delete_employee(id: int, authorization: Optional[str] = Header(None)):
         cur = conn.cursor()
         cur.execute("SELECT id FROM portal_app_users WHERE executive_id = %s;", (id,))
         if cur.fetchone():
-            cur.execute("UPDATE portal_portal_users SET status = 'Inactive' WHERE id = %s;", (id,))
+            cur.execute("UPDATE portal_portal_users SET status = 'Inactive' WHERE portal_user_id = %s;", (id,))
             conn.commit()
             return {"success": True, "deactivated": True, "message": "Employee deactivated (has a portal login — not permanently deleted)"}
-        cur.execute("DELETE FROM portal_portal_users WHERE id = %s RETURNING id;", (id,))
+        cur.execute("DELETE FROM portal_portal_users WHERE portal_user_id = %s RETURNING portal_user_id;", (id,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Employee not found")
         conn.commit()
