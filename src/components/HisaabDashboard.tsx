@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ArrowLeft, Search, Download, MapPin, Calendar, 
   ChevronLeft, ChevronRight, X, IndianRupee, Users, 
   Truck, FileSpreadsheet, RefreshCw, AlertCircle, 
-  Info, Layers, Building2
+  Info, Layers, Building2, ChevronDown, Check, FileText
 } from 'lucide-react';
 import { User } from '../types';
 
@@ -15,6 +15,7 @@ interface HisaabDashboardProps {
 }
 
 type HisaabFormat = 'vehicle_weekly' | 'consolidated_partner' | 'daily_ledger' | 'city_summary';
+type ExportScope = 'master' | 'filtered' | 'city' | 'csv';
 
 interface SettlementWeek {
   week_id: string;
@@ -45,10 +46,10 @@ interface CitySummaryRow {
 export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogout }: HisaabDashboardProps) {
   const handleBack = onBack || onBackToSelector;
 
-  // 1. View Format: Partner+Vehicle (Weekly), Consolidated Partner, Daily Ledger, City Summary
+  // 1. View Format Tabs
   const [activeFormat, setActiveFormat] = useState<HisaabFormat>('vehicle_weekly');
 
-  // 2. Unified Filter Bar States
+  // 2. Filter States
   const [selectedCity, setSelectedCity] = useState<string>('All Cities');
   const [availableCities, setAvailableCities] = useState<string[]>([
     'All Cities', 'Bangalore', 'Hyderabad', 'Mumbai', 'Delhi'
@@ -70,8 +71,23 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // 5. Drawer / Modal for Driver Hisaab detail breakdown
+  // 5. Export Dropdown Menu State
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // 6. Drawer / Modal for Driver Hisaab detail breakdown
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetch operating cities & settlement calendar weeks on mount
   useEffect(() => {
@@ -176,12 +192,19 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
     setPage(1);
   };
 
-  // Excel Export (.xlsx) matching Hisaab_CY26WK41 (1).xlsx structure
-  const handleExportXLSX = () => {
+  // Flexible Export Handler
+  const handleExport = (scope: ExportScope) => {
     setIsDownloading(true);
+    setIsExportMenuOpen(false);
+
     const params = new URLSearchParams();
-    params.append('file_type', 'xlsx');
+    params.append('scope', scope);
     params.append('format', activeFormat === 'city_summary' ? 'vehicle_weekly' : activeFormat);
+    if (scope === 'csv') {
+      params.append('file_type', 'csv');
+    } else {
+      params.append('file_type', 'xlsx');
+    }
     if (selectedCity && selectedCity !== 'All Cities') params.append('city', selectedCity);
     if (selectedWeek && selectedWeek !== 'All') params.append('week_id', selectedWeek);
     if (searchQuery.trim()) params.append('search', searchQuery.trim());
@@ -191,7 +214,35 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
     setTimeout(() => setIsDownloading(false), 2500);
   };
 
-  // Formatting Utilities
+  // Modern Financial Cell Formatter for Dashboard
+  const renderMoney = (val: number | string | null | undefined, options?: { highlightZero?: boolean; isCredit?: boolean; isDebit?: boolean }) => {
+    const num = Number(val);
+    if (val === null || val === undefined || isNaN(num) || num === 0) {
+      return <span className="text-slate-300 font-mono text-[11px]">-</span>;
+    }
+    const formatted = new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(num);
+
+    if (options?.isCredit) {
+      return <span className="text-emerald-700 font-mono font-semibold">{formatted}</span>;
+    }
+    if (options?.isDebit) {
+      return <span className="text-rose-700 font-mono font-semibold">{formatted}</span>;
+    }
+    return <span className="text-slate-800 font-mono font-semibold">{formatted}</span>;
+  };
+
+  const renderCount = (val: number | string | null | undefined) => {
+    const num = Number(val);
+    if (val === null || val === undefined || isNaN(num) || num === 0) {
+      return <span className="text-slate-300 font-mono text-[11px]">0</span>;
+    }
+    return <span className="text-slate-800 font-bold font-mono">{num}</span>;
+  };
+
   const formatCurrency = (val: number | string | null | undefined) => {
     if (val === null || val === undefined || val === '') return '₹0';
     const num = Number(val);
@@ -257,10 +308,10 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
       {/* ────────────────────────────────────────────────────────── */}
       {/* Top Header Bar */}
       {/* ────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
+      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-2xs">
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-4">
           
-          {/* Left: Back & Title */}
+          {/* Left: Back Arrow & Dashboard Title */}
           <div className="flex items-center gap-3">
             {handleBack && (
               <button
@@ -281,30 +332,30 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                   Driver Hisaab Dashboard
                 </h1>
                 <p className="text-[11px] text-slate-500 font-medium">
-                  Partner + Vehicle Settlements & Accounts Matrix
+                  Partner + Vehicle Weekly Settlements & Accounts Matrix
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Center: Format Navigation Tabs (Properly Placed & Readily Accessible) */}
+          {/* Center: Format Navigation Tabs (Accessible & Symmetrically Placed) */}
           <nav className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               type="button"
               onClick={() => handleFormatChange('vehicle_weekly')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeFormat === 'vehicle_weekly'
                   ? 'bg-white text-emerald-800 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Truck className="h-3.5 w-3.5" />
-              <span>Partner + Vehicle (Weekly)</span>
+              <span>Partner + Vehicle</span>
             </button>
             <button
               type="button"
               onClick={() => handleFormatChange('consolidated_partner')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeFormat === 'consolidated_partner'
                   ? 'bg-white text-emerald-800 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -316,7 +367,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
             <button
               type="button"
               onClick={() => handleFormatChange('daily_ledger')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeFormat === 'daily_ledger'
                   ? 'bg-white text-emerald-800 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -328,7 +379,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
             <button
               type="button"
               onClick={() => handleFormatChange('city_summary')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeFormat === 'city_summary'
                   ? 'bg-white text-emerald-800 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -345,7 +396,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
       {/* ────────────────────────────────────────────────────────── */}
       {/* Unified Filter Toolbar (All Filters Kept in ONE Place) */}
       {/* ────────────────────────────────────────────────────────── */}
-      <section className="bg-white border-b border-slate-200 px-4 sm:px-6 py-2.5">
+      <section className="bg-white border-b border-slate-200 px-4 sm:px-6 py-2.5 shadow-2xs">
         <div className="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-3">
           
           {/* Left: Combined Filters Group (City + Week + Search) */}
@@ -367,7 +418,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
               </select>
             </div>
 
-            {/* 2. Settlement Week Dropdown */}
+            {/* 2. Settlement Week Dropdown (All DB Weeks) */}
             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 shadow-2xs">
               <Calendar className="h-3.5 w-3.5 text-slate-500 shrink-0" />
               <label htmlFor="week-select" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Week:</label>
@@ -395,7 +446,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                   placeholder={
                     activeFormat === 'consolidated_partner'
                       ? "Search partner name or ID..."
-                      : "Search vendor name, vendor code, or car plate..."
+                      : "Search vendor name, code, or vehicle plate..."
                   }
                   value={searchQuery}
                   onChange={(e) => {
@@ -421,10 +472,10 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
 
           </div>
 
-          {/* Right: Records Counter, Page Size & Export */}
+          {/* Right: Records Counter, Page Size & Flexible Export Menu */}
           <div className="flex items-center gap-3">
             
-            {/* Records Counter */}
+            {/* Records Counter & Page Size */}
             {activeFormat !== 'city_summary' && (
               <div className="hidden sm:flex items-center gap-2 text-xs text-slate-600">
                 <span>
@@ -446,21 +497,89 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
               </div>
             )}
 
-            {/* Export Hisaab (.xlsx) Button */}
-            <button
-              type="button"
-              onClick={handleExportXLSX}
-              disabled={isDownloading || (activeFormat !== 'city_summary' && totalCount === 0)}
-              className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl px-4 py-2 text-xs font-extrabold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-              title="Downloads full multi-sheet Excel file (.xlsx) with Bangalore, Hyderabad, Mumbai, Delhi, and Summary sheets"
-            >
-              {isDownloading ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <FileSpreadsheet className="h-4 w-4" />
+            {/* Flexible Export Dropdown Button */}
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                disabled={isDownloading || (activeFormat !== 'city_summary' && totalCount === 0)}
+                className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl px-3.5 py-2 text-xs font-extrabold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                title="Download options: Master Multi-City Excel, Filtered View, City Sheet, or CSV"
+              >
+                {isDownloading ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4" />
+                )}
+                <span>{isDownloading ? 'Preparing Export...' : 'Export Hisaab'}</span>
+                <ChevronDown className="h-3.5 w-3.5 ml-0.5 opacity-80" />
+              </button>
+
+              {/* Export Choices Dropdown Menu */}
+              {isExportMenuOpen && (
+                <div className="absolute right-0 mt-1.5 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 p-1.5 text-xs text-slate-700 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+                    Select Download Format
+                  </div>
+
+                  {/* Option 1: Master Workbook */}
+                  <button
+                    type="button"
+                    onClick={() => handleExport('master')}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 flex items-start gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-bold text-slate-900">Master Hisaab (.xlsx)</div>
+                      <div className="text-[11px] text-slate-500">All cities (Bangalore, Hyd, Mum, Del) + Summary sheet</div>
+                    </div>
+                  </button>
+
+                  {/* Option 2: Filtered Current View */}
+                  <button
+                    type="button"
+                    onClick={() => handleExport('filtered')}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 flex items-start gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <FileText className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-bold text-slate-900">Filtered Records Only (.xlsx)</div>
+                      <div className="text-[11px] text-slate-500">Exports only matching records ({selectedCity}, {selectedWeek})</div>
+                    </div>
+                  </button>
+
+                  {/* Option 3: Selected City Workbook */}
+                  {selectedCity !== 'All Cities' && (
+                    <button
+                      type="button"
+                      onClick={() => handleExport('city')}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 flex items-start gap-2.5 cursor-pointer transition-colors"
+                    >
+                      <Building2 className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-slate-900">{selectedCity} Workbook (.xlsx)</div>
+                        <div className="text-[11px] text-slate-500">All {selectedCity} data for {selectedWeek}</div>
+                      </div>
+                    </button>
+                  )}
+
+                  <div className="border-t border-slate-100 my-1"></div>
+
+                  {/* Option 4: Flat CSV */}
+                  <button
+                    type="button"
+                    onClick={() => handleExport('csv')}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-100 flex items-start gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <Download className="h-4 w-4 text-slate-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-bold text-slate-900">Raw Data (.csv)</div>
+                      <div className="text-[11px] text-slate-500">Fast flat CSV export for active view</div>
+                    </div>
+                  </button>
+                </div>
               )}
-              <span>{isDownloading ? 'Exporting Hisaab...' : 'Export Hisaab (.xlsx)'}</span>
-            </button>
+            </div>
 
           </div>
 
@@ -470,10 +589,10 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
       {/* ────────────────────────────────────────────────────────── */}
       {/* Main Content Area */}
       {/* ────────────────────────────────────────────────────────── */}
-      <main className="flex-1 max-w-[1920px] w-full mx-auto px-4 sm:px-6 py-4 flex flex-col min-h-0">
+      <main className="flex-1 max-w-[1920px] w-full mx-auto px-4 sm:px-6 py-3.5 flex flex-col min-h-0">
         
         {/* ========================================================== */}
-        {/* VIEW 1: PARTNER + VEHICLE (WEEKLY) - ALL 43 EXCEL VARIABLES */}
+        {/* VIEW 1: PARTNER + VEHICLE (WEEKLY) - OPTIMIZED TABLE MATRIX */}
         {/* ========================================================== */}
         {activeFormat === 'vehicle_weekly' && (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col flex-1">
@@ -481,52 +600,74 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
               <table className="w-full text-left text-xs border-collapse">
                 
                 {/* Level 1 Group Header */}
-                <thead className="bg-slate-50 sticky top-0 z-30 border-b border-slate-200 text-[10px] font-extrabold uppercase tracking-wider">
+                <thead className="sticky top-0 z-30 border-b border-slate-200 text-[10px] font-extrabold uppercase tracking-wider select-none">
                   <tr>
-                    <th colSpan={12} className="px-3 py-2 bg-slate-100 text-slate-800 border-r border-slate-200">
-                      Core Allocation & Identity (Partner + Vehicle)
+                    {/* Locked Sticky Header Box for Columns 1 & 2 */}
+                    <th 
+                      colSpan={2} 
+                      style={{ left: 0, width: '184px', minWidth: '184px', maxWidth: '184px' }} 
+                      className="sticky left-0 z-30 bg-slate-200 text-slate-800 border-r-2 border-slate-300 px-3 py-2 text-left font-black"
+                    >
+                      Vehicle Entity
                     </th>
-                    <th colSpan={4} className="px-3 py-2 bg-blue-50/80 text-blue-900 border-r border-slate-200">
+                    <th colSpan={9} className="px-3 py-2 bg-slate-100 text-slate-800 border-r border-slate-200">
+                      Driver & Allocation Details
+                    </th>
+                    <th colSpan={4} className="px-3 py-2 bg-blue-50 text-blue-900 border-r border-slate-200">
                       Rental & Lease Billing
                     </th>
-                    <th colSpan={8} className="px-3 py-2 bg-amber-50/80 text-amber-900 border-r border-slate-200">
+                    <th colSpan={8} className="px-3 py-2 bg-amber-50 text-amber-900 border-r border-slate-200">
                       OLA Operations & Revenue
                     </th>
-                    <th colSpan={7} className="px-3 py-2 bg-emerald-50/80 text-emerald-900 border-r border-slate-200">
+                    <th colSpan={7} className="px-3 py-2 bg-emerald-50 text-emerald-900 border-r border-slate-200">
                       Uber Operations & Revenue
                     </th>
-                    <th colSpan={4} className="px-3 py-2 bg-orange-50/80 text-orange-900 border-r border-slate-200">
+                    <th colSpan={4} className="px-3 py-2 bg-orange-50 text-orange-900 border-r border-slate-200">
                       Rapido Operations
                     </th>
-                    <th colSpan={5} className="px-3 py-2 bg-rose-50/80 text-rose-900 border-r border-slate-200">
+                    <th colSpan={5} className="px-3 py-2 bg-rose-50 text-rose-900 border-r border-slate-200">
                       Penalties & Adjustments
                     </th>
-                    <th colSpan={3} className="px-3 py-2 bg-purple-50/80 text-purple-900">
+                    <th colSpan={3} className="px-3 py-2 bg-purple-50 text-purple-900">
                       Net Settlement Position
                     </th>
                   </tr>
                   
-                  {/* Level 2: Exact 43 Column Headers matching Hisaab_CY26WK41 (1).xlsx */}
-                  <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[11px] font-bold">
-                    {/* Core Allocation & Identity */}
-                    <th className="px-2.5 py-2.5 text-center w-12 sticky left-0 bg-slate-100 z-20 border-r border-slate-200">Sr. No.</th>
-                    <th className="px-3 py-2.5 font-bold sticky left-12 bg-slate-100 z-20 border-r border-slate-200 min-w-[120px]">Vehicle Number</th>
-                    <th className="px-3 py-2.5 font-bold min-w-[180px]">Vendor Name</th>
-                    <th className="px-3 py-2.5 font-mono text-[10px] min-w-[110px]">Vendor Code</th>
-                    <th className="px-3 py-2.5 text-center min-w-[110px]">Allocation Status</th>
+                  {/* Level 2: Exact Column Headers (Allocation Status Removed for Cleanliness) */}
+                  <tr className="bg-slate-100 text-slate-700 border-b border-slate-200 text-[11px] font-bold">
+                    
+                    {/* Locked Column 1: Sr. No. */}
+                    <th 
+                      style={{ width: '54px', minWidth: '54px', maxWidth: '54px', left: 0 }} 
+                      className="sticky left-0 z-30 bg-slate-100 text-center border-r border-slate-200 py-2.5 text-slate-500 font-mono text-[10px]"
+                    >
+                      Sr. No.
+                    </th>
+                    
+                    {/* Locked Column 2: Vehicle Number */}
+                    <th 
+                      style={{ width: '130px', minWidth: '130px', maxWidth: '130px', left: '54px' }} 
+                      className="sticky left-[54px] z-30 bg-slate-100 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.1)] py-2.5 px-3 font-bold text-slate-900"
+                    >
+                      Vehicle Number
+                    </th>
+
+                    {/* Driver & Allocation Details */}
+                    <th className="px-3 py-2.5 min-w-[170px]">Vendor Name</th>
+                    <th className="px-3 py-2.5 font-mono text-[10px] min-w-[100px]">Vendor Code</th>
                     <th className="px-3 py-2.5 min-w-[90px]">City</th>
                     <th className="px-3 py-2.5 min-w-[110px]">Vehicle Model</th>
-                    <th className="px-3 py-2.5 min-w-[100px]">Rental Plan</th>
-                    <th className="px-3 py-2.5 font-mono text-[10px] min-w-[105px]">Allocation Start</th>
-                    <th className="px-3 py-2.5 font-mono text-[10px] min-w-[105px]">Allocation End</th>
-                    <th className="px-3 py-2.5 text-center min-w-[80px]">Active Days</th>
-                    <th className="px-3 py-2.5 text-center min-w-[85px] border-r border-slate-200 font-extrabold">Onroad Days</th>
+                    <th className="px-3 py-2.5 min-w-[95px]">Rental Plan</th>
+                    <th className="px-3 py-2.5 text-center font-mono text-[10px] min-w-[105px]">Allocation Start</th>
+                    <th className="px-3 py-2.5 text-center font-mono text-[10px] min-w-[105px]">Allocation End</th>
+                    <th className="px-3 py-2.5 text-center min-w-[75px]">Active Days</th>
+                    <th className="px-3 py-2.5 text-center min-w-[80px] border-r border-slate-200 font-extrabold text-slate-900">Onroad Days</th>
 
                     {/* Rental & Lease Billing */}
-                    <th className="px-3 py-2.5 text-right min-w-[95px]">Daily Rent Applied</th>
-                    <th className="px-3 py-2.5 text-right min-w-[100px]">Indemnity Fees</th>
-                    <th className="px-3 py-2.5 text-right min-w-[100px]">Weekly Lease Rental</th>
-                    <th className="px-3 py-2.5 text-right min-w-[110px] border-r border-slate-200 font-extrabold">Net Weekly Lease</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">Daily Rent</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">Indemnity</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">Lease Rental</th>
+                    <th className="px-3 py-2.5 text-right min-w-[105px] border-r border-slate-200 font-extrabold text-slate-900">Net Lease Rent</th>
 
                     {/* OLA Operations */}
                     <th className="px-3 py-2.5 text-center min-w-[70px]">OLA Trips</th>
@@ -535,35 +676,35 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                     <th className="px-3 py-2.5 text-right min-w-[80px]">OLA Toll</th>
                     <th className="px-3 py-2.5 text-right min-w-[80px]">OLA GST</th>
                     <th className="px-3 py-2.5 text-right min-w-[90px]">OLA Online</th>
-                    <th className="px-3 py-2.5 text-right min-w-[85px]">OLA Incentive</th>
+                    <th className="px-3 py-2.5 text-right min-w-[85px]">OLA Incent</th>
                     <th className="px-3 py-2.5 text-right min-w-[90px] border-r border-slate-200">OLA Week O/s</th>
 
                     {/* Uber Operations */}
                     <th className="px-3 py-2.5 text-center min-w-[75px]">Uber Trips</th>
-                    <th className="px-3 py-2.5 text-right min-w-[95px]">Uber Revenue</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">Uber Rev</th>
                     <th className="px-3 py-2.5 text-right min-w-[95px]">Uber Cash</th>
                     <th className="px-3 py-2.5 text-right min-w-[80px]">Uber Toll</th>
-                    <th className="px-3 py-2.5 text-right min-w-[100px]">Subscription</th>
-                    <th className="px-3 py-2.5 text-right min-w-[90px]">Uber Incentive</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">Subscription</th>
+                    <th className="px-3 py-2.5 text-right min-w-[90px]">Uber Incent</th>
                     <th className="px-3 py-2.5 text-right min-w-[90px] border-r border-slate-200">Uber Week O/s</th>
 
                     {/* Rapido Operations */}
                     <th className="px-3 py-2.5 text-center min-w-[75px]">Rapido Trips</th>
-                    <th className="px-3 py-2.5 text-right min-w-[95px]">Rapido Net Rev</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">Rapido Rev</th>
                     <th className="px-3 py-2.5 text-right min-w-[80px]">Rapido Toll</th>
-                    <th className="px-3 py-2.5 text-right min-w-[90px] border-r border-slate-200">Rapido Incentive</th>
+                    <th className="px-3 py-2.5 text-right min-w-[90px] border-r border-slate-200">Rapido Incent</th>
 
                     {/* Penalties & Adjustments */}
-                    <th className="px-3 py-2.5 text-right min-w-[90px]">Adjustment</th>
+                    <th className="px-3 py-2.5 text-right min-w-[85px]">Adjustment</th>
                     <th className="px-3 py-2.5 text-right min-w-[85px]">Challan</th>
                     <th className="px-3 py-2.5 text-right min-w-[85px]">Accident</th>
-                    <th className="px-3 py-2.5 text-right min-w-[95px]">DeadMile Pen</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">DeadMile</th>
                     <th className="px-3 py-2.5 text-right min-w-[75px] border-r border-slate-200">TDS</th>
 
                     {/* Settlement Net Position */}
                     <th className="px-3 py-2.5 text-right min-w-[105px]">Current Week O/s</th>
-                    <th className="px-3 py-2.5 text-right min-w-[115px] font-extrabold text-emerald-700 bg-emerald-50/50">To Pay Driver</th>
-                    <th className="px-3 py-2.5 text-right min-w-[115px] font-extrabold text-rose-700 bg-rose-50/50">To Collect Driver</th>
+                    <th className="px-3 py-2.5 text-right min-w-[115px] font-extrabold text-emerald-800 bg-emerald-50/70">To Pay Driver</th>
+                    <th className="px-3 py-2.5 text-right min-w-[115px] font-extrabold text-rose-800 bg-rose-50/70">To Collect Driver</th>
                   </tr>
                 </thead>
 
@@ -571,7 +712,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={43} className="px-4 py-20 text-center text-slate-400">
+                      <td colSpan={42} className="px-4 py-20 text-center text-slate-400">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
                           <span className="text-xs font-semibold">Loading Hisaab settlement matrix...</span>
@@ -580,7 +721,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                     </tr>
                   ) : errorMsg ? (
                     <tr>
-                      <td colSpan={43} className="px-4 py-16 text-center text-rose-500">
+                      <td colSpan={42} className="px-4 py-16 text-center text-rose-500">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <AlertCircle className="h-6 w-6" />
                           <span className="text-xs font-semibold">{errorMsg}</span>
@@ -589,7 +730,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                     </tr>
                   ) : records.length === 0 ? (
                     <tr>
-                      <td colSpan={43} className="px-4 py-20 text-center text-slate-400">
+                      <td colSpan={42} className="px-4 py-20 text-center text-slate-400">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <Info className="h-6 w-6 text-slate-300" />
                           <span className="text-xs font-semibold">No Hisaab records found for active filters.</span>
@@ -602,219 +743,220 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                       <tr
                         key={r.hisaab_id || r.sr_no || idx}
                         onClick={() => setSelectedRecord(r)}
-                        className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                        className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
                       >
-                        {/* 1. Sr. No. (Sticky) */}
-                        <td className="px-2.5 py-2 text-center text-slate-400 font-mono text-[10px] sticky left-0 bg-white group-hover:bg-slate-50 border-r border-slate-200">
+                        {/* Locked Column 1: Sr. No. */}
+                        <td 
+                          style={{ width: '54px', minWidth: '54px', maxWidth: '54px', left: 0 }} 
+                          className="sticky left-0 z-20 bg-white group-hover:bg-slate-50 text-center text-slate-400 font-mono text-[10px] border-r border-slate-200 py-2"
+                        >
                           {r.sr_no || (page - 1) * pageSize + idx + 1}
                         </td>
 
-                        {/* 2. Vehicle Number (Sticky) */}
-                        <td className="px-3 py-2 font-mono font-bold text-slate-900 sticky left-12 bg-white group-hover:bg-slate-50 border-r border-slate-200">
+                        {/* Locked Column 2: Vehicle Number */}
+                        <td 
+                          style={{ width: '130px', minWidth: '130px', maxWidth: '130px', left: '54px' }} 
+                          className="sticky left-[54px] z-20 bg-white group-hover:bg-slate-50 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.1)] px-3 py-2 font-mono font-bold text-slate-900"
+                        >
                           {r.vehicle_number}
                         </td>
 
-                        {/* 3. Vendor Name */}
+                        {/* Vendor Name */}
                         <td className="px-3 py-2 text-slate-900 font-semibold group-hover:text-emerald-700 transition-colors">
                           {r.vendor_name || r.partner_name || '-'}
                         </td>
 
-                        {/* 4. Vendor Code */}
+                        {/* Vendor Code */}
                         <td className="px-3 py-2 font-mono text-[11px] text-slate-500">
                           {r.vendor_code || r.partner_id || '-'}
                         </td>
 
-                        {/* 5. Allocation Status */}
-                        <td className="px-3 py-2 text-center">
+                        {/* City */}
+                        <td className="px-3 py-2">
                           <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700">
-                            {r.allocation_status || 'ALLOTTED'}
+                            {r.city || r.normalized_city || '-'}
                           </span>
                         </td>
 
-                        {/* 6. City */}
-                        <td className="px-3 py-2 font-semibold text-slate-700">
-                          {r.city || r.normalized_city || '-'}
-                        </td>
-
-                        {/* 7. Vehicle Model */}
+                        {/* Vehicle Model */}
                         <td className="px-3 py-2 text-slate-600 text-[11px]">
                           {r.vehicle_model || '-'}
                         </td>
 
-                        {/* 8. Rental Plan */}
+                        {/* Rental Plan */}
                         <td className="px-3 py-2 text-slate-600 text-[11px]">
                           {r.rental_plan || '-'}
                         </td>
 
-                        {/* 9. Allocation Start */}
-                        <td className="px-3 py-2 font-mono text-[11px] text-slate-600">
+                        {/* Allocation Start */}
+                        <td className="px-3 py-2 text-center font-mono text-[11px] text-slate-600">
                           {formatVal(r.allocation_start)}
                         </td>
 
-                        {/* 10. Allocation End */}
-                        <td className="px-3 py-2 font-mono text-[11px] text-slate-600">
+                        {/* Allocation End */}
+                        <td className="px-3 py-2 text-center font-mono text-[11px] text-slate-600">
                           {formatVal(r.allocation_end)}
                         </td>
 
-                        {/* 11. Active Days */}
+                        {/* Active Days */}
                         <td className="px-3 py-2 text-center text-slate-700 font-mono">
                           {r.active_days ?? r.allotted_days ?? '-'}
                         </td>
 
-                        {/* 12. Onroad Days */}
+                        {/* Onroad Days */}
                         <td className="px-3 py-2 text-center font-bold text-slate-900 font-mono border-r border-slate-200">
                           {r.onroad_days ?? '-'}
                         </td>
 
-                        {/* 13. Daily Rent Applied */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-700">
-                          {formatCurrency(r.daily_rent_applied)}
+                        {/* Daily Rent Applied */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.daily_rent_applied)}
                         </td>
 
-                        {/* 14. Weekly Indemnity Fees */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-700">
-                          {formatCurrency(r.weekly_indemnity_fees)}
+                        {/* Weekly Indemnity Fees */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.weekly_indemnity_fees)}
                         </td>
 
-                        {/* 15. Weekly Lease Rental */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-700">
-                          {formatCurrency(r.weekly_lease_rental)}
+                        {/* Weekly Lease Rental */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.weekly_lease_rental)}
                         </td>
 
-                        {/* 16. Net Weekly Lease Rental */}
-                        <td className="px-3 py-2 text-right font-mono font-bold text-slate-900 border-r border-slate-200">
-                          {formatCurrency(r.net_weekly_lease_rental)}
+                        {/* Net Weekly Lease Rental */}
+                        <td className="px-3 py-2 text-right font-bold border-r border-slate-200">
+                          {renderMoney(r.net_weekly_lease_rental)}
                         </td>
 
-                        {/* 17. OLA Trips */}
-                        <td className="px-3 py-2 text-center font-bold text-slate-700">
-                          {r.ola_trips ?? 0}
+                        {/* OLA Trips */}
+                        <td className="px-3 py-2 text-center">
+                          {renderCount(r.ola_trips)}
                         </td>
 
-                        {/* 18. OLA Net Revenue */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-700">
-                          {formatCurrency(r.ola_net_revenue)}
+                        {/* OLA Net Revenue */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.ola_net_revenue, { isCredit: true })}
                         </td>
 
-                        {/* 19. OLA Cash Collection */}
+                        {/* OLA Cash Collection */}
                         <td className="px-3 py-2 text-right font-mono text-amber-700">
-                          {formatCurrency(r.ola_cash_collection)}
+                          {renderMoney(r.ola_cash_collection)}
                         </td>
 
-                        {/* 20. OLA Toll */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-600">
-                          {formatCurrency(r.ola_toll)}
+                        {/* OLA Toll */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.ola_toll)}
                         </td>
 
-                        {/* 21. OLA GST */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-600">
-                          {formatCurrency(r.ola_gst)}
+                        {/* OLA GST */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.ola_gst)}
                         </td>
 
-                        {/* 22. OLA Online Payment */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-600">
-                          {formatCurrency(r.ola_online_payment)}
+                        {/* OLA Online Payment */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.ola_online_payment)}
                         </td>
 
-                        {/* 23. OLA Incentive */}
-                        <td className="px-3 py-2 text-right font-mono text-emerald-700">
-                          {formatCurrency(r.ola_incentive)}
+                        {/* OLA Incentive */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.ola_incentive, { isCredit: true })}
                         </td>
 
-                        {/* 24. OLA Week O/s */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-700 border-r border-slate-200">
-                          {formatCurrency(r.ola_week_os)}
+                        {/* OLA Week O/s */}
+                        <td className="px-3 py-2 text-right border-r border-slate-200">
+                          {renderMoney(r.ola_week_os)}
                         </td>
 
-                        {/* 25. Uber Trips */}
-                        <td className="px-3 py-2 text-center font-bold text-slate-700">
-                          {r.uber_trips ?? 0}
+                        {/* Uber Trips */}
+                        <td className="px-3 py-2 text-center">
+                          {renderCount(r.uber_trips)}
                         </td>
 
-                        {/* 26. Uber Total Revenue */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-700">
-                          {formatCurrency(r.uber_total_revenue ?? r.uber_total_earnings)}
+                        {/* Uber Total Revenue */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.uber_total_revenue ?? r.uber_total_earnings, { isCredit: true })}
                         </td>
 
-                        {/* 27. Uber Cash Collection */}
+                        {/* Uber Cash Collection */}
                         <td className="px-3 py-2 text-right font-mono text-amber-700">
-                          {formatCurrency(r.uber_cash_collection)}
+                          {renderMoney(r.uber_cash_collection)}
                         </td>
 
-                        {/* 28. Uber Toll */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-600">
-                          {formatCurrency(r.uber_toll)}
+                        {/* Uber Toll */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.uber_toll)}
                         </td>
 
-                        {/* 29. Driver Subscription Charge */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-600">
-                          {formatCurrency(r.driver_subscription_charge ?? r.uber_driver_sub_charge)}
+                        {/* Driver Subscription Charge */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.driver_subscription_charge ?? r.uber_driver_sub_charge)}
                         </td>
 
-                        {/* 30. Uber Incentive */}
-                        <td className="px-3 py-2 text-right font-mono text-emerald-700">
-                          {formatCurrency(r.uber_incentive)}
+                        {/* Uber Incentive */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.uber_incentive, { isCredit: true })}
                         </td>
 
-                        {/* 31. Uber Week O/s */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-700 border-r border-slate-200">
-                          {formatCurrency(r.uber_week_os)}
+                        {/* Uber Week O/s */}
+                        <td className="px-3 py-2 text-right border-r border-slate-200">
+                          {renderMoney(r.uber_week_os)}
                         </td>
 
-                        {/* 32. Rapido Trips */}
-                        <td className="px-3 py-2 text-center font-bold text-slate-700">
-                          {r.rapido_trips ?? 0}
+                        {/* Rapido Trips */}
+                        <td className="px-3 py-2 text-center">
+                          {renderCount(r.rapido_trips)}
                         </td>
 
-                        {/* 33. Rapido Net Revenue */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-700">
-                          {formatCurrency(r.rapido_net_revenue)}
+                        {/* Rapido Net Revenue */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.rapido_net_revenue, { isCredit: true })}
                         </td>
 
-                        {/* 34. Rapido Toll */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-600">
-                          {formatCurrency(r.rapido_toll)}
+                        {/* Rapido Toll */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.rapido_toll)}
                         </td>
 
-                        {/* 35. Rapido Incentive */}
-                        <td className="px-3 py-2 text-right font-mono text-emerald-700 border-r border-slate-200">
-                          {formatCurrency(r.rapido_incentive)}
+                        {/* Rapido Incentive */}
+                        <td className="px-3 py-2 text-right border-r border-slate-200">
+                          {renderMoney(r.rapido_incentive, { isCredit: true })}
                         </td>
 
-                        {/* 36. Vehicle Level Adjustment */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-700">
-                          {formatCurrency(r.vehicle_level_adjustment ?? r.adjustment_amount)}
+                        {/* Vehicle Level Adjustment */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.vehicle_level_adjustment ?? r.adjustment_amount)}
                         </td>
 
-                        {/* 37. Challan */}
-                        <td className="px-3 py-2 text-right font-mono text-rose-700">
-                          {formatCurrency(r.challan ?? r.challan_amount)}
+                        {/* Challan */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.challan ?? r.challan_amount, { isDebit: true })}
                         </td>
 
-                        {/* 38. Accident */}
-                        <td className="px-3 py-2 text-right font-mono text-rose-700">
-                          {formatCurrency(r.accident ?? r.accident_deduction)}
+                        {/* Accident */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.accident ?? r.accident_deduction, { isDebit: true })}
                         </td>
 
-                        {/* 39. DeadMile Penalty */}
-                        <td className="px-3 py-2 text-right font-mono text-rose-700">
-                          {formatCurrency(r.deadmile_penalty ?? r.gps_dead_mile_penalty)}
+                        {/* DeadMile Penalty */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.deadmile_penalty ?? r.gps_dead_mile_penalty, { isDebit: true })}
                         </td>
 
-                        {/* 40. TDS */}
-                        <td className="px-3 py-2 text-right font-mono text-slate-600 border-r border-slate-200">
-                          {formatCurrency(r.tds ?? r.tds_amount)}
+                        {/* TDS */}
+                        <td className="px-3 py-2 text-right border-r border-slate-200">
+                          {renderMoney(r.tds ?? r.tds_amount)}
                         </td>
 
-                        {/* 41. Current Week O/s */}
-                        <td className="px-3 py-2 text-right font-mono font-bold text-slate-800">
-                          {formatCurrency(r.current_week_os)}
+                        {/* Current Week O/s */}
+                        <td className="px-3 py-2 text-right">
+                          {renderMoney(r.current_week_os)}
                         </td>
 
-                        {/* 42. To Pay For Driver */}
+                        {/* To Pay For Driver */}
                         <td className="px-3 py-2 text-right font-mono font-bold">
                           {Number(r.to_pay_for_driver ?? r.net_payout_to_driver) > 0 ? (
-                            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                            <span className="text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md">
                               {formatCurrency(r.to_pay_for_driver ?? r.net_payout_to_driver)}
                             </span>
                           ) : (
@@ -822,10 +964,10 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                           )}
                         </td>
 
-                        {/* 43. To Collect from Driver */}
+                        {/* To Collect from Driver */}
                         <td className="px-3 py-2 text-right font-mono font-bold">
                           {Number(r.to_collect_from_driver ?? r.net_to_collect_from_driver) > 0 ? (
-                            <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md">
+                            <span className="text-rose-800 bg-rose-50 px-2.5 py-0.5 rounded-md">
                               {formatCurrency(r.to_collect_from_driver ?? r.net_to_collect_from_driver)}
                             </span>
                           ) : (

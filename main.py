@@ -10967,16 +10967,35 @@ def export_mis_csv(
 @app.get("/api/hisaab/weeks")
 def get_hisaab_weeks(authorization: Optional[str] = Header(None)):
     """
-    Returns available settlement calendar weeks for filtering.
+    Returns all available settlement calendar weeks for filtering.
+    Combines registered settlement weeks with any weeks present in hisaab records.
     """
     conn = postgreSQL_pool.getconn()
     try:
         cur = conn.cursor()
         cur.execute("""
-            SELECT week_id, settlement_year, settlement_week, week_start, week_end, is_locked
-            FROM public.hisaab_settlement_weeks
-            ORDER BY week_start DESC
-            LIMIT 52;
+            WITH combined_weeks AS (
+                SELECT week_id, settlement_year, settlement_week, week_start, week_end, is_locked
+                FROM public.hisaab_settlement_weeks
+                UNION
+                SELECT DISTINCT 
+                    week_id, 
+                    EXTRACT(YEAR FROM week_start)::int AS settlement_year,
+                    EXTRACT(WEEK FROM week_start)::int AS settlement_week,
+                    week_start, 
+                    week_end, 
+                    false AS is_locked
+                FROM public.portal_v_driver_hisaab_weekly
+                WHERE week_id IS NOT NULL AND week_start IS NOT NULL
+            ),
+            deduped AS (
+                SELECT DISTINCT ON (week_id) 
+                    week_id, settlement_year, settlement_week, week_start, week_end, is_locked
+                FROM combined_weeks
+                WHERE week_id IS NOT NULL
+                ORDER BY week_id, week_start DESC
+            )
+            SELECT * FROM deduped ORDER BY week_start DESC;
         """)
         rows = cur.fetchall()
         weeks = []
@@ -11260,12 +11279,17 @@ def export_hisaab_file(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     search: Optional[str] = None,
+    scope: Optional[str] = "master",
     file_type: Optional[str] = "xlsx",
     authorization: Optional[str] = Header(None)
 ):
     """
-    Downloads Hisaab as a formatted Excel workbook (.xlsx) matching Hisaab_{week_id}.xlsx
-    with tabs: Bangalore, Hyderabad, Mumbai, Delhi, and Summary, or streams CSV.
+    Downloads Hisaab as a formatted Excel workbook (.xlsx) or CSV.
+    Supported scopes:
+      - 'master': 5-tab workbook (Bangalore, Hyderabad, Mumbai, Delhi, Summary)
+      - 'filtered': Only the currently filtered rows (city, week, search, format)
+      - 'city': Single city tab for the selected city and week
+      - 'tab': Tab-specific export for Consolidated Partner or Daily Ledger
     """
     from fastapi.responses import Response
     import io
@@ -11275,11 +11299,32 @@ def export_hisaab_file(
     try:
         cur = conn.cursor()
         
-        # 1. Excel Export (Default - multi-sheet structure matching Hisaab_CY26WK41 (1).xlsx)
+        # 1. Excel Export
         if file_type.lower() == "xlsx":
             import openpyxl
             from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            from openpyxl.utils import get_column_letter
             
+            wb = openpyxl.Workbook()
+            default_sheet = wb.active
+            
+            header_font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+            num_font = Font(name="Calibri", size=10)
+            
+            # Helper to auto-fit columns
+            def auto_fit_sheet(ws):
+                for col in ws.columns:
+                    col_letter = get_column_letter(col[0].column)
+                    max_len = 0
+                    for cell in col:
+                        val = cell.value
+                        if val is not None:
+                            val_str = str(val)
+                            if len(val_str) > max_len:
+                                max_len = len(val_str)
+                    ws.column_dimensions[col_letter].width = max(11, min(max_len + 3, 38))
+
             EXCEL_COLUMNS = [
                 ("Sr. No.", "sr_no"),
                 ("Vehicle Number", "vehicle_number"),
@@ -11325,116 +11370,210 @@ def export_hisaab_file(
                 ("To Pay For Driver", "to_pay_for_driver"),
                 ("To Collect from Driver", "to_collect_from_driver"),
             ]
-            
-            # Fetch all records for the week/criteria
+
+            # Determine where clauses based on scope
             where_clauses = ["1=1"]
             params = []
+            
+            # City filter (applied if scope != 'master' or if specific city is picked)
+            if scope in ["filtered", "city"] and city and city.lower() not in ["all", "all cities", "all_cities", ""]:
+                c_low = city.lower().strip()
+                if c_low in ["bengaluru", "bangalore", "blr"]:
+                    where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                    params.append(['bengaluru', 'bangalore', 'blr'])
+                elif c_low in ["mumbai", "bom", "mum"]:
+                    where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                    params.append(['mumbai', 'bom', 'mum'])
+                elif c_low in ["hyderabad", "hyd"]:
+                    where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                    params.append(['hyderabad', 'hyd'])
+                elif c_low in ["delhi", "del", "ncr"]:
+                    where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                    params.append(['delhi', 'del', 'ncr'])
+                else:
+                    where_clauses.append("LOWER(normalized_city) = %s")
+                    params.append(c_low)
+
             if week_id and week_id.lower() not in ["all", "all weeks", ""]:
                 where_clauses.append("week_id = %s")
                 params.append(week_id)
             elif start_date and end_date:
                 where_clauses.append("week_start >= %s::date AND week_end <= %s::date")
                 params.extend([start_date, end_date])
-                
-            cur.execute(f"""
-                SELECT * 
-                FROM public.portal_v_driver_hisaab_weekly 
-                WHERE {" AND ".join(where_clauses)}
-                ORDER BY city, vendor_name;
-            """, tuple(params))
-            
-            rows = cur.fetchall()
-            cols = [d[0] for d in cur.description]
-            records = [dict(zip(cols, r)) for r in rows]
-            
-            # Group records by city
-            records_by_city = {}
-            for r in records:
-                c = r.get("city") or "Other"
-                records_by_city.setdefault(c, []).append(r)
-                
-            wb = openpyxl.Workbook()
-            default_sheet = wb.active
-            
-            header_font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
-            header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
-            
-            cities_to_export = ["Bangalore", "Hyderabad", "Mumbai", "Delhi"]
-            # If user selected a single specific city, only include that city
-            if city and city.lower() not in ["all", "all cities", "all_cities", ""]:
-                c_clean = "Bangalore" if city.lower() in ["bangalore", "bengaluru", "blr"] else city
-                cities_to_export = [c_clean]
-                
-            for city_name in cities_to_export:
-                ws = wb.create_sheet(title=city_name)
+
+            if scope == "filtered" and search and search.strip():
+                s_val = f"%{search.strip()}%"
+                where_clauses.append("(vendor_name ILIKE %s OR vendor_code ILIKE %s OR vehicle_number ILIKE %s)")
+                params.extend([s_val, s_val, s_val])
+
+            # Case A: Filtered View Only
+            if scope == "filtered":
+                sheet_title = f"Hisaab_{city[:10] if city and city != 'All Cities' else 'Filtered'}"
+                ws = wb.create_sheet(title=sheet_title)
                 headers = [c[0] for c in EXCEL_COLUMNS]
                 ws.append(headers)
-                
                 for col_idx in range(1, len(headers) + 1):
                     cell = ws.cell(row=1, column=col_idx)
                     cell.font = header_font
                     cell.fill = header_fill
                     cell.alignment = Alignment(horizontal="center", vertical="center")
-                    
-                city_rows = records_by_city.get(city_name, [])
-                for idx, r in enumerate(city_rows, 1):
+
+                cur.execute(f"""
+                    SELECT * 
+                    FROM public.portal_v_driver_hisaab_weekly 
+                    WHERE {" AND ".join(where_clauses)}
+                    ORDER BY city, vendor_name, vehicle_number;
+                """, tuple(params))
+                rows = cur.fetchall()
+                cols = [d[0] for d in cur.description]
+                for idx, r in enumerate(rows, 1):
+                    rec = dict(zip(cols, r))
                     row_vals = []
                     for header_name, col_key in EXCEL_COLUMNS:
                         if col_key == "sr_no":
                             row_vals.append(idx)
                         else:
-                            val = r.get(col_key, "")
-                            row_vals.append(float(val) if hasattr(val, '__float__') else str(val) if val is not None else "")
+                            val = rec.get(col_key)
+                            if val is None or val == "":
+                                row_vals.append("")
+                            elif hasattr(val, '__float__'):
+                                row_vals.append(float(val))
+                            else:
+                                row_vals.append(str(val))
                     ws.append(row_vals)
+                auto_fit_sheet(ws)
+
+            # Case B: City Specific Scope
+            elif scope == "city":
+                c_clean = "Bangalore" if city and city.lower() in ["bangalore", "bengaluru", "blr"] else (city or "Bangalore")
+                ws = wb.create_sheet(title=c_clean)
+                headers = [c[0] for c in EXCEL_COLUMNS]
+                ws.append(headers)
+                for col_idx in range(1, len(headers) + 1):
+                    cell = ws.cell(row=1, column=col_idx)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+
+                cur.execute(f"""
+                    SELECT * 
+                    FROM public.portal_v_driver_hisaab_weekly 
+                    WHERE {" AND ".join(where_clauses)}
+                    ORDER BY vendor_name, vehicle_number;
+                """, tuple(params))
+                rows = cur.fetchall()
+                cols = [d[0] for d in cur.description]
+                for idx, r in enumerate(rows, 1):
+                    rec = dict(zip(cols, r))
+                    row_vals = []
+                    for header_name, col_key in EXCEL_COLUMNS:
+                        if col_key == "sr_no":
+                            row_vals.append(idx)
+                        else:
+                            val = rec.get(col_key)
+                            if val is None or val == "":
+                                row_vals.append("")
+                            elif hasattr(val, '__float__'):
+                                row_vals.append(float(val))
+                            else:
+                                row_vals.append(str(val))
+                    ws.append(row_vals)
+                auto_fit_sheet(ws)
+
+            # Case C: Master Multi-City Workbook (Default)
+            else:
+                cur.execute(f"""
+                    SELECT * 
+                    FROM public.portal_v_driver_hisaab_weekly 
+                    WHERE {" AND ".join(where_clauses)}
+                    ORDER BY city, vendor_name;
+                """, tuple(params))
+                rows = cur.fetchall()
+                cols = [d[0] for d in cur.description]
+                records = [dict(zip(cols, r)) for r in rows]
+                
+                records_by_city = {}
+                for r in records:
+                    c = r.get("city") or "Other"
+                    records_by_city.setdefault(c, []).append(r)
+                
+                cities_to_export = ["Bangalore", "Hyderabad", "Mumbai", "Delhi"]
+                for city_name in cities_to_export:
+                    ws = wb.create_sheet(title=city_name)
+                    headers = [c[0] for c in EXCEL_COLUMNS]
+                    ws.append(headers)
+                    for col_idx in range(1, len(headers) + 1):
+                        cell = ws.cell(row=1, column=col_idx)
+                        cell.font = header_font
+                        cell.fill = header_fill
+                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                        
+                    city_rows = records_by_city.get(city_name, [])
+                    for idx, r in enumerate(city_rows, 1):
+                        row_vals = []
+                        for header_name, col_key in EXCEL_COLUMNS:
+                            if col_key == "sr_no":
+                                row_vals.append(idx)
+                            else:
+                                val = r.get(col_key)
+                                if val is None or val == "":
+                                    row_vals.append("")
+                                elif hasattr(val, '__float__'):
+                                    row_vals.append(float(val))
+                                else:
+                                    row_vals.append(str(val))
+                        ws.append(row_vals)
+                    auto_fit_sheet(ws)
+
+                # Summary Sheet
+                cur.execute(f"""
+                    SELECT 
+                        city,
+                        COUNT(*) AS total_allocations,
+                        COUNT(DISTINCT partner_id) AS real_partner_rows,
+                        COALESCE(SUM(onroad_days), 0) AS onroad_days,
+                        COALESCE(SUM(uber_total_revenue), 0.00) AS uber_earnings,
+                        COALESCE(SUM(ola_net_revenue), 0.00) AS ola_revenue,
+                        COALESCE(SUM(uber_total_revenue + ola_net_revenue), 0.00) AS gross_revenue,
+                        COALESCE(SUM(net_weekly_lease_rental), 0.00) AS net_lease_rental,
+                        COALESCE(SUM(challan), 0.00) AS challans,
+                        COALESCE(SUM(tds), 0.00) AS tds,
+                        COALESCE(SUM(deadmile_penalty), 0.00) AS deadmile_penalty,
+                        COALESCE(SUM(current_week_os), 0.00) AS current_week_os,
+                        COALESCE(SUM(to_pay_for_driver), 0.00) AS driver_net_payout,
+                        COALESCE(SUM(to_collect_from_driver), 0.00) AS driver_net_to_collect
+                    FROM public.portal_v_driver_hisaab_weekly
+                    WHERE {" AND ".join(where_clauses)}
+                    GROUP BY city
+                    ORDER BY city;
+                """, tuple(params))
+                sum_rows = cur.fetchall()
+                ws_sum = wb.create_sheet(title="Summary")
+                sum_headers = [
+                    "City", "Total Allocations", "Real Partner Rows", "Onroad Days",
+                    "Uber Earnings", "OLA Revenue", "Gross Revenue", "Net Lease Rental",
+                    "Challans", "TDS", "DeadMile Penalty", "Current Week O/S",
+                    "Driver Net Payout", "Driver Net To Collect"
+                ]
+                ws_sum.append(sum_headers)
+                for col_idx in range(1, len(sum_headers) + 1):
+                    cell = ws_sum.cell(row=1, column=col_idx)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
                     
-            # Summary Sheet
-            cur.execute(f"""
-                SELECT 
-                    city,
-                    COUNT(*) AS total_allocations,
-                    COUNT(DISTINCT partner_id) AS real_partner_rows,
-                    COALESCE(SUM(onroad_days), 0) AS onroad_days,
-                    COALESCE(SUM(uber_total_revenue), 0.00) AS uber_earnings,
-                    COALESCE(SUM(ola_net_revenue), 0.00) AS ola_revenue,
-                    COALESCE(SUM(uber_total_revenue + ola_net_revenue), 0.00) AS gross_revenue,
-                    COALESCE(SUM(net_weekly_lease_rental), 0.00) AS net_lease_rental,
-                    COALESCE(SUM(challan), 0.00) AS challans,
-                    COALESCE(SUM(tds), 0.00) AS tds,
-                    COALESCE(SUM(deadmile_penalty), 0.00) AS deadmile_penalty,
-                    COALESCE(SUM(current_week_os), 0.00) AS current_week_os,
-                    COALESCE(SUM(to_pay_for_driver), 0.00) AS driver_net_payout,
-                    COALESCE(SUM(to_collect_from_driver), 0.00) AS driver_net_to_collect
-                FROM public.portal_v_driver_hisaab_weekly
-                WHERE {" AND ".join(where_clauses)}
-                GROUP BY city
-                ORDER BY city;
-            """, tuple(params))
-            
-            sum_rows = cur.fetchall()
-            ws_sum = wb.create_sheet(title="Summary")
-            sum_headers = [
-                "City", "Total Allocations", "Real Partner Rows", "Onroad Days",
-                "Uber Earnings", "OLA Revenue", "Gross Revenue", "Net Lease Rental",
-                "Challans", "TDS", "DeadMile Penalty", "Current Week O/S",
-                "Driver Net Payout", "Driver Net To Collect"
-            ]
-            ws_sum.append(sum_headers)
-            for col_idx in range(1, len(sum_headers) + 1):
-                cell = ws_sum.cell(row=1, column=col_idx)
-                cell.font = header_font
-                cell.fill = header_fill
-                cell.alignment = Alignment(horizontal="center", vertical="center")
-                
-            for sr in sum_rows:
-                ws_sum.append([float(x) if hasattr(x, '__float__') else str(x) for x in sr])
-                
+                for sr in sum_rows:
+                    ws_sum.append([float(x) if hasattr(x, '__float__') else str(x) for x in sr])
+                auto_fit_sheet(ws_sum)
+
             wb.remove(default_sheet)
             out = io.BytesIO()
             wb.save(out)
             xlsx_content = out.getvalue()
             
             safe_week = re.sub(r'[^a-zA-Z0-9_\-]', '_', (week_id or "Export").strip())
-            filename = f"Hisaab_{safe_week}.xlsx"
+            scope_prefix = f"_{scope}" if scope != "master" else ""
+            filename = f"Hisaab_{safe_week}{scope_prefix}.xlsx"
             
             return Response(
                 content=xlsx_content,
