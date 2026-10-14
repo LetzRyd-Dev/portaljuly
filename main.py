@@ -2843,7 +2843,7 @@ def list_app_users(authorization: Optional[str] = Header(None)):
             LEFT JOIN portal_employees e ON e.employee_id = pu.employee_id
             LEFT JOIN portal_roles r ON r.role_id = pu.role_id
             LEFT JOIN portal_user_form_access fa ON pu.portal_user_id = fa.portal_user_id
-            GROUP BY pu.portal_user_id, pu.username, e.first_name, e.last_name, r.role_name, pu.role, r.role_code, pu.city, e.city, pu.email, e.employee_id, e.company_email
+            GROUP BY pu.portal_user_id, pu.username, e.first_name, e.last_name, r.role_name, pu.role, pu.created_at, pu.role_id, r.role_code, pu.city, e.city, pu.email, pu.employee_id, e.employee_id, e.company_email
             ORDER BY pu.portal_user_id DESC;
         """)
         rows = cur.fetchall()
@@ -10677,17 +10677,31 @@ def get_record_details(module: str, record_id: int, authorization: Optional[str]
         postgreSQL_pool.putconn(conn)
 
 
+MIS_CITY_ALIASES = {
+    "bengaluru": ["bengaluru", "bangalore", "blr"],
+    "bangalore": ["bengaluru", "bangalore", "blr"],
+    "blr": ["bengaluru", "bangalore", "blr"],
+    "mumbai": ["mumbai", "bombay", "mum"],
+    "bombay": ["mumbai", "bombay", "mum"],
+    "mum": ["mumbai", "bombay", "mum"],
+    "hyderabad": ["hyderabad", "hyd"],
+    "hyd": ["hyderabad", "hyd"],
+    "delhi": ["delhi", "new delhi", "del"],
+    "del": ["delhi", "new delhi", "del"],
+}
+
 @app.get("/api/mis/daily-metrics")
 def get_mis_daily_metrics(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    city: Optional[str] = "All Cities",
     granularity: Optional[str] = "Daily",
     authorization: Optional[str] = Header(None)
 ):
     """
-    Zero-impact MIS dashboard metrics API.
-    Reads pre-aggregated summary from public.fact_daily_management_mis.
-    Sub-5ms indexed read with zero table locks on source tables.
+    Zero-impact MIS dashboard metrics API with optional city filter.
+    Reads pre-aggregated summary from public.fact_daily_management_mis (All Cities)
+    or aggregates directly by city from core tables.
     """
     conn = postgreSQL_pool.getconn()
     try:
@@ -10699,51 +10713,178 @@ def get_mis_daily_metrics(
             end_date = str(max_d or dt_module.date.today())
             start_date = str(min_d or (dt_module.date.today() - dt_module.timedelta(days=30)))
             
-        cur.execute("""
-            SELECT 
-                record_date,
-                total_vehicle_days,
-                allotted_car_days,
-                rm_vehicle_days,
-                inventory_vehicle_days,
-                total_loss_days,
-                active_vehicle_days,
-                trips_ola,
-                trips_uber,
-                trips_rapido,
-                ola_revenue,
-                uber_revenue,
-                rapido_revenue,
-                ola_incentive,
-                uber_incentive,
-                rapido_incentive,
-                in_trip_km_ola,
-                in_trip_km_uber,
-                in_trip_km_rapido,
-                total_gps_kms
-            FROM public.fact_daily_management_mis
-            WHERE record_date >= %s AND record_date <= %s
-            ORDER BY record_date DESC;
-        """, (start_date, end_date))
-        
-        rows = cur.fetchall()
-        cols = [d[0] for d in cur.description]
-        records = [dict(zip(cols, r)) for r in rows]
-        
+        selected_city = (city or "All Cities").strip()
         formatted_records = []
-        for rec in records:
-            item = {}
-            for k, v in rec.items():
-                if isinstance(v, (dt_module.date, dt_module.datetime)):
-                    item[k] = str(v)
-                elif hasattr(v, '__float__'):
-                    item[k] = float(v)
-                else:
-                    item[k] = v
-            formatted_records.append(item)
+
+        if selected_city.lower() not in ["all", "all cities", "all_cities", ""]:
+            # Query city-specific aggregated metrics from core tables
+            try:
+                target_cities = MIS_CITY_ALIASES.get(selected_city.lower(), [selected_city.lower()])
+                cur.execute("""
+                    WITH date_series AS (
+                        SELECT generate_series(%s::date, %s::date, '1 day'::interval)::date AS record_date
+                    ),
+                    assets_daily AS (
+                        SELECT 
+                            status_date AS record_date,
+                            COUNT(DISTINCT vehicle_number) AS total_vehicle_days,
+                            COUNT(DISTINCT CASE WHEN cohort = 'On Road' THEN vehicle_number END) AS allotted_car_days,
+                            COUNT(DISTINCT CASE WHEN final_status = 'Maintenance' THEN vehicle_number END) AS rm_vehicle_days,
+                            COUNT(DISTINCT CASE WHEN cohort = 'Off Road' AND final_status != 'Maintenance' THEN vehicle_number END) AS inventory_vehicle_days,
+                            COUNT(DISTINCT CASE WHEN final_status IN ('Sold', 'Total Loss', 'Decommissioned') THEN vehicle_number END) AS total_loss_days
+                        FROM public.core_daily_vehicle_status
+                        WHERE status_date BETWEEN %s::date AND %s::date AND LOWER(city) = ANY(%s)
+                        GROUP BY status_date
+                    ),
+                    trips_uber_daily AS (
+                        SELECT 
+                            operational_date AS record_date,
+                            COALESCE(SUM(completed_trips), 0) AS trips_uber,
+                            COALESCE(SUM(net_fare_earnings), 0.00) AS uber_revenue,
+                            COALESCE(SUM(total_trip_distance_km), 0.00) AS in_trip_km_uber
+                        FROM public.core_uber_daily
+                        WHERE operational_date BETWEEN %s::date AND %s::date AND LOWER(city) = ANY(%s)
+                        GROUP BY operational_date
+                    ),
+                    trips_ola_daily AS (
+                        SELECT 
+                            service_date AS record_date,
+                            COALESCE(SUM(completed_trips), 0) AS trips_ola,
+                            COALESCE(SUM(operator_bill), 0.00) AS ola_revenue,
+                            COALESCE(SUM(portal_incentive), 0.00) AS ola_incentive,
+                            COALESCE(SUM(total_kms), 0.00) AS in_trip_km_ola
+                        FROM public.core_ola_daily
+                        WHERE service_date BETWEEN %s::date AND %s::date AND LOWER(city) = ANY(%s)
+                        GROUP BY service_date
+                    ),
+                    trips_rapido_daily AS (
+                        SELECT 
+                            operational_date AS record_date,
+                            COALESCE(SUM(completed_trips), 0) AS trips_rapido,
+                            COALESCE(SUM(net_revenue), 0.00) AS rapido_revenue,
+                            COALESCE(SUM(total_trip_distance_km), 0.00) AS in_trip_km_rapido
+                        FROM public.core_rapido_daily
+                        WHERE operational_date BETWEEN %s::date AND %s::date AND LOWER(city) = ANY(%s)
+                        GROUP BY operational_date
+                    ),
+                    active_vehicles_daily AS (
+                        SELECT 
+                            d.record_date,
+                            COUNT(DISTINCT u.vehicle_number) AS active_vehicle_days
+                        FROM date_series d
+                        LEFT JOIN (
+                            SELECT operational_date AS record_date, vehicle_number FROM public.core_uber_daily WHERE completed_trips > 0 AND operational_date BETWEEN %s::date AND %s::date AND LOWER(city) = ANY(%s)
+                            UNION
+                            SELECT service_date AS record_date, vehicle_number FROM public.core_ola_daily WHERE completed_trips > 0 AND service_date BETWEEN %s::date AND %s::date AND LOWER(city) = ANY(%s)
+                            UNION
+                            SELECT operational_date AS record_date, vehicle_number FROM public.core_rapido_daily WHERE completed_trips > 0 AND operational_date BETWEEN %s::date AND %s::date AND LOWER(city) = ANY(%s)
+                        ) u ON d.record_date = u.record_date
+                        GROUP BY d.record_date
+                    )
+                    SELECT 
+                        d.record_date,
+                        COALESCE(a.total_vehicle_days, 0) AS total_vehicle_days,
+                        COALESCE(a.allotted_car_days, 0) AS allotted_car_days,
+                        COALESCE(a.rm_vehicle_days, 0) AS rm_vehicle_days,
+                        COALESCE(a.inventory_vehicle_days, 0) AS inventory_vehicle_days,
+                        COALESCE(a.total_loss_days, 0) AS total_loss_days,
+                        COALESCE(av.active_vehicle_days, 0) AS active_vehicle_days,
+                        COALESCE(o.trips_ola, 0) AS trips_ola,
+                        COALESCE(u.trips_uber, 0) AS trips_uber,
+                        COALESCE(r.trips_rapido, 0) AS trips_rapido,
+                        COALESCE(o.ola_revenue, 0.00) AS ola_revenue,
+                        COALESCE(u.uber_revenue, 0.00) AS uber_revenue,
+                        COALESCE(r.rapido_revenue, 0.00) AS rapido_revenue,
+                        COALESCE(o.ola_incentive, 0.00) AS ola_incentive,
+                        0.00 AS uber_incentive,
+                        0.00 AS rapido_incentive,
+                        COALESCE(o.in_trip_km_ola, 0.00) AS in_trip_km_ola,
+                        COALESCE(u.in_trip_km_uber, 0.00) AS in_trip_km_uber,
+                        COALESCE(r.in_trip_km_rapido, 0.00) AS in_trip_km_rapido,
+                        0.00 AS total_gps_kms
+                    FROM date_series d
+                    LEFT JOIN assets_daily a ON d.record_date = a.record_date
+                    LEFT JOIN trips_ola_daily o ON d.record_date = o.record_date
+                    LEFT JOIN trips_uber_daily u ON d.record_date = u.record_date
+                    LEFT JOIN trips_rapido_daily r ON d.record_date = r.record_date
+                    LEFT JOIN active_vehicles_daily av ON d.record_date = av.record_date
+                    ORDER BY d.record_date DESC;
+                """, (
+                    start_date, end_date,
+                    start_date, end_date, target_cities,
+                    start_date, end_date, target_cities,
+                    start_date, end_date, target_cities,
+                    start_date, end_date, target_cities,
+                    start_date, end_date, target_cities,
+                    start_date, end_date, target_cities,
+                    start_date, end_date, target_cities
+                ))
+                rows = cur.fetchall()
+                cols = [d[0] for d in cur.description]
+                records = [dict(zip(cols, r)) for r in rows]
+                for rec in records:
+                    item = {}
+                    for k, v in rec.items():
+                        if isinstance(v, (dt_module.date, dt_module.datetime)):
+                            item[k] = str(v)
+                        elif hasattr(v, '__float__'):
+                            item[k] = float(v)
+                        else:
+                            item[k] = v
+                    formatted_records.append(item)
+            except Exception as city_err:
+                conn.rollback()
+                print(f"[WARN] City-specific MIS query failed: {city_err}")
+                formatted_records = []
+
+        if not formatted_records and selected_city.lower() in ["all", "all cities", "all_cities", ""]:
+            # Query standard aggregate table
+            cur.execute("""
+                SELECT 
+                    record_date,
+                    total_vehicle_days,
+                    allotted_car_days,
+                    rm_vehicle_days,
+                    inventory_vehicle_days,
+                    total_loss_days,
+                    active_vehicle_days,
+                    trips_ola,
+                    trips_uber,
+                    trips_rapido,
+                    ola_revenue,
+                    uber_revenue,
+                    rapido_revenue,
+                    ola_incentive,
+                    uber_incentive,
+                    rapido_incentive,
+                    in_trip_km_ola,
+                    in_trip_km_uber,
+                    in_trip_km_rapido,
+                    total_gps_kms
+                FROM public.fact_daily_management_mis
+                WHERE record_date >= %s AND record_date <= %s
+                ORDER BY record_date DESC;
+            """, (start_date, end_date))
             
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            records = [dict(zip(cols, r)) for r in rows]
+            
+            for rec in records:
+                item = {}
+                for k, v in rec.items():
+                    if isinstance(v, (dt_module.date, dt_module.datetime)):
+                        item[k] = str(v)
+                    elif hasattr(v, '__float__'):
+                        item[k] = float(v)
+                    else:
+                        item[k] = v
+                formatted_records.append(item)
+            
+        conn.commit()
         return {
             "success": True,
+            "city": selected_city,
             "granularity": granularity,
             "start_date": start_date,
             "end_date": end_date,
@@ -10751,9 +10892,71 @@ def get_mis_daily_metrics(
             "data": formatted_records
         }
     except Exception as e:
+        conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         postgreSQL_pool.putconn(conn)
+
+
+@app.get("/api/mis/export")
+def export_mis_csv(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    city: Optional[str] = "All Cities",
+    granularity: Optional[str] = "Daily",
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Download MIS Dashboard metrics as a CSV file.
+    """
+    from fastapi.responses import Response
+    import io
+    import csv
+
+    metrics_res = get_mis_daily_metrics(
+        start_date=start_date,
+        end_date=end_date,
+        city=city,
+        granularity=granularity,
+        authorization=authorization
+    )
+    
+    resolved_start = metrics_res.get("start_date") or start_date or "start"
+    resolved_end = metrics_res.get("end_date") or end_date or "end"
+    
+    data = metrics_res.get("data", [])
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Metadata Header
+    writer.writerow(["# LetzRyd Operations MIS Dashboard Export"])
+    writer.writerow(["# City:", city or "All Cities"])
+    writer.writerow(["# Date Range:", f"{resolved_start} to {resolved_end}"])
+    writer.writerow(["# Granularity:", granularity])
+    writer.writerow(["# Exported At (IST):", datetime.now(ist_tz).strftime('%Y-%m-%d %H:%M:%S')])
+    writer.writerow([])
+    
+    if data:
+        headers = list(data[0].keys())
+        writer.writerow(headers)
+        for row in data:
+            writer.writerow([row.get(h, "") for h in headers])
+    else:
+        writer.writerow(["No records found for specified criteria"])
+        
+    csv_content = output.getvalue()
+    safe_city = re.sub(r'[^a-zA-Z0-9_\-]', '_', (city or "All_Cities").strip())
+    filename = f"LetzRyd_MIS_{safe_city}_{resolved_start}_{resolved_end}.csv"
+    
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{filename}\"",
+            "Cache-Control": "no-cache"
+        }
+    )
+
 
 
 # ─────────────────────────────────────────────────────────

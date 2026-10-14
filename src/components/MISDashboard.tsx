@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Filter, ArrowLeft, ExternalLink, Inbox, LogOut, BarChart3, ChevronDown, ChevronLeft, ChevronRight, X, Check, SlidersHorizontal } from 'lucide-react';
+import { Calendar, Filter, ArrowLeft, ExternalLink, Inbox, LogOut, BarChart3, ChevronDown, ChevronLeft, ChevronRight, X, Check, SlidersHorizontal, Download, MapPin, FileSpreadsheet } from 'lucide-react';
 import { User } from '../types';
 
 interface MISDashboardProps {
@@ -18,6 +18,26 @@ export default function MISDashboard({ user, onBackToSelector, onBack, onLogout 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [rangeMode, setRangeMode] = useState('Fixed');
   
+  // City Filter State
+  const [selectedCity, setSelectedCity] = useState<string>('All Cities');
+  const [availableCities, setAvailableCities] = useState<string[]>(['All Cities', 'Bengaluru', 'Mumbai', 'Hyderabad', 'Delhi']);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+
+  // Fetch registered cities dynamically
+  useEffect(() => {
+    fetch('/api/cities')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          const names = data.map((c: any) => c.name || c.city_name || c.value).filter(Boolean);
+          const unique = Array.from(new Set(['All Cities', ...names]));
+          setAvailableCities(unique);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Dynamic initial dates (Default: Last 7 days up to today)
   const [startYear, setStartYear] = useState(() => {
     const d = new Date();
@@ -73,7 +93,8 @@ export default function MISDashboard({ user, onBackToSelector, onBack, onLogout 
       try {
         const sDate = `${startYear}-${String(startMonth + 1).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
         const eDate = `${endYear}-${String(endMonth + 1).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
-        const res = await fetch(`/api/mis/daily-metrics?start_date=${sDate <= eDate ? sDate : eDate}&end_date=${sDate <= eDate ? eDate : sDate}&granularity=${granularity}`);
+        const queryCity = encodeURIComponent(selectedCity);
+        const res = await fetch(`/api/mis/daily-metrics?start_date=${sDate <= eDate ? sDate : eDate}&end_date=${sDate <= eDate ? eDate : sDate}&granularity=${granularity}&city=${queryCity}`);
         if (res.ok) {
           const json = await res.json();
           if (json.success && Array.isArray(json.data) && json.data.length > 0) {
@@ -81,6 +102,8 @@ export default function MISDashboard({ user, onBackToSelector, onBack, onLogout 
             if (granularity === 'Daily') {
               setDates(json.data.map((r: any) => String(r.record_date)));
             }
+          } else {
+            setLiveRows(null);
           }
         }
       } catch (err) {
@@ -90,7 +113,7 @@ export default function MISDashboard({ user, onBackToSelector, onBack, onLogout 
       }
     };
     fetchLiveMetrics();
-  }, [startYear, startMonth, startDay, endYear, endMonth, endDay, granularity]);
+  }, [startYear, startMonth, startDay, endYear, endMonth, endDay, granularity, selectedCity]);
 
   // Start Date Month Navigation
   const handlePrevStartMonth = () => {
@@ -413,6 +436,73 @@ export default function MISDashboard({ user, onBackToSelector, onBack, onLogout 
   const activeQualityData = granularity === 'Monthly' ? monthlyQualityData : (granularity === 'Weekly' ? weeklyQualityData : dynamicDailyQualityData);
   const activeDeadMilesData = granularity === 'Monthly' ? monthlyDeadMilesData : (granularity === 'Weekly' ? weeklyDeadMilesData : dynamicDailyDeadMilesData);
 
+  // Download MIS Handler
+  const handleDownloadCSV = (mode: 'formatted' | 'raw' = 'formatted') => {
+    setIsDownloading(true);
+    setShowDownloadMenu(false);
+    try {
+      const sDate = `${startYear}-${String(startMonth + 1).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+      const eDate = `${endYear}-${String(endMonth + 1).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
+      const safeCity = selectedCity.replace(/\s+/g, '_');
+
+      if (mode === 'raw') {
+        const exportUrl = `/api/mis/export?start_date=${sDate <= eDate ? sDate : eDate}&end_date=${sDate <= eDate ? eDate : sDate}&city=${encodeURIComponent(selectedCity)}&granularity=${granularity}`;
+        const link = document.createElement('a');
+        link.href = exportUrl;
+        link.setAttribute('download', `LetzRyd_MIS_Raw_${safeCity}_${sDate}_to_${eDate}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // Formatted screen table CSV
+        const lines: string[] = [];
+        lines.push(`"LetzRyd Operations MIS Dashboard - Executive Summary"`);
+        lines.push(`"City Filter","${selectedCity}"`);
+        lines.push(`"Date Range","${dateRangeLabel}"`);
+        lines.push(`"Granularity","${granularity}"`);
+        lines.push(`"Exported At","${new Date().toLocaleString('en-IN')}"`);
+        lines.push('');
+
+        // Header row
+        const headerCols = ['Particulars', 'Metric Name', ...activeDates.map(d => `"${d}"`)];
+        lines.push(headerCols.join(','));
+
+        const appendSection = (sectionName: string, rows: Array<{ metric: string; values: string[] }>) => {
+          rows.forEach((r, idx) => {
+            const rowParticulars = idx === 0 ? `"${sectionName}"` : '""';
+            const metricName = `"${r.metric.replace(/"/g, '""')}"`;
+            const vals = activeDates.map((_, vIdx) => {
+              const val = r.values[vIdx] !== undefined ? r.values[vIdx] : (r.values[r.values.length - 1] || '0');
+              return `"${String(val).replace(/"/g, '""')}"`;
+            });
+            lines.push([rowParticulars, metricName, ...vals].join(','));
+          });
+        };
+
+        appendSection('Assets', activeAssetsData);
+        appendSection('Trips', activeTripsData);
+        appendSection('Revenue', activeRevenueData);
+        appendSection('Quality Metrics', activeQualityData);
+        appendSection('Dead Miles', activeDeadMilesData);
+
+        const csvString = lines.join('\r\n');
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `LetzRyd_MIS_${safeCity}_${sDate}_to_${eDate}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Failed to export MIS CSV:', err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const displayName = user?.name || user?.username || 'User';
   const initials = displayName.split(' ').map((w) => w[0]).join('').substring(0, 2).toUpperCase();
 
@@ -482,32 +572,52 @@ export default function MISDashboard({ user, onBackToSelector, onBack, onLogout 
         
         <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6 font-sans overflow-hidden">
           
-          {/* Top Controls Bar: Granularity, Center Title, Date Picker */}
-          <div className="flex flex-col lg:flex-row justify-between items-center pb-5 border-b border-slate-200 gap-4">
+          {/* Top Controls Bar: Granularity, City Filter, Center Title, Date Picker, Download */}
+          <div className="flex flex-col xl:flex-row justify-between items-center pb-5 border-b border-slate-200 gap-4">
             
-            {/* Left: Clean Segmented Granularity Control */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2.5 hidden sm:flex items-center gap-1.5">
-                <Filter className="h-3.5 w-3.5 text-slate-400" />
-                Granularity:
-              </span>
-              {(['Daily', 'Weekly', 'Monthly'] as const).map((g) => (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => setGranularity(g)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    granularity === g
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
-                  }`}
+            {/* Left Controls Group: Granularity + City Filter */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Segmented Granularity Control */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2.5 hidden sm:flex items-center gap-1.5">
+                  <Filter className="h-3.5 w-3.5 text-slate-400" />
+                  Granularity:
+                </span>
+                {(['Daily', 'Weekly', 'Monthly'] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGranularity(g)}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      granularity === g
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+
+              {/* City Filter Control */}
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2.5 flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-primary" />
+                  City:
+                </span>
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="bg-white hover:bg-slate-50 border border-slate-300 text-xs font-bold text-slate-800 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer transition-colors shadow-2xs"
                 >
-                  {g}
-                </button>
-              ))}
+                  {availableCities.map((city) => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* Center: Title & Logo (Exact title requested: LetzRyd MIS Dashboard) */}
+            {/* Center: Title & Logo */}
             <div className="text-center flex items-center justify-center gap-3">
               <img src="/letzryd_icon.png" alt="LetzRyd" className="h-7 w-auto object-contain" />
               <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight font-sans">
@@ -515,37 +625,39 @@ export default function MISDashboard({ user, onBackToSelector, onBack, onLogout 
               </h1>
             </div>
 
-            {/* Right: Clean Modern Date Range Picker */}
-            <div className="relative">
-              <button 
-                type="button"
-                onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-                className="flex items-center gap-2.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-800 rounded-xl px-3.5 py-2 text-xs font-semibold font-sans shadow-xs transition-colors cursor-pointer"
-              >
-                <Calendar className="h-4 w-4 text-primary" />
-                <span>{dateRangeLabel}</span>
-                <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${isDatePickerOpen ? 'rotate-180' : ''}`} />
-              </button>
+            {/* Right Controls Group: Date Range Picker + Download Option */}
+            <div className="flex items-center gap-3">
+              {/* Clean Modern Date Range Picker */}
+              <div className="relative">
+                <button 
+                  type="button"
+                  onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+                  className="flex items-center gap-2.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-800 rounded-xl px-3.5 py-2 text-xs font-semibold font-sans shadow-xs transition-colors cursor-pointer"
+                >
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <span>{dateRangeLabel}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${isDatePickerOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-              {/* Replica Looker Studio Dual-Calendar Modal Window */}
-              {isDatePickerOpen && (
-                <div className="absolute right-0 top-12 bg-white rounded-2xl shadow-2xl border border-slate-300 p-6 z-50 w-[530px] max-w-[90vw] font-sans text-slate-800 animate-in fade-in zoom-in-95 duration-150">
-                  
-                  {/* Mode Select Header Bar */}
-                  <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
-                    <span className="text-xs font-bold text-slate-700">Date Range Mode</span>
-                    <select 
-                      value={rangeMode}
-                      onChange={(e) => handleRangeModeChange(e.target.value)}
-                      className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs px-3 py-1 rounded-lg text-slate-800 font-semibold outline-none cursor-pointer transition-colors"
-                    >
-                      <option value="Fixed">Fixed</option>
-                      <option value="Today">Today</option>
-                      <option value="Yesterday">Yesterday</option>
-                      <option value="This month">This month</option>
-                      <option value="Last 7 days">Last 7 days</option>
-                    </select>
-                  </div>
+                {/* Replica Looker Studio Dual-Calendar Modal Window */}
+                {isDatePickerOpen && (
+                  <div className="absolute right-0 top-12 bg-white rounded-2xl shadow-2xl border border-slate-300 p-6 z-50 w-[530px] max-w-[90vw] font-sans text-slate-800 animate-in fade-in zoom-in-95 duration-150">
+                    
+                    {/* Mode Select Header Bar */}
+                    <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+                      <span className="text-xs font-bold text-slate-700">Date Range Mode</span>
+                      <select 
+                        value={rangeMode}
+                        onChange={(e) => handleRangeModeChange(e.target.value)}
+                        className="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs px-3 py-1 rounded-lg text-slate-800 font-semibold outline-none cursor-pointer transition-colors"
+                      >
+                        <option value="Fixed">Fixed</option>
+                        <option value="Today">Today</option>
+                        <option value="Yesterday">Yesterday</option>
+                        <option value="This month">This month</option>
+                        <option value="Last 7 days">Last 7 days</option>
+                      </select>
+                    </div>
 
                   {/* Side-by-Side Dual Calendars */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pb-6 border-b border-slate-100">
@@ -795,7 +907,54 @@ export default function MISDashboard({ user, onBackToSelector, onBack, onLogout 
                 </div>
               )}
             </div>
+
+            {/* Download Options Button & Dropdown */}
+            <div className="relative">
+              <button 
+                type="button"
+                onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                disabled={isDownloading}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-3.5 py-2 text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                title="Export MIS Dashboard"
+              >
+                <Download className="h-4 w-4" />
+                <span>{isDownloading ? 'Exporting...' : 'Download MIS'}</span>
+                <ChevronDown className={`h-3.5 w-3.5 text-emerald-200 transition-transform ${showDownloadMenu ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showDownloadMenu && (
+                <div className="absolute right-0 top-12 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 w-56 font-sans animate-in fade-in zoom-in-95 duration-100">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase px-2.5 py-1">
+                    Export Format
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadCSV('formatted')}
+                    className="w-full text-left px-2.5 py-2 hover:bg-slate-100 rounded-lg text-xs font-semibold text-slate-800 flex items-center gap-2 cursor-pointer transition-colors"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                    <div>
+                      <div className="font-bold text-slate-900">MIS Report (CSV)</div>
+                      <div className="text-[10px] text-slate-500">Formatted screen table with metrics</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadCSV('raw')}
+                    className="w-full text-left px-2.5 py-2 hover:bg-slate-100 rounded-lg text-xs font-semibold text-slate-800 flex items-center gap-2 cursor-pointer transition-colors mt-1"
+                  >
+                    <Download className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="font-bold text-slate-900">Raw Fact Records (CSV)</div>
+                      <div className="text-[10px] text-slate-500">Unpivoted database records</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
+        </div>
 
           {/* Main Table Container: Expanded Width & Crisp Alignment */}
           <div className="mt-5 overflow-x-auto rounded-xl border border-slate-300 shadow-2xs bg-white">
