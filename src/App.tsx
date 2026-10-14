@@ -26,13 +26,14 @@ import MaintenanceOutForm from "./components/MaintenanceOutForm";
 import ChallansForm from "./components/ChallansForm";
 import ApprovalsDesk from "./components/ApprovalsDashboard";
 import MISDashboard from "./components/MISDashboard";
+import HisaabDashboard from "./components/HisaabDashboard";
 import { User, CITIES } from "./types";
 
 const LOCAL_STORAGE_TOKEN_KEY = "lr_token";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [screen, setScreen] = useState<"login" | "selector" | "walkin" | "onboarding" | "operator_onboarding" | "adjustment" | "allocation" | "dropoff" | "expenses" | "vehicle_onboarding" | "workshops" | "hubs_parking" | "rents" | "accident" | "inspection" | "users" | "vehicle_models" | "cities" | "roles" | "tickets" | "employees" | "maintenance" | "maintenance_in" | "maintenance_out" | "challans" | "approvals" | "mis_dashboard">("login");
+  const [screen, setScreen] = useState<"login" | "selector" | "walkin" | "onboarding" | "operator_onboarding" | "adjustment" | "allocation" | "dropoff" | "expenses" | "vehicle_onboarding" | "workshops" | "hubs_parking" | "rents" | "accident" | "inspection" | "users" | "vehicle_models" | "cities" | "roles" | "tickets" | "employees" | "maintenance" | "maintenance_in" | "maintenance_out" | "challans" | "approvals" | "mis_dashboard" | "hisaab_dashboard">("login");
   const [selectorSection, setSelectorSection] = useState<"forms" | "dashboards">("forms");
   const [editTarget, setEditTarget] = useState<{ formType: string; id: number; isReview?: boolean } | null>(null);
   const [activeApprovalsTab, setActiveApprovalsTab] = useState<"pending" | "my-submissions" | "revisions">("pending");
@@ -71,6 +72,8 @@ export default function App() {
         const urlScreen = params.get("screen") || params.get("view");
         if (urlScreen === "mis_dashboard") {
           setScreen("mis_dashboard");
+        } else if (urlScreen === "hisaab_dashboard" || urlScreen === "hisaab") {
+          setScreen("hisaab_dashboard");
         } else {
           const savedScreen = (sessionStorage.getItem("lr_active_screen") as any) || "selector";
           setScreen(savedScreen);
@@ -382,6 +385,20 @@ export default function App() {
             </div>
           </div>
         )
+      )}
+      {screen === "hisaab_dashboard" && user && (
+        <HisaabDashboard 
+          user={user} 
+          onBack={() => {
+            setSelectorSection("dashboards");
+            setScreen("selector");
+          }}
+          onBackToSelector={() => {
+            setSelectorSection("dashboards");
+            setScreen("selector");
+          }} 
+          onLogout={handleLogout} 
+        />
       )}
     </div>
   );

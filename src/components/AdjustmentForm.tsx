@@ -184,7 +184,7 @@ export default function AdjustmentForm({
 
       alert(`Adjustment #${reviewRecord.id} updated to ${targetStatus} (Approved: ₹${action === "REJECT" ? 0 : approvedAmountInput})`);
       setReviewRecord(null);
-      fetchData();
+      // fetchData();
     } catch (e: any) {
       alert("Error: " + e.message);
     } finally {

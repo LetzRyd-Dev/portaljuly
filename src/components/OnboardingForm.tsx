@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from "react";
 import { 
   Calendar, MapPin, User, Phone, FileText, CheckCircle, 
   Clock, ArrowLeft, Download, Search, Trash2, Edit, Camera, 
-  Upload, X, RefreshCw, AlertTriangle, ShieldCheck, Filter, Plus, ChevronLeft, UserCheck, Database, IndianRupee, ChevronRight, Check, Shield, FileSignature, Eye, EyeOff, Send, ArrowRight, RotateCcw
+  Upload, X, RefreshCw, AlertTriangle, ShieldCheck, Filter, Plus, ChevronLeft, UserCheck, Database, IndianRupee, ChevronRight, Check, Shield, FileSignature, Eye, EyeOff, Send, ArrowRight, RotateCcw,
+  XCircle, MessageSquare
 } from "lucide-react";
 import { OnboardingRecord, User as UserSession, CITIES } from "../types";
 import CameraCapture from "./CameraCapture";

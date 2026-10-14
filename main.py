@@ -10959,6 +10959,326 @@ def export_mis_csv(
 
 
 
+
+# ─────────────────────────────────────────────────────────
+# HISAAB (DRIVER SETTLEMENT) DASHBOARD ENDPOINTS
+# ─────────────────────────────────────────────────────────
+
+@app.get("/api/hisaab/weeks")
+def get_hisaab_weeks(authorization: Optional[str] = Header(None)):
+    """
+    Returns available settlement calendar weeks for filtering.
+    """
+    conn = postgreSQL_pool.getconn()
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT week_id, settlement_year, settlement_week, week_start, week_end, is_locked
+            FROM public.hisaab_settlement_weeks
+            ORDER BY week_start DESC
+            LIMIT 52;
+        """)
+        rows = cur.fetchall()
+        weeks = []
+        for r in rows:
+            weeks.append({
+                "week_id": r[0],
+                "settlement_year": r[1],
+                "settlement_week": r[2],
+                "week_start": str(r[3]),
+                "week_end": str(r[4]),
+                "is_locked": bool(r[5])
+            })
+        return {"success": True, "data": weeks}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        postgreSQL_pool.putconn(conn)
+
+
+@app.get("/api/hisaab/summary")
+def get_hisaab_summary(
+    city: Optional[str] = "All Cities",
+    week_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    format: Optional[str] = "vehicle_weekly",
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Computes top-level executive KPI numbers for the Hisaab dashboard.
+    """
+    conn = postgreSQL_pool.getconn()
+    try:
+        cur = conn.cursor()
+        
+        where_clauses = ["1=1"]
+        params = []
+        
+        # City filter
+        if city and city.lower() not in ["all", "all cities", "all_cities", ""]:
+            c_low = city.lower().strip()
+            if c_low in ["bengaluru", "bangalore", "blr"]:
+                where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                params.append(['bengaluru', 'bangalore', 'blr'])
+            elif c_low in ["mumbai", "bom", "mum"]:
+                where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                params.append(['mumbai', 'bom', 'mum'])
+            elif c_low in ["hyderabad", "hyd"]:
+                where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                params.append(['hyderabad', 'hyd'])
+            elif c_low in ["delhi", "del", "ncr"]:
+                where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                params.append(['delhi', 'del', 'ncr'])
+            else:
+                where_clauses.append("LOWER(normalized_city) = %s")
+                params.append(c_low)
+                
+        # Week / Date filter
+        if week_id and week_id.lower() not in ["all", "all weeks", ""]:
+            where_clauses.append("week_id = %s")
+            params.append(week_id)
+        elif start_date and end_date:
+            where_clauses.append("week_start >= %s::date AND week_end <= %s::date")
+            params.extend([start_date, end_date])
+            
+        where_sql = " AND ".join(where_clauses)
+        
+        cur.execute(f"""
+            SELECT 
+                COUNT(*) AS total_records,
+                COUNT(DISTINCT partner_id) AS total_drivers,
+                COUNT(DISTINCT vehicle_number) AS total_vehicles,
+                COALESCE(SUM(allotted_days), 0) AS total_allotted_days,
+                COALESCE(SUM(onroad_days), 0) AS total_onroad_days,
+                COALESCE(SUM(net_weekly_lease_rental), 0.00) AS total_lease_rental,
+                COALESCE(SUM(total_trips), 0) AS total_trips,
+                COALESCE(SUM(total_gross_earnings), 0.00) AS total_gross_earnings,
+                COALESCE(SUM(total_cash_collected), 0.00) AS total_cash_collected,
+                COALESCE(SUM(total_incentives), 0.00) AS total_incentives,
+                COALESCE(SUM(total_deductions), 0.00) AS total_deductions,
+                COALESCE(SUM(net_payout_to_driver), 0.00) AS total_payout_to_drivers,
+                COALESCE(SUM(net_to_collect_from_driver), 0.00) AS total_to_collect,
+                COALESCE(SUM(uber_trips), 0) AS total_uber_trips,
+                COALESCE(SUM(uber_total_earnings), 0.00) AS total_uber_earnings,
+                COALESCE(SUM(ola_trips), 0) AS total_ola_trips,
+                COALESCE(SUM(ola_net_revenue), 0.00) AS total_ola_revenue
+            FROM public.portal_v_driver_hisaab_weekly
+            WHERE {where_sql};
+        """, tuple(params))
+        
+        row = cur.fetchone()
+        cols = [d[0] for d in cur.description]
+        res = dict(zip(cols, [float(v) if hasattr(v, '__float__') else v for v in row]))
+        
+        return {
+            "success": True,
+            "city": city,
+            "week_id": week_id,
+            "summary": res
+        }
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        postgreSQL_pool.putconn(conn)
+
+
+@app.get("/api/hisaab/records")
+def get_hisaab_records(
+    format: Optional[str] = "vehicle_weekly",
+    city: Optional[str] = "All Cities",
+    week_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    page: Optional[int] = 1,
+    limit: Optional[int] = 50,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Returns paginated hisaab records for the specified format (Partner+Vehicle, Consolidated Partner, or Daily Ledger).
+    """
+    conn = postgreSQL_pool.getconn()
+    try:
+        cur = conn.cursor()
+        
+        # Select target view based on format
+        target_view = "public.portal_v_driver_hisaab_weekly"
+        if format == "consolidated_partner":
+            target_view = "public.portal_v_hisaab_partner_weekly"
+        elif format == "daily_ledger":
+            target_view = "public.portal_v_hisaab_daily_ledger"
+            
+        where_clauses = ["1=1"]
+        params = []
+        
+        # City
+        if city and city.lower() not in ["all", "all cities", "all_cities", ""]:
+            c_low = city.lower().strip()
+            if c_low in ["bengaluru", "bangalore", "blr"]:
+                where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                params.append(['bengaluru', 'bangalore', 'blr'])
+            elif c_low in ["mumbai", "bom", "mum"]:
+                where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                params.append(['mumbai', 'bom', 'mum'])
+            elif c_low in ["hyderabad", "hyd"]:
+                where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                params.append(['hyderabad', 'hyd'])
+            elif c_low in ["delhi", "del", "ncr"]:
+                where_clauses.append("LOWER(raw_city) = ANY(%s)")
+                params.append(['delhi', 'del', 'ncr'])
+            else:
+                where_clauses.append("LOWER(normalized_city) = %s")
+                params.append(c_low)
+                
+        # Week / Dates
+        if week_id and week_id.lower() not in ["all", "all weeks", ""]:
+            where_clauses.append("week_id = %s")
+            params.append(week_id)
+        elif start_date and end_date:
+            if format == "daily_ledger":
+                where_clauses.append("log_date BETWEEN %s::date AND %s::date")
+            else:
+                where_clauses.append("week_start >= %s::date AND week_end <= %s::date")
+            params.extend([start_date, end_date])
+            
+        # Search query (Partner name, Partner ID, or Vehicle number)
+        if search and search.strip():
+            s_val = f"%{search.strip()}%"
+            if format == "consolidated_partner":
+                where_clauses.append("(partner_name ILIKE %s OR partner_id ILIKE %s)")
+                params.extend([s_val, s_val])
+            else:
+                where_clauses.append("(partner_name ILIKE %s OR partner_id ILIKE %s OR vehicle_number ILIKE %s)")
+                params.extend([s_val, s_val, s_val])
+                
+        if status and status.lower() not in ["all", ""]:
+            where_clauses.append("LOWER(settlement_status) = %s")
+            params.append(status.lower().strip())
+            
+        where_sql = " AND ".join(where_clauses)
+        
+        # Count total records
+        cur.execute(f"SELECT COUNT(*) FROM {target_view} WHERE {where_sql};", tuple(params))
+        total_count = cur.fetchone()[0]
+        
+        # Pagination
+        offset = max(0, (page - 1) * limit)
+        order_col = "log_date DESC" if format == "daily_ledger" else "week_start DESC, partner_name ASC"
+        
+        cur.execute(f"""
+            SELECT * 
+            FROM {target_view} 
+            WHERE {where_sql} 
+            ORDER BY {order_col} 
+            LIMIT %s OFFSET %s;
+        """, tuple(params + [limit, offset]))
+        
+        rows = cur.fetchall()
+        cols = [d[0] for d in cur.description]
+        import datetime as dt_module
+        records = []
+        for r in rows:
+            rec = {}
+            for col, val in zip(cols, r):
+                if isinstance(val, (dt_module.date, dt_module.datetime)):
+                    rec[col] = str(val)
+                elif hasattr(val, '__float__'):
+                    rec[col] = float(val)
+                else:
+                    rec[col] = val
+            records.append(rec)
+            
+        return {
+            "success": True,
+            "format": format,
+            "city": city,
+            "week_id": week_id,
+            "page": page,
+            "limit": limit,
+            "total_count": total_count,
+            "total_pages": (total_count + limit - 1) // limit if limit > 0 else 1,
+            "data": records
+        }
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        postgreSQL_pool.putconn(conn)
+
+
+@app.get("/api/hisaab/export")
+def export_hisaab_csv(
+    format: Optional[str] = "vehicle_weekly",
+    city: Optional[str] = "All Cities",
+    week_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Streams CSV export of the complete filtered Hisaab records.
+    """
+    from fastapi.responses import Response
+    import io
+    import csv
+    
+    # Reuse query logic with limit=10000
+    res_data = get_hisaab_records(
+        format=format,
+        city=city,
+        week_id=week_id,
+        start_date=start_date,
+        end_date=end_date,
+        search=search,
+        status=status,
+        page=1,
+        limit=10000,
+        authorization=authorization
+    )
+    
+    data = res_data.get("data", [])
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Export Metadata
+    writer.writerow(["# LetzRyd Operations Hisaab Dashboard Export"])
+    writer.writerow(["# Format:", format])
+    writer.writerow(["# City:", city or "All Cities"])
+    writer.writerow(["# Settlement Week / Period:", week_id or f"{start_date} to {end_date}" or "All"])
+    writer.writerow(["# Total Records:", len(data)])
+    writer.writerow(["# Exported At (IST):", datetime.now(ist_tz).strftime('%Y-%m-%d %H:%M:%S')])
+    writer.writerow([])
+    
+    if data:
+        headers = list(data[0].keys())
+        writer.writerow(headers)
+        for row in data:
+            writer.writerow([row.get(h, "") for h in headers])
+    else:
+        writer.writerow(["No hisaab records found for specified criteria"])
+        
+    csv_content = output.getvalue()
+    safe_city = re.sub(r'[^a-zA-Z0-9_\-]', '_', (city or "All_Cities").strip())
+    safe_week = re.sub(r'[^a-zA-Z0-9_\-]', '_', (week_id or "All_Weeks").strip())
+    filename = f"LetzRyd_Hisaab_{format}_{safe_city}_{safe_week}.csv"
+    
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{filename}\"",
+            "Cache-Control": "no-cache"
+        }
+    )
+
+
+
 # ─────────────────────────────────────────────────────────
 # Cache-Control Middleware & Static files
 # Ensures index.html and APIs are never cached by browsers, preventing stale JS execution

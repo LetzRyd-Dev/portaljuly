@@ -10,7 +10,7 @@ interface FormSelectorProps {
   user: User;
   initialSection?: "forms" | "dashboards";
   onSectionChange?: (section: "forms" | "dashboards") => void;
-  onSelectForm: (form: "walkin" | "onboarding" | "operator_onboarding" | "adjustment" | "allocation" | "dropoff" | "expenses" | "vehicle_onboarding" | "workshops" | "hubs_parking" | "rents" | "accident" | "inspection" | "users" | "vehicle_models" | "cities" | "roles" | "tickets" | "employees" | "maintenance" | "maintenance_in" | "maintenance_out" | "challans" | "approvals" | "mis_dashboard") => void;
+  onSelectForm: (form: "walkin" | "onboarding" | "operator_onboarding" | "adjustment" | "allocation" | "dropoff" | "expenses" | "vehicle_onboarding" | "workshops" | "hubs_parking" | "rents" | "accident" | "inspection" | "users" | "vehicle_models" | "cities" | "roles" | "tickets" | "employees" | "maintenance" | "maintenance_in" | "maintenance_out" | "challans" | "approvals" | "mis_dashboard" | "hisaab_dashboard") => void;
   onLogout: () => void;
 }
 
@@ -52,6 +52,16 @@ const DASHBOARD_CARDS = [
     iconBg: "bg-emerald-600 text-white",
     iconColor: "text-white",
     hover: "hover:border-emerald-600",
+    isCompleted: true,
+  },
+  {
+    key: "hisaab_dashboard",
+    label: "Driver Hisaab Dashboard",
+    sub: "Partner + vehicle settlements & ledger",
+    icon: IndianRupee,
+    iconBg: "bg-emerald-700 text-white",
+    iconColor: "text-white",
+    hover: "hover:border-emerald-700",
     isCompleted: true,
   },
 ] as const;
@@ -162,7 +172,7 @@ export default function FormSelector({ user, initialSection = "forms", onSection
       if (key === "users" && isMohanOrLeadership) return true;
 
       if (user.allowed_forms && user.allowed_forms.length > 0) {
-        if (key === "approvals") return true;
+        if ((key as string) === "approvals") return true;
         return user.allowed_forms.includes(key);
       }
 

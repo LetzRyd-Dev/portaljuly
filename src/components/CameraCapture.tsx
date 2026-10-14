@@ -4,11 +4,13 @@ import { uploadDirectToGCS } from "../utils/imageCompressor";
 
 interface CameraCaptureProps {
   onCapture: (urlOrBase64: string) => void;
-  onClose: () => void;
-  title: string;
+  onClose?: () => void;
+  onCancel?: () => void;
+  title?: string;
 }
 
-export default function CameraCapture({ onCapture, onClose, title }: CameraCaptureProps) {
+export default function CameraCapture({ onCapture, onClose, onCancel, title = "Take Photo" }: CameraCaptureProps) {
+  const handleClose = onClose || onCancel || (() => {});
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -132,7 +134,7 @@ export default function CameraCapture({ onCapture, onClose, title }: CameraCaptu
           <button 
             type="button" 
             disabled={uploading}
-            onClick={() => { stopCamera(); onClose(); }}
+            onClick={() => { stopCamera(); handleClose(); }}
             className="rounded-lg p-1 text-white/80 hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50"
           >
             <X className="h-5 w-5" />

@@ -1,5 +1,5 @@
 import { compressImage } from "../utils/imageCompressor";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   User, FileText, CheckCircle, 
   ChevronLeft, Search, Trash2, Edit, Camera, 
