@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  ArrowLeft, Search, Download, Filter, MapPin, Calendar, 
-  ChevronDown, ChevronLeft, ChevronRight, X, ExternalLink, 
-  IndianRupee, Users, Truck, FileSpreadsheet, RefreshCw, 
-  AlertCircle, CheckCircle2, Info, Layers
+  ArrowLeft, Search, Download, MapPin, Calendar, 
+  ChevronLeft, ChevronRight, X, IndianRupee, Users, 
+  Truck, FileSpreadsheet, RefreshCw, AlertCircle, 
+  Info, Layers, Building2
 } from 'lucide-react';
 import { User } from '../types';
 
@@ -14,7 +14,7 @@ interface HisaabDashboardProps {
   onLogout?: () => void;
 }
 
-type HisaabFormat = 'vehicle_weekly' | 'consolidated_partner' | 'daily_ledger';
+type HisaabFormat = 'vehicle_weekly' | 'consolidated_partner' | 'daily_ledger' | 'city_summary';
 
 interface SettlementWeek {
   week_id: string;
@@ -25,57 +25,55 @@ interface SettlementWeek {
   is_locked: boolean;
 }
 
-interface HisaabSummary {
-  total_records: number;
-  total_drivers: number;
-  total_vehicles: number;
-  total_allotted_days: number;
-  total_onroad_days: number;
-  total_lease_rental: number;
-  total_trips: number;
-  total_gross_earnings: number;
-  total_cash_collected: number;
-  total_incentives: number;
-  total_deductions: number;
-  total_payout_to_drivers: number;
-  total_to_collect: number;
-  total_uber_trips: number;
-  total_uber_earnings: number;
-  total_ola_trips: number;
-  total_ola_revenue: number;
+interface CitySummaryRow {
+  city: string;
+  total_allocations: number;
+  real_partner_rows: number;
+  onroad_days: number;
+  uber_earnings: number;
+  ola_revenue: number;
+  gross_revenue: number;
+  net_lease_rental: number;
+  challans: number;
+  tds: number;
+  deadmile_penalty: number;
+  current_week_os: number;
+  driver_net_payout: number;
+  driver_net_to_collect: number;
 }
 
 export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogout }: HisaabDashboardProps) {
   const handleBack = onBack || onBackToSelector;
 
-  // View Format: Partner+Vehicle (Weekly), Consolidated Partner, Daily Ledger
+  // 1. View Format: Partner+Vehicle (Weekly), Consolidated Partner, Daily Ledger, City Summary
   const [activeFormat, setActiveFormat] = useState<HisaabFormat>('vehicle_weekly');
 
-  // Filters
+  // 2. Unified Filter Bar States
   const [selectedCity, setSelectedCity] = useState<string>('All Cities');
-  const [availableCities, setAvailableCities] = useState<string[]>(['All Cities', 'Bengaluru', 'Mumbai', 'Hyderabad', 'Delhi']);
+  const [availableCities, setAvailableCities] = useState<string[]>([
+    'All Cities', 'Bangalore', 'Hyderabad', 'Mumbai', 'Delhi'
+  ]);
   const [weeks, setWeeks] = useState<SettlementWeek[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('All');
 
-  // Pagination
+  // 3. Pagination States
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(50);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number>(0);
 
-  // Data & Loading States
+  // 4. Data & Loading States
   const [records, setRecords] = useState<any[]>([]);
-  const [summary, setSummary] = useState<HisaabSummary | null>(null);
+  const [citySummaries, setCitySummaries] = useState<CitySummaryRow[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Drawer / Modal for Driver Hisaab detail
+  // 5. Drawer / Modal for Driver Hisaab detail breakdown
   const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
 
-  // 1. Fetch operating cities & settlement weeks on mount
+  // Fetch operating cities & settlement calendar weeks on mount
   useEffect(() => {
     fetch('/api/cities')
       .then(res => res.ok ? res.json() : [])
@@ -92,7 +90,6 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
       .then(res => {
         const weeksData = res.data || [];
         setWeeks(weeksData);
-        // Default to latest week if available
         if (weeksData.length > 0) {
           setSelectedWeek(weeksData[0].week_id);
         }
@@ -100,22 +97,38 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
       .catch(() => {});
   }, []);
 
-  // 2. Fetch Hisaab Summary KPIs
-  const fetchSummary = () => {
+  // Fetch Records / City Summary on filter change
+  useEffect(() => {
+    if (activeFormat === 'city_summary') {
+      fetchCitySummary();
+    } else {
+      fetchRecords();
+    }
+  }, [selectedCity, selectedWeek, activeFormat, searchQuery, page, pageSize]);
+
+  const fetchCitySummary = () => {
+    setIsLoading(true);
+    setErrorMsg(null);
     const params = new URLSearchParams();
     if (selectedCity && selectedCity !== 'All Cities') params.append('city', selectedCity);
     if (selectedWeek && selectedWeek !== 'All') params.append('week_id', selectedWeek);
-    params.append('format', activeFormat);
 
     fetch(`/api/hisaab/summary?${params.toString()}`)
-      .then(res => res.ok ? res.json() : { summary: null })
       .then(res => {
-        if (res.summary) setSummary(res.summary);
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        return res.json();
       })
-      .catch(err => console.error('Summary fetch error:', err));
+      .then(res => {
+        setCitySummaries(res.city_summaries || []);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error('Summary fetch error:', err);
+        setErrorMsg('Failed to load City Summary data.');
+        setIsLoading(false);
+      });
   };
 
-  // 3. Fetch Hisaab Records
   const fetchRecords = () => {
     setIsLoading(true);
     setErrorMsg(null);
@@ -125,7 +138,6 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
     if (selectedCity && selectedCity !== 'All Cities') params.append('city', selectedCity);
     if (selectedWeek && selectedWeek !== 'All') params.append('week_id', selectedWeek);
     if (searchQuery.trim()) params.append('search', searchQuery.trim());
-    if (statusFilter && statusFilter !== 'All') params.append('status', statusFilter);
     params.append('page', page.toString());
     params.append('limit', pageSize.toString());
 
@@ -142,21 +154,12 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
       })
       .catch(err => {
         console.error('Records fetch error:', err);
-        setErrorMsg('Failed to load Hisaab records. Please check database connection.');
+        setErrorMsg('Failed to load Hisaab records. Please verify database connection.');
         setIsLoading(false);
       });
   };
 
-  // Trigger data reload on filter change
-  useEffect(() => {
-    fetchSummary();
-  }, [selectedCity, selectedWeek, activeFormat]);
-
-  useEffect(() => {
-    fetchRecords();
-  }, [selectedCity, selectedWeek, activeFormat, searchQuery, statusFilter, page, pageSize]);
-
-  // Reset page when format or filters change
+  // Format Switcher Handlers
   const handleFormatChange = (fmt: HisaabFormat) => {
     setActiveFormat(fmt);
     setPage(1);
@@ -173,43 +176,89 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
     setPage(1);
   };
 
-  // CSV Export
-  const handleExportCSV = () => {
+  // Excel Export (.xlsx) matching Hisaab_CY26WK41 (1).xlsx structure
+  const handleExportXLSX = () => {
     setIsDownloading(true);
     const params = new URLSearchParams();
-    params.append('format', activeFormat);
+    params.append('file_type', 'xlsx');
+    params.append('format', activeFormat === 'city_summary' ? 'vehicle_weekly' : activeFormat);
     if (selectedCity && selectedCity !== 'All Cities') params.append('city', selectedCity);
     if (selectedWeek && selectedWeek !== 'All') params.append('week_id', selectedWeek);
     if (searchQuery.trim()) params.append('search', searchQuery.trim());
-    if (statusFilter && statusFilter !== 'All') params.append('status', statusFilter);
 
     const exportUrl = `/api/hisaab/export?${params.toString()}`;
     window.location.href = exportUrl;
-    setTimeout(() => setIsDownloading(false), 2000);
+    setTimeout(() => setIsDownloading(false), 2500);
   };
 
-  const formatCurrency = (val: number | null | undefined) => {
-    if (val === null || val === undefined) return '₹0';
+  // Formatting Utilities
+  const formatCurrency = (val: number | string | null | undefined) => {
+    if (val === null || val === undefined || val === '') return '₹0';
+    const num = Number(val);
+    if (isNaN(num)) return '₹0';
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
       maximumFractionDigits: 0
-    }).format(val);
+    }).format(num);
   };
 
-  const formatNumber = (val: number | null | undefined) => {
-    if (val === null || val === undefined) return '0';
-    return new Intl.NumberFormat('en-IN').format(val);
+  const formatNumber = (val: number | string | null | undefined) => {
+    if (val === null || val === undefined || val === '') return '0';
+    const num = Number(val);
+    if (isNaN(num)) return '0';
+    return new Intl.NumberFormat('en-IN').format(num);
   };
+
+  const formatVal = (val: any) => {
+    if (val === null || val === undefined || val === '') return '-';
+    return val;
+  };
+
+  // City Summary Totals
+  const summaryTotals = useMemo(() => {
+    return citySummaries.reduce(
+      (acc, row) => ({
+        total_allocations: acc.total_allocations + (Number(row.total_allocations) || 0),
+        real_partner_rows: acc.real_partner_rows + (Number(row.real_partner_rows) || 0),
+        onroad_days: acc.onroad_days + (Number(row.onroad_days) || 0),
+        uber_earnings: acc.uber_earnings + (Number(row.uber_earnings) || 0),
+        ola_revenue: acc.ola_revenue + (Number(row.ola_revenue) || 0),
+        gross_revenue: acc.gross_revenue + (Number(row.gross_revenue) || 0),
+        net_lease_rental: acc.net_lease_rental + (Number(row.net_lease_rental) || 0),
+        challans: acc.challans + (Number(row.challans) || 0),
+        tds: acc.tds + (Number(row.tds) || 0),
+        deadmile_penalty: acc.deadmile_penalty + (Number(row.deadmile_penalty) || 0),
+        current_week_os: acc.current_week_os + (Number(row.current_week_os) || 0),
+        driver_net_payout: acc.driver_net_payout + (Number(row.driver_net_payout) || 0),
+        driver_net_to_collect: acc.driver_net_to_collect + (Number(row.driver_net_to_collect) || 0),
+      }),
+      {
+        total_allocations: 0,
+        real_partner_rows: 0,
+        onroad_days: 0,
+        uber_earnings: 0,
+        ola_revenue: 0,
+        gross_revenue: 0,
+        net_lease_rental: 0,
+        challans: 0,
+        tds: 0,
+        deadmile_penalty: 0,
+        current_week_os: 0,
+        driver_net_payout: 0,
+        driver_net_to_collect: 0,
+      }
+    );
+  }, [citySummaries]);
 
   return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-800">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col">
       
       {/* ────────────────────────────────────────────────────────── */}
       {/* Top Header Bar */}
       {/* ────────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-4">
           
           {/* Left: Back & Title */}
           <div className="flex items-center gap-3">
@@ -228,18 +277,18 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                 <IndianRupee className="h-5 w-5" />
               </div>
               <div>
-                <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                <h1 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight leading-tight">
                   Driver Hisaab Dashboard
                 </h1>
                 <p className="text-[11px] text-slate-500 font-medium">
-                  Partner + Vehicle Settlements & Weekly Accounts Matrix
+                  Partner + Vehicle Settlements & Accounts Matrix
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Center: Format Switcher Tabs */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+          {/* Center: Format Navigation Tabs (Properly Placed & Readily Accessible) */}
+          <nav className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               type="button"
               onClick={() => handleFormatChange('vehicle_weekly')}
@@ -276,31 +325,57 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
               <Layers className="h-3.5 w-3.5" />
               <span>Daily Ledger</span>
             </button>
-          </div>
+            <button
+              type="button"
+              onClick={() => handleFormatChange('city_summary')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeFormat === 'city_summary'
+                  ? 'bg-white text-emerald-800 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Building2 className="h-3.5 w-3.5" />
+              <span>City Summary</span>
+            </button>
+          </nav>
 
-          {/* Right: City, Week & Download Options */}
-          <div className="flex items-center gap-2.5 flex-wrap">
+        </div>
+      </header>
+
+      {/* ────────────────────────────────────────────────────────── */}
+      {/* Unified Filter Toolbar (All Filters Kept in ONE Place) */}
+      {/* ────────────────────────────────────────────────────────── */}
+      <section className="bg-white border-b border-slate-200 px-4 sm:px-6 py-2.5">
+        <div className="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-3">
+          
+          {/* Left: Combined Filters Group (City + Week + Search) */}
+          <div className="flex items-center gap-2.5 flex-wrap flex-1 min-w-[320px]">
             
-            {/* City Dropdown */}
-            <div className="relative">
+            {/* 1. City Filter Dropdown */}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 shadow-2xs">
+              <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              <label htmlFor="city-select" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">City:</label>
               <select
+                id="city-select"
                 value={selectedCity}
                 onChange={(e) => handleCityChange(e.target.value)}
-                className="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 outline-none cursor-pointer shadow-2xs pr-8"
+                className="bg-transparent text-slate-800 text-xs font-bold outline-none cursor-pointer pr-1"
               >
                 {availableCities.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
-              <MapPin className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-3 pointer-events-none" />
             </div>
 
-            {/* Week Dropdown */}
-            <div className="relative">
+            {/* 2. Settlement Week Dropdown */}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 shadow-2xs">
+              <Calendar className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              <label htmlFor="week-select" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">Week:</label>
               <select
+                id="week-select"
                 value={selectedWeek}
                 onChange={(e) => handleWeekChange(e.target.value)}
-                className="bg-white border border-slate-300 hover:border-slate-400 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 outline-none cursor-pointer shadow-2xs pr-8"
+                className="bg-transparent text-slate-800 text-xs font-bold outline-none cursor-pointer pr-1"
               >
                 <option value="All">All Settlement Weeks</option>
                 {weeks.map(w => (
@@ -309,561 +384,799 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                   </option>
                 ))}
               </select>
-              <Calendar className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-3 pointer-events-none" />
             </div>
 
-            {/* Export CSV Button */}
+            {/* 3. Search Bar (Active for tables) */}
+            {activeFormat !== 'city_summary' && (
+              <div className="relative flex-1 max-w-sm">
+                <Search className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder={
+                    activeFormat === 'consolidated_partner'
+                      ? "Search partner name or ID..."
+                      : "Search vendor name, vendor code, or car plate..."
+                  }
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPage(1);
+                  }}
+                  className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 shadow-2xs"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setPage(1);
+                    }}
+                    className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+
+          </div>
+
+          {/* Right: Records Counter, Page Size & Export */}
+          <div className="flex items-center gap-3">
+            
+            {/* Records Counter */}
+            {activeFormat !== 'city_summary' && (
+              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-600">
+                <span>
+                  Showing <strong>{records.length > 0 ? (page - 1) * pageSize + 1 : 0}</strong> - <strong>{Math.min(page * pageSize, totalCount)}</strong> of <strong>{formatNumber(totalCount)}</strong>
+                </span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
+                >
+                  <option value={25}>25 / page</option>
+                  <option value={50}>50 / page</option>
+                  <option value={100}>100 / page</option>
+                  <option value={250}>250 / page</option>
+                </select>
+              </div>
+            )}
+
+            {/* Export Hisaab (.xlsx) Button */}
             <button
               type="button"
-              onClick={handleExportCSV}
-              disabled={isDownloading || records.length === 0}
-              className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl px-3.5 py-2 text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              onClick={handleExportXLSX}
+              disabled={isDownloading || (activeFormat !== 'city_summary' && totalCount === 0)}
+              className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl px-4 py-2 text-xs font-extrabold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              title="Downloads full multi-sheet Excel file (.xlsx) with Bangalore, Hyderabad, Mumbai, Delhi, and Summary sheets"
             >
-              <Download className="h-4 w-4" />
-              <span>{isDownloading ? 'Exporting...' : 'Export CSV'}</span>
+              {isDownloading ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4" />
+              )}
+              <span>{isDownloading ? 'Exporting Hisaab...' : 'Export Hisaab (.xlsx)'}</span>
             </button>
 
           </div>
 
         </div>
-      </header>
+      </section>
 
       {/* ────────────────────────────────────────────────────────── */}
-      {/* Main Container */}
+      {/* Main Content Area */}
       {/* ────────────────────────────────────────────────────────── */}
-      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 py-5 space-y-5">
+      <main className="flex-1 max-w-[1920px] w-full mx-auto px-4 sm:px-6 py-4 flex flex-col min-h-0">
         
-        {/* ────────────────────────────────────────────────────────── */}
-        {/* Executive Summary KPI Cards */}
-        {/* ────────────────────────────────────────────────────────── */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          
-          {/* Card 1: Fleet & Partners */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Fleet & Partners</span>
-              <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                <Truck className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-slate-900">
-                {formatNumber(summary?.total_vehicles)}
-              </span>
-              <span className="text-xs text-slate-500 font-semibold">Vehicles</span>
-              <span className="text-slate-300">/</span>
-              <span className="text-2xl font-extrabold text-slate-900">
-                {formatNumber(summary?.total_drivers)}
-              </span>
-              <span className="text-xs text-slate-500 font-semibold">Drivers</span>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-600">
-              <span>On-Road Days: <strong>{formatNumber(summary?.total_onroad_days)}</strong></span>
-              <span>Allotted: <strong>{formatNumber(summary?.total_allotted_days)}</strong></span>
-            </div>
-          </div>
-
-          {/* Card 2: Platform Earnings */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Platform Earnings</span>
-              <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <IndianRupee className="h-4 w-4" />
-              </div>
-            </div>
-            <div>
-              <div className="text-2xl font-extrabold text-emerald-700">
-                {formatCurrency(summary?.total_gross_earnings)}
-              </div>
-              <div className="text-xs text-slate-500 font-medium mt-0.5">
-                Across <strong>{formatNumber(summary?.total_trips)}</strong> completed trips
-              </div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-600">
-              <span>Uber: <strong>{formatCurrency(summary?.total_uber_earnings)}</strong></span>
-              <span>Ola: <strong>{formatCurrency(summary?.total_ola_revenue)}</strong></span>
-            </div>
-          </div>
-
-          {/* Card 3: Lease Rent & Cash Collected */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Rent & Driver Cash</span>
-              <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-                <FileSpreadsheet className="h-4 w-4" />
-              </div>
-            </div>
-            <div>
-              <div className="text-2xl font-extrabold text-slate-900">
-                {formatCurrency(summary?.total_lease_rental)}
-              </div>
-              <div className="text-xs text-slate-500 font-medium mt-0.5">
-                Total Net Lease Rental Billed
-              </div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-600">
-              <span>Cash with Driver: <strong>{formatCurrency(summary?.total_cash_collected)}</strong></span>
-              <span>Deductions: <strong>{formatCurrency(summary?.total_deductions)}</strong></span>
-            </div>
-          </div>
-
-          {/* Card 4: Net Settlement Outcome */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Settlement Position</span>
-              <div className="h-8 w-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-                <Info className="h-4 w-4" />
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[10px] font-bold text-emerald-600 uppercase">Payouts to Drivers</div>
-                <div className="text-lg font-black text-emerald-700">
-                  {formatCurrency(summary?.total_payout_to_drivers)}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-[10px] font-bold text-rose-600 uppercase">To Collect / Due</div>
-                <div className="text-lg font-black text-rose-700">
-                  {formatCurrency(summary?.total_to_collect)}
-                </div>
-              </div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <span>Incentives: <strong>{formatCurrency(summary?.total_incentives)}</strong></span>
-              <span>Records: <strong>{formatNumber(summary?.total_records)}</strong></span>
-            </div>
-          </div>
-
-        </section>
-
-        {/* ────────────────────────────────────────────────────────── */}
-        {/* Search & Filter Toolbar */}
-        {/* ────────────────────────────────────────────────────────── */}
-        <section className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
-          
-          <div className="flex items-center gap-3 flex-1 min-w-[280px]">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder={
-                  activeFormat === 'consolidated_partner'
-                    ? "Search partner name or ID..."
-                    : "Search driver name, partner ID, or car plate (e.g. KA51AL9582)..."
-                }
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-1.5 outline-none cursor-pointer"
-            >
-              <option value="All">All Statuses</option>
-              <option value="CALCULATED">Calculated</option>
-              <option value="FROZEN">Frozen</option>
-              <option value="DRAFT">Draft</option>
-            </select>
-          </div>
-
-          {/* Records & Pagination Overview */}
-          <div className="flex items-center gap-3 text-xs text-slate-600">
-            <span>
-              Showing <strong>{records.length > 0 ? (page - 1) * pageSize + 1 : 0}</strong> - <strong>{Math.min(page * pageSize, totalCount)}</strong> of <strong>{formatNumber(totalCount)}</strong>
-            </span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg px-2 py-1 outline-none cursor-pointer"
-            >
-              <option value={25}>25 / page</option>
-              <option value={50}>50 / page</option>
-              <option value={100}>100 / page</option>
-            </select>
-          </div>
-
-        </section>
-
-        {/* ────────────────────────────────────────────────────────── */}
-        {/* Main Data Table */}
-        {/* ────────────────────────────────────────────────────────── */}
-        <section className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          
-          <div className="overflow-x-auto max-h-[70vh]">
-            <table className="w-full text-left text-xs border-collapse">
-              
-              {/* Table Group Header */}
-              <thead className="bg-slate-50 sticky top-0 z-20 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[10px]">
-                {activeFormat === 'vehicle_weekly' && (
+        {/* ========================================================== */}
+        {/* VIEW 1: PARTNER + VEHICLE (WEEKLY) - ALL 43 EXCEL VARIABLES */}
+        {/* ========================================================== */}
+        {activeFormat === 'vehicle_weekly' && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col flex-1">
+            <div className="overflow-x-auto max-h-[76vh]">
+              <table className="w-full text-left text-xs border-collapse">
+                
+                {/* Level 1 Group Header */}
+                <thead className="bg-slate-50 sticky top-0 z-30 border-b border-slate-200 text-[10px] font-extrabold uppercase tracking-wider">
                   <tr>
-                    <th colSpan={4} className="px-3 py-2 bg-slate-100 border-r border-slate-200 text-slate-800">
-                      Partner & Vehicle Entity
+                    <th colSpan={12} className="px-3 py-2 bg-slate-100 text-slate-800 border-r border-slate-200">
+                      Core Allocation & Identity (Partner + Vehicle)
                     </th>
-                    <th colSpan={3} className="px-3 py-2 bg-blue-50/70 border-r border-slate-200 text-blue-900">
-                      Operations & Lease Rent
+                    <th colSpan={4} className="px-3 py-2 bg-blue-50/80 text-blue-900 border-r border-slate-200">
+                      Rental & Lease Billing
                     </th>
-                    <th colSpan={3} className="px-3 py-2 bg-emerald-50/70 border-r border-slate-200 text-emerald-900">
-                      Uber Performance
+                    <th colSpan={8} className="px-3 py-2 bg-amber-50/80 text-amber-900 border-r border-slate-200">
+                      OLA Operations & Revenue
                     </th>
-                    <th colSpan={3} className="px-3 py-2 bg-amber-50/70 border-r border-slate-200 text-amber-900">
-                      Ola Performance
+                    <th colSpan={7} className="px-3 py-2 bg-emerald-50/80 text-emerald-900 border-r border-slate-200">
+                      Uber Operations & Revenue
                     </th>
-                    <th colSpan={2} className="px-3 py-2 bg-rose-50/70 border-r border-slate-200 text-rose-900">
-                      Penalties & Deductions
+                    <th colSpan={4} className="px-3 py-2 bg-orange-50/80 text-orange-900 border-r border-slate-200">
+                      Rapido Operations
                     </th>
-                    <th colSpan={3} className="px-3 py-2 bg-purple-50/70 text-purple-900">
+                    <th colSpan={5} className="px-3 py-2 bg-rose-50/80 text-rose-900 border-r border-slate-200">
+                      Penalties & Adjustments
+                    </th>
+                    <th colSpan={3} className="px-3 py-2 bg-purple-50/80 text-purple-900">
                       Net Settlement Position
                     </th>
                   </tr>
-                )}
-                
-                {/* Column Headers */}
-                <tr className="bg-slate-100/80 border-b border-slate-200">
-                  {activeFormat === 'vehicle_weekly' && (
-                    <>
-                      <th className="px-3 py-2.5 font-bold">Partner / Driver</th>
-                      <th className="px-3 py-2.5 font-bold">Vehicle</th>
-                      <th className="px-3 py-2.5 font-bold">City</th>
-                      <th className="px-3 py-2.5 font-bold border-r border-slate-200">Week</th>
-                      <th className="px-3 py-2.5 font-bold text-center">Days (On/Allot)</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Daily Rent</th>
-                      <th className="px-3 py-2.5 font-bold text-right border-r border-slate-200">Net Lease Rental</th>
-                      <th className="px-3 py-2.5 font-bold text-center">Trips</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Earnings</th>
-                      <th className="px-3 py-2.5 font-bold text-right border-r border-slate-200">Cash</th>
-                      <th className="px-3 py-2.5 font-bold text-center">Trips</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Revenue</th>
-                      <th className="px-3 py-2.5 font-bold text-right border-r border-slate-200">Cash</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Challan / Acc</th>
-                      <th className="px-3 py-2.5 font-bold text-right border-r border-slate-200">Dead Mile</th>
-                      <th className="px-3 py-2.5 font-bold text-right">To Pay (Driver)</th>
-                      <th className="px-3 py-2.5 font-bold text-right">To Collect</th>
-                      <th className="px-3 py-2.5 font-bold text-center">Status</th>
-                    </>
-                  )}
+                  
+                  {/* Level 2: Exact 43 Column Headers matching Hisaab_CY26WK41 (1).xlsx */}
+                  <tr className="bg-slate-100/90 text-slate-700 border-b border-slate-200 text-[11px] font-bold">
+                    {/* Core Allocation & Identity */}
+                    <th className="px-2.5 py-2.5 text-center w-12 sticky left-0 bg-slate-100 z-20 border-r border-slate-200">Sr. No.</th>
+                    <th className="px-3 py-2.5 font-bold sticky left-12 bg-slate-100 z-20 border-r border-slate-200 min-w-[120px]">Vehicle Number</th>
+                    <th className="px-3 py-2.5 font-bold min-w-[180px]">Vendor Name</th>
+                    <th className="px-3 py-2.5 font-mono text-[10px] min-w-[110px]">Vendor Code</th>
+                    <th className="px-3 py-2.5 text-center min-w-[110px]">Allocation Status</th>
+                    <th className="px-3 py-2.5 min-w-[90px]">City</th>
+                    <th className="px-3 py-2.5 min-w-[110px]">Vehicle Model</th>
+                    <th className="px-3 py-2.5 min-w-[100px]">Rental Plan</th>
+                    <th className="px-3 py-2.5 font-mono text-[10px] min-w-[105px]">Allocation Start</th>
+                    <th className="px-3 py-2.5 font-mono text-[10px] min-w-[105px]">Allocation End</th>
+                    <th className="px-3 py-2.5 text-center min-w-[80px]">Active Days</th>
+                    <th className="px-3 py-2.5 text-center min-w-[85px] border-r border-slate-200 font-extrabold">Onroad Days</th>
 
-                  {activeFormat === 'consolidated_partner' && (
-                    <>
-                      <th className="px-3 py-2.5 font-bold">Partner Name</th>
-                      <th className="px-3 py-2.5 font-bold">Partner ID</th>
-                      <th className="px-3 py-2.5 font-bold">City</th>
-                      <th className="px-3 py-2.5 font-bold">Week</th>
-                      <th className="px-3 py-2.5 font-bold text-center">Cars</th>
-                      <th className="px-3 py-2.5 font-bold text-center">On-Road Days</th>
-                      <th className="px-3 py-2.5 font-bold text-center">Total Trips</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Rent Billed</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Platform Earnings</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Cash Collected</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Total Deductions</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Net Payout</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Net To Collect</th>
-                      <th className="px-3 py-2.5 font-bold text-center">Status</th>
-                    </>
-                  )}
+                    {/* Rental & Lease Billing */}
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">Daily Rent Applied</th>
+                    <th className="px-3 py-2.5 text-right min-w-[100px]">Indemnity Fees</th>
+                    <th className="px-3 py-2.5 text-right min-w-[100px]">Weekly Lease Rental</th>
+                    <th className="px-3 py-2.5 text-right min-w-[110px] border-r border-slate-200 font-extrabold">Net Weekly Lease</th>
 
-                  {activeFormat === 'daily_ledger' && (
-                    <>
-                      <th className="px-3 py-2.5 font-bold">Date</th>
-                      <th className="px-3 py-2.5 font-bold">Partner ID</th>
-                      <th className="px-3 py-2.5 font-bold">Vehicle</th>
-                      <th className="px-3 py-2.5 font-bold">City</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Daily Rent</th>
-                      <th className="px-3 py-2.5 font-bold text-center">Total Trips</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Gross Fares</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Cash Collected</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Incentives</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Deductions</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Daily Balance</th>
-                    </>
-                  )}
-                </tr>
-              </thead>
+                    {/* OLA Operations */}
+                    <th className="px-3 py-2.5 text-center min-w-[70px]">OLA Trips</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">OLA Net Rev</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">OLA Cash</th>
+                    <th className="px-3 py-2.5 text-right min-w-[80px]">OLA Toll</th>
+                    <th className="px-3 py-2.5 text-right min-w-[80px]">OLA GST</th>
+                    <th className="px-3 py-2.5 text-right min-w-[90px]">OLA Online</th>
+                    <th className="px-3 py-2.5 text-right min-w-[85px]">OLA Incentive</th>
+                    <th className="px-3 py-2.5 text-right min-w-[90px] border-r border-slate-200">OLA Week O/s</th>
 
-              {/* Table Body */}
-              <tbody className="divide-y divide-slate-100 font-medium">
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={18} className="px-4 py-16 text-center text-slate-400">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
-                        <span className="text-xs font-semibold">Loading Hisaab settlement matrix...</span>
-                      </div>
-                    </td>
+                    {/* Uber Operations */}
+                    <th className="px-3 py-2.5 text-center min-w-[75px]">Uber Trips</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">Uber Revenue</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">Uber Cash</th>
+                    <th className="px-3 py-2.5 text-right min-w-[80px]">Uber Toll</th>
+                    <th className="px-3 py-2.5 text-right min-w-[100px]">Subscription</th>
+                    <th className="px-3 py-2.5 text-right min-w-[90px]">Uber Incentive</th>
+                    <th className="px-3 py-2.5 text-right min-w-[90px] border-r border-slate-200">Uber Week O/s</th>
+
+                    {/* Rapido Operations */}
+                    <th className="px-3 py-2.5 text-center min-w-[75px]">Rapido Trips</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">Rapido Net Rev</th>
+                    <th className="px-3 py-2.5 text-right min-w-[80px]">Rapido Toll</th>
+                    <th className="px-3 py-2.5 text-right min-w-[90px] border-r border-slate-200">Rapido Incentive</th>
+
+                    {/* Penalties & Adjustments */}
+                    <th className="px-3 py-2.5 text-right min-w-[90px]">Adjustment</th>
+                    <th className="px-3 py-2.5 text-right min-w-[85px]">Challan</th>
+                    <th className="px-3 py-2.5 text-right min-w-[85px]">Accident</th>
+                    <th className="px-3 py-2.5 text-right min-w-[95px]">DeadMile Pen</th>
+                    <th className="px-3 py-2.5 text-right min-w-[75px] border-r border-slate-200">TDS</th>
+
+                    {/* Settlement Net Position */}
+                    <th className="px-3 py-2.5 text-right min-w-[105px]">Current Week O/s</th>
+                    <th className="px-3 py-2.5 text-right min-w-[115px] font-extrabold text-emerald-700 bg-emerald-50/50">To Pay Driver</th>
+                    <th className="px-3 py-2.5 text-right min-w-[115px] font-extrabold text-rose-700 bg-rose-50/50">To Collect Driver</th>
                   </tr>
-                ) : errorMsg ? (
-                  <tr>
-                    <td colSpan={18} className="px-4 py-12 text-center text-rose-500">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <AlertCircle className="h-6 w-6" />
-                        <span className="text-xs font-semibold">{errorMsg}</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : records.length === 0 ? (
-                  <tr>
-                    <td colSpan={18} className="px-4 py-16 text-center text-slate-400">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <Info className="h-6 w-6 text-slate-300" />
-                        <span className="text-xs font-semibold">No Hisaab records found matching the active filters.</span>
-                        <span className="text-[11px] text-slate-400">Try selecting "All Cities" or a different settlement week.</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  records.map((r, idx) => (
-                    <tr
-                      key={r.id || r.hisaab_id || r.partner_hisaab_id || r.ledger_id || idx}
-                      onClick={() => setSelectedRecord(r)}
-                      className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
-                    >
-                      {activeFormat === 'vehicle_weekly' && (
-                        <>
-                          {/* Partner / Driver */}
-                          <td className="px-3 py-2.5">
-                            <div className="font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
-                              {r.partner_name || 'Unnamed Driver'}
-                            </div>
-                            <div className="text-[10px] text-slate-400 font-mono">
-                              {r.partner_id || '-'}
-                            </div>
-                          </td>
+                </thead>
 
-                          {/* Vehicle */}
-                          <td className="px-3 py-2.5">
-                            <div className="font-bold font-mono text-slate-900">
-                              {r.vehicle_number}
-                            </div>
-                            <div className="text-[10px] text-slate-500">
-                              {r.vehicle_model || '-'}
-                            </div>
-                          </td>
-
-                          {/* City */}
-                          <td className="px-3 py-2.5">
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700">
-                              {r.normalized_city || r.city}
-                            </span>
-                          </td>
-
-                          {/* Week */}
-                          <td className="px-3 py-2.5 font-mono text-[11px] text-slate-600 border-r border-slate-200">
-                            {r.week_id}
-                          </td>
-
-                          {/* Days */}
-                          <td className="px-3 py-2.5 text-center">
-                            <span className="font-bold text-slate-900">{r.onroad_days}</span>
-                            <span className="text-slate-400"> / {r.allotted_days}</span>
-                          </td>
-
-                          {/* Daily Rent */}
-                          <td className="px-3 py-2.5 text-right font-mono text-slate-600">
-                            ₹{r.daily_rent_applied}
-                          </td>
-
-                          {/* Net Lease Rental */}
-                          <td className="px-3 py-2.5 text-right font-bold font-mono text-slate-900 border-r border-slate-200">
-                            {formatCurrency(r.net_weekly_lease_rental)}
-                          </td>
-
-                          {/* Uber Trips */}
-                          <td className="px-3 py-2.5 text-center font-bold text-slate-700">
-                            {r.uber_trips}
-                          </td>
-
-                          {/* Uber Earnings */}
-                          <td className="px-3 py-2.5 text-right font-mono text-slate-700">
-                            {formatCurrency(r.uber_total_earnings)}
-                          </td>
-
-                          {/* Uber Cash */}
-                          <td className="px-3 py-2.5 text-right font-mono text-amber-700 border-r border-slate-200">
-                            {formatCurrency(r.uber_cash_collection)}
-                          </td>
-
-                          {/* Ola Trips */}
-                          <td className="px-3 py-2.5 text-center font-bold text-slate-700">
-                            {r.ola_trips}
-                          </td>
-
-                          {/* Ola Revenue */}
-                          <td className="px-3 py-2.5 text-right font-mono text-slate-700">
-                            {formatCurrency(r.ola_net_revenue)}
-                          </td>
-
-                          {/* Ola Cash */}
-                          <td className="px-3 py-2.5 text-right font-mono text-amber-700 border-r border-slate-200">
-                            {formatCurrency(r.ola_cash_collection)}
-                          </td>
-
-                          {/* Challan / Accident */}
-                          <td className="px-3 py-2.5 text-right font-mono text-slate-700">
-                            {formatCurrency((Number(r.challan_amount) || 0) + (Number(r.accident_deduction) || 0))}
-                          </td>
-
-                          {/* Dead Mile Penalty */}
-                          <td className="px-3 py-2.5 text-right font-mono text-rose-600 border-r border-slate-200">
-                            {formatCurrency(r.gps_dead_mile_penalty)}
-                          </td>
-
-                          {/* Net Payout (Driver) */}
-                          <td className="px-3 py-2.5 text-right font-bold font-mono">
-                            {Number(r.net_payout_to_driver) > 0 ? (
-                              <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                                {formatCurrency(r.net_payout_to_driver)}
-                              </span>
-                            ) : (
-                              <span className="text-slate-300">-</span>
-                            )}
-                          </td>
-
-                          {/* Net To Collect (Driver owes) */}
-                          <td className="px-3 py-2.5 text-right font-bold font-mono">
-                            {Number(r.net_to_collect_from_driver) > 0 ? (
-                              <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md">
-                                {formatCurrency(r.net_to_collect_from_driver)}
-                              </span>
-                            ) : (
-                              <span className="text-slate-300">-</span>
-                            )}
-                          </td>
-
-                          {/* Status */}
-                          <td className="px-3 py-2.5 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                              r.settlement_status === 'FROZEN'
-                                ? 'bg-indigo-100 text-indigo-700'
-                                : r.settlement_status === 'CALCULATED'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              {r.settlement_status}
-                            </span>
-                          </td>
-                        </>
-                      )}
-
-                      {activeFormat === 'consolidated_partner' && (
-                        <>
-                          <td className="px-3 py-2.5 font-bold text-slate-900">{r.partner_name}</td>
-                          <td className="px-3 py-2.5 font-mono text-slate-500">{r.partner_id}</td>
-                          <td className="px-3 py-2.5">
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700">
-                              {r.normalized_city || r.city}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5 font-mono text-slate-600">{r.week_id}</td>
-                          <td className="px-3 py-2.5 text-center font-bold">{r.allotted_cars_count}</td>
-                          <td className="px-3 py-2.5 text-center">{r.total_onroad_days}</td>
-                          <td className="px-3 py-2.5 text-center font-bold">{r.total_trips}</td>
-                          <td className="px-3 py-2.5 text-right font-mono">{formatCurrency(r.total_net_rent_billed)}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-emerald-700 font-bold">{formatCurrency(r.total_platform_earnings)}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-amber-700">{formatCurrency(r.total_cash_collected)}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-slate-600">
-                            {formatCurrency(
-                              (Number(r.total_adjustments) || 0) + 
-                              (Number(r.total_challans) || 0) + 
-                              (Number(r.total_accidents) || 0) + 
-                              (Number(r.total_dead_mile_penalty) || 0)
-                            )}
-                          </td>
-                          <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-700">
-                            {Number(r.net_bank_payout) > 0 ? formatCurrency(r.net_bank_payout) : '-'}
-                          </td>
-                          <td className="px-3 py-2.5 text-right font-mono font-bold text-rose-700">
-                            {Number(r.net_amount_to_collect) > 0 ? formatCurrency(r.net_amount_to_collect) : '-'}
-                          </td>
-                          <td className="px-3 py-2.5 text-center">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
-                              {r.settlement_status}
-                            </span>
-                          </td>
-                        </>
-                      )}
-
-                      {activeFormat === 'daily_ledger' && (
-                        <>
-                          <td className="px-3 py-2.5 font-bold font-mono text-slate-900">{r.log_date}</td>
-                          <td className="px-3 py-2.5 font-mono text-slate-500">{r.partner_id}</td>
-                          <td className="px-3 py-2.5 font-bold font-mono text-slate-900">{r.vehicle_number}</td>
-                          <td className="px-3 py-2.5">
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700">
-                              {r.normalized_city || r.city}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5 text-right font-mono">{formatCurrency(r.net_daily_rent)}</td>
-                          <td className="px-3 py-2.5 text-center font-bold">{r.total_trips}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-emerald-700 font-bold">{formatCurrency(r.total_fare_earnings)}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-amber-700">{formatCurrency(r.total_cash_collected)}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-slate-600">{formatCurrency(r.total_incentives)}</td>
-                          <td className="px-3 py-2.5 text-right font-mono text-rose-600">{formatCurrency(r.total_deductions)}</td>
-                          <td className="px-3 py-2.5 text-right font-bold font-mono">
-                            {formatCurrency(r.daily_net_balance)}
-                          </td>
-                        </>
-                      )}
+                {/* Table Body */}
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={43} className="px-4 py-20 text-center text-slate-400">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
+                          <span className="text-xs font-semibold">Loading Hisaab settlement matrix...</span>
+                        </div>
+                      </td>
                     </tr>
-                  ))
+                  ) : errorMsg ? (
+                    <tr>
+                      <td colSpan={43} className="px-4 py-16 text-center text-rose-500">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <AlertCircle className="h-6 w-6" />
+                          <span className="text-xs font-semibold">{errorMsg}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : records.length === 0 ? (
+                    <tr>
+                      <td colSpan={43} className="px-4 py-20 text-center text-slate-400">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Info className="h-6 w-6 text-slate-300" />
+                          <span className="text-xs font-semibold">No Hisaab records found for active filters.</span>
+                          <span className="text-[11px] text-slate-400">Try selecting "All Cities" or another settlement week.</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    records.map((r, idx) => (
+                      <tr
+                        key={r.hisaab_id || r.sr_no || idx}
+                        onClick={() => setSelectedRecord(r)}
+                        className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                      >
+                        {/* 1. Sr. No. (Sticky) */}
+                        <td className="px-2.5 py-2 text-center text-slate-400 font-mono text-[10px] sticky left-0 bg-white group-hover:bg-slate-50 border-r border-slate-200">
+                          {r.sr_no || (page - 1) * pageSize + idx + 1}
+                        </td>
+
+                        {/* 2. Vehicle Number (Sticky) */}
+                        <td className="px-3 py-2 font-mono font-bold text-slate-900 sticky left-12 bg-white group-hover:bg-slate-50 border-r border-slate-200">
+                          {r.vehicle_number}
+                        </td>
+
+                        {/* 3. Vendor Name */}
+                        <td className="px-3 py-2 text-slate-900 font-semibold group-hover:text-emerald-700 transition-colors">
+                          {r.vendor_name || r.partner_name || '-'}
+                        </td>
+
+                        {/* 4. Vendor Code */}
+                        <td className="px-3 py-2 font-mono text-[11px] text-slate-500">
+                          {r.vendor_code || r.partner_id || '-'}
+                        </td>
+
+                        {/* 5. Allocation Status */}
+                        <td className="px-3 py-2 text-center">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700">
+                            {r.allocation_status || 'ALLOTTED'}
+                          </span>
+                        </td>
+
+                        {/* 6. City */}
+                        <td className="px-3 py-2 font-semibold text-slate-700">
+                          {r.city || r.normalized_city || '-'}
+                        </td>
+
+                        {/* 7. Vehicle Model */}
+                        <td className="px-3 py-2 text-slate-600 text-[11px]">
+                          {r.vehicle_model || '-'}
+                        </td>
+
+                        {/* 8. Rental Plan */}
+                        <td className="px-3 py-2 text-slate-600 text-[11px]">
+                          {r.rental_plan || '-'}
+                        </td>
+
+                        {/* 9. Allocation Start */}
+                        <td className="px-3 py-2 font-mono text-[11px] text-slate-600">
+                          {formatVal(r.allocation_start)}
+                        </td>
+
+                        {/* 10. Allocation End */}
+                        <td className="px-3 py-2 font-mono text-[11px] text-slate-600">
+                          {formatVal(r.allocation_end)}
+                        </td>
+
+                        {/* 11. Active Days */}
+                        <td className="px-3 py-2 text-center text-slate-700 font-mono">
+                          {r.active_days ?? r.allotted_days ?? '-'}
+                        </td>
+
+                        {/* 12. Onroad Days */}
+                        <td className="px-3 py-2 text-center font-bold text-slate-900 font-mono border-r border-slate-200">
+                          {r.onroad_days ?? '-'}
+                        </td>
+
+                        {/* 13. Daily Rent Applied */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-700">
+                          {formatCurrency(r.daily_rent_applied)}
+                        </td>
+
+                        {/* 14. Weekly Indemnity Fees */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-700">
+                          {formatCurrency(r.weekly_indemnity_fees)}
+                        </td>
+
+                        {/* 15. Weekly Lease Rental */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-700">
+                          {formatCurrency(r.weekly_lease_rental)}
+                        </td>
+
+                        {/* 16. Net Weekly Lease Rental */}
+                        <td className="px-3 py-2 text-right font-mono font-bold text-slate-900 border-r border-slate-200">
+                          {formatCurrency(r.net_weekly_lease_rental)}
+                        </td>
+
+                        {/* 17. OLA Trips */}
+                        <td className="px-3 py-2 text-center font-bold text-slate-700">
+                          {r.ola_trips ?? 0}
+                        </td>
+
+                        {/* 18. OLA Net Revenue */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-700">
+                          {formatCurrency(r.ola_net_revenue)}
+                        </td>
+
+                        {/* 19. OLA Cash Collection */}
+                        <td className="px-3 py-2 text-right font-mono text-amber-700">
+                          {formatCurrency(r.ola_cash_collection)}
+                        </td>
+
+                        {/* 20. OLA Toll */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-600">
+                          {formatCurrency(r.ola_toll)}
+                        </td>
+
+                        {/* 21. OLA GST */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-600">
+                          {formatCurrency(r.ola_gst)}
+                        </td>
+
+                        {/* 22. OLA Online Payment */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-600">
+                          {formatCurrency(r.ola_online_payment)}
+                        </td>
+
+                        {/* 23. OLA Incentive */}
+                        <td className="px-3 py-2 text-right font-mono text-emerald-700">
+                          {formatCurrency(r.ola_incentive)}
+                        </td>
+
+                        {/* 24. OLA Week O/s */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-700 border-r border-slate-200">
+                          {formatCurrency(r.ola_week_os)}
+                        </td>
+
+                        {/* 25. Uber Trips */}
+                        <td className="px-3 py-2 text-center font-bold text-slate-700">
+                          {r.uber_trips ?? 0}
+                        </td>
+
+                        {/* 26. Uber Total Revenue */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-700">
+                          {formatCurrency(r.uber_total_revenue ?? r.uber_total_earnings)}
+                        </td>
+
+                        {/* 27. Uber Cash Collection */}
+                        <td className="px-3 py-2 text-right font-mono text-amber-700">
+                          {formatCurrency(r.uber_cash_collection)}
+                        </td>
+
+                        {/* 28. Uber Toll */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-600">
+                          {formatCurrency(r.uber_toll)}
+                        </td>
+
+                        {/* 29. Driver Subscription Charge */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-600">
+                          {formatCurrency(r.driver_subscription_charge ?? r.uber_driver_sub_charge)}
+                        </td>
+
+                        {/* 30. Uber Incentive */}
+                        <td className="px-3 py-2 text-right font-mono text-emerald-700">
+                          {formatCurrency(r.uber_incentive)}
+                        </td>
+
+                        {/* 31. Uber Week O/s */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-700 border-r border-slate-200">
+                          {formatCurrency(r.uber_week_os)}
+                        </td>
+
+                        {/* 32. Rapido Trips */}
+                        <td className="px-3 py-2 text-center font-bold text-slate-700">
+                          {r.rapido_trips ?? 0}
+                        </td>
+
+                        {/* 33. Rapido Net Revenue */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-700">
+                          {formatCurrency(r.rapido_net_revenue)}
+                        </td>
+
+                        {/* 34. Rapido Toll */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-600">
+                          {formatCurrency(r.rapido_toll)}
+                        </td>
+
+                        {/* 35. Rapido Incentive */}
+                        <td className="px-3 py-2 text-right font-mono text-emerald-700 border-r border-slate-200">
+                          {formatCurrency(r.rapido_incentive)}
+                        </td>
+
+                        {/* 36. Vehicle Level Adjustment */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-700">
+                          {formatCurrency(r.vehicle_level_adjustment ?? r.adjustment_amount)}
+                        </td>
+
+                        {/* 37. Challan */}
+                        <td className="px-3 py-2 text-right font-mono text-rose-700">
+                          {formatCurrency(r.challan ?? r.challan_amount)}
+                        </td>
+
+                        {/* 38. Accident */}
+                        <td className="px-3 py-2 text-right font-mono text-rose-700">
+                          {formatCurrency(r.accident ?? r.accident_deduction)}
+                        </td>
+
+                        {/* 39. DeadMile Penalty */}
+                        <td className="px-3 py-2 text-right font-mono text-rose-700">
+                          {formatCurrency(r.deadmile_penalty ?? r.gps_dead_mile_penalty)}
+                        </td>
+
+                        {/* 40. TDS */}
+                        <td className="px-3 py-2 text-right font-mono text-slate-600 border-r border-slate-200">
+                          {formatCurrency(r.tds ?? r.tds_amount)}
+                        </td>
+
+                        {/* 41. Current Week O/s */}
+                        <td className="px-3 py-2 text-right font-mono font-bold text-slate-800">
+                          {formatCurrency(r.current_week_os)}
+                        </td>
+
+                        {/* 42. To Pay For Driver */}
+                        <td className="px-3 py-2 text-right font-mono font-bold">
+                          {Number(r.to_pay_for_driver ?? r.net_payout_to_driver) > 0 ? (
+                            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                              {formatCurrency(r.to_pay_for_driver ?? r.net_payout_to_driver)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">-</span>
+                          )}
+                        </td>
+
+                        {/* 43. To Collect from Driver */}
+                        <td className="px-3 py-2 text-right font-mono font-bold">
+                          {Number(r.to_collect_from_driver ?? r.net_to_collect_from_driver) > 0 ? (
+                            <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md">
+                              {formatCurrency(r.to_collect_from_driver ?? r.net_to_collect_from_driver)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">-</span>
+                          )}
+                        </td>
+
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="bg-slate-50 border-t border-slate-200 px-4 py-2.5 flex items-center justify-between text-xs text-slate-600 mt-auto">
+              <div>
+                Page <strong>{page}</strong> of <strong>{totalPages}</strong> (Total <strong>{formatNumber(totalCount)}</strong> allocations)
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page <= 1}
+                  className="p-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Previous Page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                
+                <span className="px-2 font-bold text-slate-900">{page}</span>
+
+                <button
+                  type="button"
+                  onClick={() => setPage(Math.min(totalPages, page + 1))}
+                  disabled={page >= totalPages}
+                  className="p-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Next Page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================== */}
+        {/* VIEW 2: CONSOLIDATED PARTNER */}
+        {/* ========================================================== */}
+        {activeFormat === 'consolidated_partner' && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col flex-1">
+            <div className="overflow-x-auto max-h-[76vh]">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-100 sticky top-0 z-20 border-b border-slate-200 text-slate-700 font-extrabold text-[11px]">
+                  <tr>
+                    <th className="px-3 py-2.5">Partner Name</th>
+                    <th className="px-3 py-2.5">Partner ID</th>
+                    <th className="px-3 py-2.5">City</th>
+                    <th className="px-3 py-2.5">Week</th>
+                    <th className="px-3 py-2.5 text-center">Cars</th>
+                    <th className="px-3 py-2.5 text-center">On-Road Days</th>
+                    <th className="px-3 py-2.5 text-center">Total Trips</th>
+                    <th className="px-3 py-2.5 text-right">Rent Billed</th>
+                    <th className="px-3 py-2.5 text-right">Platform Earnings</th>
+                    <th className="px-3 py-2.5 text-right">Cash Collected</th>
+                    <th className="px-3 py-2.5 text-right">Total Deductions</th>
+                    <th className="px-3 py-2.5 text-right text-emerald-800">Net Payout</th>
+                    <th className="px-3 py-2.5 text-right text-rose-800">Net To Collect</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={13} className="px-4 py-20 text-center text-slate-400">
+                        <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-emerald-600" />
+                        <span>Loading consolidated partner data...</span>
+                      </td>
+                    </tr>
+                  ) : records.length === 0 ? (
+                    <tr>
+                      <td colSpan={13} className="px-4 py-20 text-center text-slate-400">
+                        No consolidated partner records found.
+                      </td>
+                    </tr>
+                  ) : (
+                    records.map((r, idx) => (
+                      <tr key={r.partner_hisaab_id || idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-3 py-2.5 font-bold text-slate-900">{r.partner_name}</td>
+                        <td className="px-3 py-2.5 font-mono text-slate-500">{r.partner_id}</td>
+                        <td className="px-3 py-2.5">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700">
+                            {r.city || r.normalized_city}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-slate-600">{r.week_id}</td>
+                        <td className="px-3 py-2.5 text-center font-bold">{r.allotted_cars_count}</td>
+                        <td className="px-3 py-2.5 text-center">{r.total_onroad_days}</td>
+                        <td className="px-3 py-2.5 text-center font-bold">{r.total_trips}</td>
+                        <td className="px-3 py-2.5 text-right font-mono">{formatCurrency(r.total_net_rent_billed)}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-emerald-700 font-bold">{formatCurrency(r.total_platform_earnings)}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-amber-700">{formatCurrency(r.total_cash_collected)}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-slate-600">
+                          {formatCurrency(
+                            (Number(r.total_adjustments) || 0) + 
+                            (Number(r.total_challans) || 0) + 
+                            (Number(r.total_accidents) || 0) + 
+                            (Number(r.total_dead_mile_penalty) || 0)
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-700">
+                          {Number(r.net_bank_payout) > 0 ? formatCurrency(r.net_bank_payout) : '-'}
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-mono font-bold text-rose-700">
+                          {Number(r.net_amount_to_collect) > 0 ? formatCurrency(r.net_amount_to_collect) : '-'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="bg-slate-50 border-t border-slate-200 px-4 py-2.5 flex items-center justify-between text-xs text-slate-600 mt-auto">
+              <div>
+                Page <strong>{page}</strong> of <strong>{totalPages}</strong> (Total <strong>{formatNumber(totalCount)}</strong> partners)
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page <= 1}
+                  className="p-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="px-2 font-bold text-slate-900">{page}</span>
+                <button
+                  type="button"
+                  onClick={() => setPage(Math.min(totalPages, page + 1))}
+                  disabled={page >= totalPages}
+                  className="p-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================== */}
+        {/* VIEW 3: DAILY LEDGER */}
+        {/* ========================================================== */}
+        {activeFormat === 'daily_ledger' && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col flex-1">
+            <div className="overflow-x-auto max-h-[76vh]">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-100 sticky top-0 z-20 border-b border-slate-200 text-slate-700 font-extrabold text-[11px]">
+                  <tr>
+                    <th className="px-3 py-2.5">Date</th>
+                    <th className="px-3 py-2.5">Partner ID</th>
+                    <th className="px-3 py-2.5">Vehicle Number</th>
+                    <th className="px-3 py-2.5">City</th>
+                    <th className="px-3 py-2.5 text-right">Daily Rent</th>
+                    <th className="px-3 py-2.5 text-center">Total Trips</th>
+                    <th className="px-3 py-2.5 text-right">Gross Fares</th>
+                    <th className="px-3 py-2.5 text-right">Cash Collected</th>
+                    <th className="px-3 py-2.5 text-right">Incentives</th>
+                    <th className="px-3 py-2.5 text-right">Deductions</th>
+                    <th className="px-3 py-2.5 text-right font-extrabold">Daily Balance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={11} className="px-4 py-20 text-center text-slate-400">
+                        <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-emerald-600" />
+                        <span>Loading daily ledger records...</span>
+                      </td>
+                    </tr>
+                  ) : records.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="px-4 py-20 text-center text-slate-400">
+                        No daily ledger records found.
+                      </td>
+                    </tr>
+                  ) : (
+                    records.map((r, idx) => (
+                      <tr key={r.ledger_id || idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-3 py-2.5 font-bold font-mono text-slate-900">{r.log_date}</td>
+                        <td className="px-3 py-2.5 font-mono text-slate-500">{r.partner_id}</td>
+                        <td className="px-3 py-2.5 font-bold font-mono text-slate-900">{r.vehicle_number}</td>
+                        <td className="px-3 py-2.5">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700">
+                            {r.city || r.normalized_city}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-mono">{formatCurrency(r.net_daily_rent)}</td>
+                        <td className="px-3 py-2.5 text-center font-bold">{r.total_trips}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-emerald-700 font-bold">{formatCurrency(r.total_fare_earnings)}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-amber-700">{formatCurrency(r.total_cash_collected)}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-slate-600">{formatCurrency(r.total_incentives)}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-rose-600">{formatCurrency(r.total_deductions)}</td>
+                        <td className="px-3 py-2.5 text-right font-bold font-mono text-slate-900">
+                          {formatCurrency(r.daily_net_balance)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="bg-slate-50 border-t border-slate-200 px-4 py-2.5 flex items-center justify-between text-xs text-slate-600 mt-auto">
+              <div>
+                Page <strong>{page}</strong> of <strong>{totalPages}</strong> (Total <strong>{formatNumber(totalCount)}</strong> log entries)
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setPage(Math.max(1, page - 1))}
+                  disabled={page <= 1}
+                  className="p-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="px-2 font-bold text-slate-900">{page}</span>
+                <button
+                  type="button"
+                  onClick={() => setPage(Math.min(totalPages, page + 1))}
+                  disabled={page >= totalPages}
+                  className="p-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================== */}
+        {/* VIEW 4: CITY SUMMARY (MATCHES EXCEL SUMMARY SHEET) */}
+        {/* ========================================================== */}
+        {activeFormat === 'city_summary' && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col flex-1">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">
+                  Operating Cities Settlement Summary Matrix
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Consolidated financial position across all active operating hubs for {selectedWeek === 'All' ? 'all settlement weeks' : `week ${selectedWeek}`}
+                </p>
+              </div>
+              <span className="text-xs font-mono font-bold px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200">
+                Summary Sheet Mode
+              </span>
+            </div>
+
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-100 border-b border-slate-200 text-slate-700 font-extrabold text-[11px]">
+                  <tr>
+                    <th className="px-4 py-3">City Hub</th>
+                    <th className="px-3 py-3 text-center">Allocations</th>
+                    <th className="px-3 py-3 text-center">Partners</th>
+                    <th className="px-3 py-3 text-center">On-Road Days</th>
+                    <th className="px-3 py-3 text-right">Uber Earnings</th>
+                    <th className="px-3 py-3 text-right">OLA Revenue</th>
+                    <th className="px-3 py-3 text-right">Gross Revenue</th>
+                    <th className="px-3 py-3 text-right">Net Lease Rental</th>
+                    <th className="px-3 py-3 text-right">Challans</th>
+                    <th className="px-3 py-3 text-right">TDS</th>
+                    <th className="px-3 py-3 text-right">DeadMile Penalty</th>
+                    <th className="px-3 py-3 text-right">Current Week O/S</th>
+                    <th className="px-3 py-3 text-right text-emerald-800 bg-emerald-50/50">Driver Net Payout</th>
+                    <th className="px-4 py-3 text-right text-rose-800 bg-rose-50/50">Driver To Collect</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={14} className="px-4 py-20 text-center text-slate-400">
+                        <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-emerald-600" />
+                        <span>Compiling city settlement summaries...</span>
+                      </td>
+                    </tr>
+                  ) : citySummaries.length === 0 ? (
+                    <tr>
+                      <td colSpan={14} className="px-4 py-20 text-center text-slate-400">
+                        No city summary data found for the selected period.
+                      </td>
+                    </tr>
+                  ) : (
+                    citySummaries.map((row) => (
+                      <tr key={row.city} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 font-extrabold text-slate-900 flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-emerald-700" />
+                          <span>{row.city}</span>
+                        </td>
+                        <td className="px-3 py-3 text-center font-bold">{formatNumber(row.total_allocations)}</td>
+                        <td className="px-3 py-3 text-center text-slate-600">{formatNumber(row.real_partner_rows)}</td>
+                        <td className="px-3 py-3 text-center font-mono">{formatNumber(row.onroad_days)}</td>
+                        <td className="px-3 py-3 text-right font-mono">{formatCurrency(row.uber_earnings)}</td>
+                        <td className="px-3 py-3 text-right font-mono">{formatCurrency(row.ola_revenue)}</td>
+                        <td className="px-3 py-3 text-right font-mono font-bold text-slate-900">{formatCurrency(row.gross_revenue)}</td>
+                        <td className="px-3 py-3 text-right font-mono font-bold text-slate-900">{formatCurrency(row.net_lease_rental)}</td>
+                        <td className="px-3 py-3 text-right font-mono text-rose-700">{formatCurrency(row.challans)}</td>
+                        <td className="px-3 py-3 text-right font-mono text-slate-600">{formatCurrency(row.tds)}</td>
+                        <td className="px-3 py-3 text-right font-mono text-rose-700">{formatCurrency(row.deadmile_penalty)}</td>
+                        <td className="px-3 py-3 text-right font-mono font-bold">{formatCurrency(row.current_week_os)}</td>
+                        <td className="px-3 py-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/30">
+                          {formatCurrency(row.driver_net_payout)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-rose-700 bg-rose-50/30">
+                          {formatCurrency(row.driver_net_to_collect)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+                {/* Total Summary Row */}
+                {citySummaries.length > 0 && (
+                  <tfoot className="bg-slate-100 font-extrabold border-t-2 border-slate-300 text-slate-900">
+                    <tr>
+                      <td className="px-4 py-3 uppercase tracking-wider text-[11px]">Total Summary</td>
+                      <td className="px-3 py-3 text-center">{formatNumber(summaryTotals.total_allocations)}</td>
+                      <td className="px-3 py-3 text-center">{formatNumber(summaryTotals.real_partner_rows)}</td>
+                      <td className="px-3 py-3 text-center font-mono">{formatNumber(summaryTotals.onroad_days)}</td>
+                      <td className="px-3 py-3 text-right font-mono">{formatCurrency(summaryTotals.uber_earnings)}</td>
+                      <td className="px-3 py-3 text-right font-mono">{formatCurrency(summaryTotals.ola_revenue)}</td>
+                      <td className="px-3 py-3 text-right font-mono font-black">{formatCurrency(summaryTotals.gross_revenue)}</td>
+                      <td className="px-3 py-3 text-right font-mono font-black">{formatCurrency(summaryTotals.net_lease_rental)}</td>
+                      <td className="px-3 py-3 text-right font-mono text-rose-700">{formatCurrency(summaryTotals.challans)}</td>
+                      <td className="px-3 py-3 text-right font-mono text-slate-700">{formatCurrency(summaryTotals.tds)}</td>
+                      <td className="px-3 py-3 text-right font-mono text-rose-700">{formatCurrency(summaryTotals.deadmile_penalty)}</td>
+                      <td className="px-3 py-3 text-right font-mono font-black">{formatCurrency(summaryTotals.current_week_os)}</td>
+                      <td className="px-3 py-3 text-right font-mono font-black text-emerald-800 bg-emerald-100/50">
+                        {formatCurrency(summaryTotals.driver_net_payout)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-black text-rose-800 bg-rose-100/50">
+                        {formatCurrency(summaryTotals.driver_net_to_collect)}
+                      </td>
+                    </tr>
+                  </tfoot>
                 )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Table Footer with Pagination Controls */}
-          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex items-center justify-between text-xs text-slate-600">
-            <div>
-              Page <strong>{page}</strong> of <strong>{totalPages}</strong> (Total <strong>{formatNumber(totalCount)}</strong> items)
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page <= 1}
-                className="p-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                title="Previous Page"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              
-              <span className="px-2 font-bold text-slate-900">{page}</span>
-
-              <button
-                type="button"
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page >= totalPages}
-                className="p-1.5 rounded-lg border border-slate-300 hover:bg-white text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                title="Next Page"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
+              </table>
             </div>
           </div>
-
-        </section>
+        )}
 
       </main>
 
@@ -878,13 +1191,13 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-3xl">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">
-                  Settlement Breakdown Sheet
+                  Driver Settlement Breakdown Sheet
                 </span>
                 <h3 className="text-xl font-extrabold text-slate-900 mt-1">
-                  {selectedRecord.partner_name || selectedRecord.partner_id}
+                  {selectedRecord.vendor_name || selectedRecord.partner_name || selectedRecord.vendor_code}
                 </h3>
                 <p className="text-xs text-slate-500 font-mono mt-0.5">
-                  Vehicle: <strong>{selectedRecord.vehicle_number || '-'}</strong> ({selectedRecord.vehicle_model || '-'}) | Week: <strong>{selectedRecord.week_id}</strong>
+                  Car: <strong>{selectedRecord.vehicle_number || '-'}</strong> ({selectedRecord.vehicle_model || '-'}) | Allocation: <strong>{selectedRecord.allocation_start || '-'}</strong> to <strong>{selectedRecord.allocation_end || '-'}</strong>
                 </p>
               </div>
               <button
@@ -905,7 +1218,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                   Settlement Accounting Formula
                 </div>
                 <div className="font-mono text-xs text-slate-800 leading-relaxed">
-                  Net Due = (Lease Rent + Driver Cash + Deductions) - (Platform Earnings + Incentives)
+                  Net Due = (Lease Rent + Cash Collected + Challans/Accidents/DeadMile) - (Uber & Ola Earnings + Incentives)
                 </div>
               </div>
 
@@ -920,23 +1233,27 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                   </div>
                   <div className="flex justify-between">
                     <span>Weekly Lease Rental:</span>
-                    <strong className="font-mono">{formatCurrency(selectedRecord.net_weekly_lease_rental || selectedRecord.total_net_rent_billed || selectedRecord.net_daily_rent)}</strong>
+                    <strong className="font-mono">{formatCurrency(selectedRecord.net_weekly_lease_rental || selectedRecord.weekly_lease_rental)}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Uber Cash Collected:</span>
-                    <strong className="font-mono">{formatCurrency(selectedRecord.uber_cash_collection || selectedRecord.total_cash_collected)}</strong>
+                    <strong className="font-mono">{formatCurrency(selectedRecord.uber_cash_collection)}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Ola Cash Collected:</span>
-                    <strong className="font-mono">{formatCurrency(selectedRecord.ola_cash_collection || 0)}</strong>
+                    <strong className="font-mono">{formatCurrency(selectedRecord.ola_cash_collection)}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span>Challan Penalties:</span>
-                    <strong className="font-mono">{formatCurrency(selectedRecord.challan_amount || selectedRecord.total_challans || 0)}</strong>
+                    <span>Traffic Challans:</span>
+                    <strong className="font-mono">{formatCurrency(selectedRecord.challan || selectedRecord.challan_amount)}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span>Dead Mile Penalty:</span>
-                    <strong className="font-mono">{formatCurrency(selectedRecord.gps_dead_mile_penalty || selectedRecord.total_dead_mile_penalty || 0)}</strong>
+                    <span>Accident Penalty:</span>
+                    <strong className="font-mono">{formatCurrency(selectedRecord.accident || selectedRecord.accident_deduction)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>DeadMile Penalty:</span>
+                    <strong className="font-mono">{formatCurrency(selectedRecord.deadmile_penalty || selectedRecord.gps_dead_mile_penalty)}</strong>
                   </div>
                 </div>
 
@@ -948,19 +1265,23 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                   </div>
                   <div className="flex justify-between">
                     <span>Uber Gross Fare:</span>
-                    <strong className="font-mono text-emerald-800">{formatCurrency(selectedRecord.uber_total_earnings || selectedRecord.total_platform_earnings)}</strong>
+                    <strong className="font-mono text-emerald-800">{formatCurrency(selectedRecord.uber_total_revenue || selectedRecord.uber_total_earnings)}</strong>
                   </div>
                   <div className="flex justify-between">
-                    <span>Ola Gross Revenue:</span>
-                    <strong className="font-mono text-emerald-800">{formatCurrency(selectedRecord.ola_net_revenue || 0)}</strong>
+                    <span>Ola Net Revenue:</span>
+                    <strong className="font-mono text-emerald-800">{formatCurrency(selectedRecord.ola_net_revenue)}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Uber Incentive:</span>
-                    <strong className="font-mono text-emerald-800">{formatCurrency(selectedRecord.uber_incentive || 0)}</strong>
+                    <strong className="font-mono text-emerald-800">{formatCurrency(selectedRecord.uber_incentive)}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Ola Incentive:</span>
-                    <strong className="font-mono text-emerald-800">{formatCurrency(selectedRecord.ola_incentive || selectedRecord.total_platform_incentives || 0)}</strong>
+                    <strong className="font-mono text-emerald-800">{formatCurrency(selectedRecord.ola_incentive)}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Rapido Earnings:</span>
+                    <strong className="font-mono text-emerald-800">{formatCurrency(selectedRecord.rapido_net_revenue)}</strong>
                   </div>
                 </div>
 
@@ -971,7 +1292,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                 <div>
                   <div className="text-[10px] uppercase font-bold text-slate-400">Net Settlement Result</div>
                   <div className="text-sm font-semibold text-slate-200 mt-0.5">
-                    {Number(selectedRecord.net_payout_to_driver || selectedRecord.net_bank_payout) > 0 ? (
+                    {Number(selectedRecord.to_pay_for_driver || selectedRecord.net_payout_to_driver) > 0 ? (
                       <span className="text-emerald-400">Company pays Driver</span>
                     ) : (
                       <span className="text-rose-400">Driver owes Company</span>
@@ -980,9 +1301,9 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-black font-mono">
-                    {Number(selectedRecord.net_payout_to_driver || selectedRecord.net_bank_payout) > 0
-                      ? formatCurrency(selectedRecord.net_payout_to_driver || selectedRecord.net_bank_payout)
-                      : formatCurrency(selectedRecord.net_to_collect_from_driver || selectedRecord.net_amount_to_collect)}
+                    {Number(selectedRecord.to_pay_for_driver || selectedRecord.net_payout_to_driver) > 0
+                      ? formatCurrency(selectedRecord.to_pay_for_driver || selectedRecord.net_payout_to_driver)
+                      : formatCurrency(selectedRecord.to_collect_from_driver || selectedRecord.net_to_collect_from_driver)}
                   </div>
                 </div>
               </div>

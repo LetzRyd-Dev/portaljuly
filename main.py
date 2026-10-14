@@ -11007,7 +11007,7 @@ def get_hisaab_summary(
     authorization: Optional[str] = Header(None)
 ):
     """
-    Computes top-level executive KPI numbers for the Hisaab dashboard.
+    Computes top-level executive KPI numbers and city-by-city breakdown for Hisaab.
     """
     conn = postgreSQL_pool.getconn()
     try:
@@ -11053,15 +11053,15 @@ def get_hisaab_summary(
                 COALESCE(SUM(allotted_days), 0) AS total_allotted_days,
                 COALESCE(SUM(onroad_days), 0) AS total_onroad_days,
                 COALESCE(SUM(net_weekly_lease_rental), 0.00) AS total_lease_rental,
-                COALESCE(SUM(total_trips), 0) AS total_trips,
-                COALESCE(SUM(total_gross_earnings), 0.00) AS total_gross_earnings,
-                COALESCE(SUM(total_cash_collected), 0.00) AS total_cash_collected,
-                COALESCE(SUM(total_incentives), 0.00) AS total_incentives,
-                COALESCE(SUM(total_deductions), 0.00) AS total_deductions,
-                COALESCE(SUM(net_payout_to_driver), 0.00) AS total_payout_to_drivers,
-                COALESCE(SUM(net_to_collect_from_driver), 0.00) AS total_to_collect,
+                COALESCE(SUM(ola_trips + uber_trips), 0) AS total_trips,
+                COALESCE(SUM(uber_total_revenue + ola_net_revenue), 0.00) AS total_gross_earnings,
+                COALESCE(SUM(uber_cash_collection + ola_cash_collection), 0.00) AS total_cash_collected,
+                COALESCE(SUM(uber_incentive + ola_incentive), 0.00) AS total_incentives,
+                COALESCE(SUM(challan + accident + deadmile_penalty + tds + vehicle_level_adjustment), 0.00) AS total_deductions,
+                COALESCE(SUM(to_pay_for_driver), 0.00) AS total_payout_to_drivers,
+                COALESCE(SUM(to_collect_from_driver), 0.00) AS total_to_collect,
                 COALESCE(SUM(uber_trips), 0) AS total_uber_trips,
-                COALESCE(SUM(uber_total_earnings), 0.00) AS total_uber_earnings,
+                COALESCE(SUM(uber_total_revenue), 0.00) AS total_uber_earnings,
                 COALESCE(SUM(ola_trips), 0) AS total_ola_trips,
                 COALESCE(SUM(ola_net_revenue), 0.00) AS total_ola_revenue
             FROM public.portal_v_driver_hisaab_weekly
@@ -11072,11 +11072,51 @@ def get_hisaab_summary(
         cols = [d[0] for d in cur.description]
         res = dict(zip(cols, [float(v) if hasattr(v, '__float__') else v for v in row]))
         
+        # City-by-city summary table (matching Excel Summary Sheet)
+        city_where = ["1=1"]
+        city_params = []
+        if week_id and week_id.lower() not in ["all", "all weeks", ""]:
+            city_where.append("week_id = %s")
+            city_params.append(week_id)
+        elif start_date and end_date:
+            city_where.append("week_start >= %s::date AND week_end <= %s::date")
+            city_params.extend([start_date, end_date])
+            
+        cur.execute(f"""
+            SELECT 
+                city,
+                COUNT(*) AS total_allocations,
+                COUNT(DISTINCT partner_id) AS real_partner_rows,
+                COALESCE(SUM(onroad_days), 0) AS onroad_days,
+                COALESCE(SUM(uber_total_revenue), 0.00) AS uber_earnings,
+                COALESCE(SUM(ola_net_revenue), 0.00) AS ola_revenue,
+                COALESCE(SUM(uber_total_revenue + ola_net_revenue), 0.00) AS gross_revenue,
+                COALESCE(SUM(net_weekly_lease_rental), 0.00) AS net_lease_rental,
+                COALESCE(SUM(challan), 0.00) AS challans,
+                COALESCE(SUM(tds), 0.00) AS tds,
+                COALESCE(SUM(deadmile_penalty), 0.00) AS deadmile_penalty,
+                COALESCE(SUM(current_week_os), 0.00) AS current_week_os,
+                COALESCE(SUM(to_pay_for_driver), 0.00) AS driver_net_payout,
+                COALESCE(SUM(to_collect_from_driver), 0.00) AS driver_net_to_collect
+            FROM public.portal_v_driver_hisaab_weekly
+            WHERE {" AND ".join(city_where)}
+            GROUP BY city
+            ORDER BY city;
+        """, tuple(city_params))
+        
+        c_rows = cur.fetchall()
+        c_cols = [d[0] for d in cur.description]
+        city_summaries = []
+        for cr in c_rows:
+            c_dict = dict(zip(c_cols, [float(v) if hasattr(v, '__float__') else v for v in cr]))
+            city_summaries.append(c_dict)
+            
         return {
             "success": True,
             "city": city,
             "week_id": week_id,
-            "summary": res
+            "summary": res,
+            "city_summaries": city_summaries
         }
     except Exception as e:
         conn.rollback()
@@ -11105,7 +11145,6 @@ def get_hisaab_records(
     try:
         cur = conn.cursor()
         
-        # Select target view based on format
         target_view = "public.portal_v_driver_hisaab_weekly"
         if format == "consolidated_partner":
             target_view = "public.portal_v_hisaab_partner_weekly"
@@ -11145,14 +11184,17 @@ def get_hisaab_records(
                 where_clauses.append("week_start >= %s::date AND week_end <= %s::date")
             params.extend([start_date, end_date])
             
-        # Search query (Partner name, Partner ID, or Vehicle number)
+        # Search query (Vendor name, code, or Vehicle number)
         if search and search.strip():
             s_val = f"%{search.strip()}%"
             if format == "consolidated_partner":
                 where_clauses.append("(partner_name ILIKE %s OR partner_id ILIKE %s)")
                 params.extend([s_val, s_val])
+            elif format == "daily_ledger":
+                where_clauses.append("(partner_id ILIKE %s OR vehicle_number ILIKE %s)")
+                params.extend([s_val, s_val])
             else:
-                where_clauses.append("(partner_name ILIKE %s OR partner_id ILIKE %s OR vehicle_number ILIKE %s)")
+                where_clauses.append("(vendor_name ILIKE %s OR vendor_code ILIKE %s OR vehicle_number ILIKE %s)")
                 params.extend([s_val, s_val, s_val])
                 
         if status and status.lower() not in ["all", ""]:
@@ -11167,7 +11209,7 @@ def get_hisaab_records(
         
         # Pagination
         offset = max(0, (page - 1) * limit)
-        order_col = "log_date DESC" if format == "daily_ledger" else "week_start DESC, partner_name ASC"
+        order_col = "log_date DESC" if format == "daily_ledger" else "city ASC, vendor_name ASC, vehicle_number ASC" if format == "vehicle_weekly" else "partner_name ASC"
         
         cur.execute(f"""
             SELECT * 
@@ -11181,8 +11223,8 @@ def get_hisaab_records(
         cols = [d[0] for d in cur.description]
         import datetime as dt_module
         records = []
-        for r in rows:
-            rec = {}
+        for idx, r in enumerate(rows, 1):
+            rec = {"sr_no": offset + idx}
             for col, val in zip(cols, r):
                 if isinstance(val, (dt_module.date, dt_module.datetime)):
                     rec[col] = str(val)
@@ -11211,71 +11253,245 @@ def get_hisaab_records(
 
 
 @app.get("/api/hisaab/export")
-def export_hisaab_csv(
+def export_hisaab_file(
     format: Optional[str] = "vehicle_weekly",
     city: Optional[str] = "All Cities",
     week_id: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     search: Optional[str] = None,
-    status: Optional[str] = None,
+    file_type: Optional[str] = "xlsx",
     authorization: Optional[str] = Header(None)
 ):
     """
-    Streams CSV export of the complete filtered Hisaab records.
+    Downloads Hisaab as a formatted Excel workbook (.xlsx) matching Hisaab_{week_id}.xlsx
+    with tabs: Bangalore, Hyderabad, Mumbai, Delhi, and Summary, or streams CSV.
     """
     from fastapi.responses import Response
     import io
     import csv
     
-    # Reuse query logic with limit=10000
-    res_data = get_hisaab_records(
-        format=format,
-        city=city,
-        week_id=week_id,
-        start_date=start_date,
-        end_date=end_date,
-        search=search,
-        status=status,
-        page=1,
-        limit=10000,
-        authorization=authorization
-    )
-    
-    data = res_data.get("data", [])
-    output = io.StringIO()
-    writer = csv.writer(output)
-    
-    # Export Metadata
-    writer.writerow(["# LetzRyd Operations Hisaab Dashboard Export"])
-    writer.writerow(["# Format:", format])
-    writer.writerow(["# City:", city or "All Cities"])
-    writer.writerow(["# Settlement Week / Period:", week_id or f"{start_date} to {end_date}" or "All"])
-    writer.writerow(["# Total Records:", len(data)])
-    writer.writerow(["# Exported At (IST):", datetime.now(ist_tz).strftime('%Y-%m-%d %H:%M:%S')])
-    writer.writerow([])
-    
-    if data:
-        headers = list(data[0].keys())
-        writer.writerow(headers)
-        for row in data:
-            writer.writerow([row.get(h, "") for h in headers])
-    else:
-        writer.writerow(["No hisaab records found for specified criteria"])
+    conn = postgreSQL_pool.getconn()
+    try:
+        cur = conn.cursor()
         
-    csv_content = output.getvalue()
-    safe_city = re.sub(r'[^a-zA-Z0-9_\-]', '_', (city or "All_Cities").strip())
-    safe_week = re.sub(r'[^a-zA-Z0-9_\-]', '_', (week_id or "All_Weeks").strip())
-    filename = f"LetzRyd_Hisaab_{format}_{safe_city}_{safe_week}.csv"
-    
-    return Response(
-        content=csv_content,
-        media_type="text/csv",
-        headers={
-            "Content-Disposition": f"attachment; filename=\"{filename}\"",
-            "Cache-Control": "no-cache"
-        }
-    )
+        # 1. Excel Export (Default - multi-sheet structure matching Hisaab_CY26WK41 (1).xlsx)
+        if file_type.lower() == "xlsx":
+            import openpyxl
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            
+            EXCEL_COLUMNS = [
+                ("Sr. No.", "sr_no"),
+                ("Vehicle Number", "vehicle_number"),
+                ("Vendor Name", "vendor_name"),
+                ("Vendor Code", "vendor_code"),
+                ("Allocation Status", "allocation_status"),
+                ("City", "city"),
+                ("Vehicle Model", "vehicle_model"),
+                ("Rental Plan", "rental_plan"),
+                ("Allocation Start", "allocation_start"),
+                ("Allocation End", "allocation_end"),
+                ("Active Days", "active_days"),
+                ("Onroad Days", "onroad_days"),
+                ("Daily Rent Applied", "daily_rent_applied"),
+                ("Weekly Indemnity Fees", "weekly_indemnity_fees"),
+                ("Weekly Lease Rental", "weekly_lease_rental"),
+                ("Net Weekly Lease Rental", "net_weekly_lease_rental"),
+                ("OLA Trips", "ola_trips"),
+                ("OLA Net Revenue", "ola_net_revenue"),
+                ("OLA Cash Collection", "ola_cash_collection"),
+                ("OLA Toll", "ola_toll"),
+                ("OLA GST", "ola_gst"),
+                ("OLA Online Payment", "ola_online_payment"),
+                ("OLA Incentive", "ola_incentive"),
+                ("OLA Week O/s", "ola_week_os"),
+                ("Uber Trips", "uber_trips"),
+                ("Uber Total Revenue", "uber_total_revenue"),
+                ("Uber Cash Collection", "uber_cash_collection"),
+                ("Uber Toll", "uber_toll"),
+                ("Driver Subscription Charge", "driver_subscription_charge"),
+                ("Uber Incentive", "uber_incentive"),
+                ("Uber Week O/s", "uber_week_os"),
+                ("Rapido Trips", "rapido_trips"),
+                ("Rapido Net Revenue", "rapido_net_revenue"),
+                ("Rapido Toll", "rapido_toll"),
+                ("Rapido Incentive", "rapido_incentive"),
+                ("Vehicle Level Adjustment", "vehicle_level_adjustment"),
+                ("Challan", "challan"),
+                ("Accident", "accident"),
+                ("DeadMile Penalty", "deadmile_penalty"),
+                ("TDS", "tds"),
+                ("Current Week O/s", "current_week_os"),
+                ("To Pay For Driver", "to_pay_for_driver"),
+                ("To Collect from Driver", "to_collect_from_driver"),
+            ]
+            
+            # Fetch all records for the week/criteria
+            where_clauses = ["1=1"]
+            params = []
+            if week_id and week_id.lower() not in ["all", "all weeks", ""]:
+                where_clauses.append("week_id = %s")
+                params.append(week_id)
+            elif start_date and end_date:
+                where_clauses.append("week_start >= %s::date AND week_end <= %s::date")
+                params.extend([start_date, end_date])
+                
+            cur.execute(f"""
+                SELECT * 
+                FROM public.portal_v_driver_hisaab_weekly 
+                WHERE {" AND ".join(where_clauses)}
+                ORDER BY city, vendor_name;
+            """, tuple(params))
+            
+            rows = cur.fetchall()
+            cols = [d[0] for d in cur.description]
+            records = [dict(zip(cols, r)) for r in rows]
+            
+            # Group records by city
+            records_by_city = {}
+            for r in records:
+                c = r.get("city") or "Other"
+                records_by_city.setdefault(c, []).append(r)
+                
+            wb = openpyxl.Workbook()
+            default_sheet = wb.active
+            
+            header_font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+            
+            cities_to_export = ["Bangalore", "Hyderabad", "Mumbai", "Delhi"]
+            # If user selected a single specific city, only include that city
+            if city and city.lower() not in ["all", "all cities", "all_cities", ""]:
+                c_clean = "Bangalore" if city.lower() in ["bangalore", "bengaluru", "blr"] else city
+                cities_to_export = [c_clean]
+                
+            for city_name in cities_to_export:
+                ws = wb.create_sheet(title=city_name)
+                headers = [c[0] for c in EXCEL_COLUMNS]
+                ws.append(headers)
+                
+                for col_idx in range(1, len(headers) + 1):
+                    cell = ws.cell(row=1, column=col_idx)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                    
+                city_rows = records_by_city.get(city_name, [])
+                for idx, r in enumerate(city_rows, 1):
+                    row_vals = []
+                    for header_name, col_key in EXCEL_COLUMNS:
+                        if col_key == "sr_no":
+                            row_vals.append(idx)
+                        else:
+                            val = r.get(col_key, "")
+                            row_vals.append(float(val) if hasattr(val, '__float__') else str(val) if val is not None else "")
+                    ws.append(row_vals)
+                    
+            # Summary Sheet
+            cur.execute(f"""
+                SELECT 
+                    city,
+                    COUNT(*) AS total_allocations,
+                    COUNT(DISTINCT partner_id) AS real_partner_rows,
+                    COALESCE(SUM(onroad_days), 0) AS onroad_days,
+                    COALESCE(SUM(uber_total_revenue), 0.00) AS uber_earnings,
+                    COALESCE(SUM(ola_net_revenue), 0.00) AS ola_revenue,
+                    COALESCE(SUM(uber_total_revenue + ola_net_revenue), 0.00) AS gross_revenue,
+                    COALESCE(SUM(net_weekly_lease_rental), 0.00) AS net_lease_rental,
+                    COALESCE(SUM(challan), 0.00) AS challans,
+                    COALESCE(SUM(tds), 0.00) AS tds,
+                    COALESCE(SUM(deadmile_penalty), 0.00) AS deadmile_penalty,
+                    COALESCE(SUM(current_week_os), 0.00) AS current_week_os,
+                    COALESCE(SUM(to_pay_for_driver), 0.00) AS driver_net_payout,
+                    COALESCE(SUM(to_collect_from_driver), 0.00) AS driver_net_to_collect
+                FROM public.portal_v_driver_hisaab_weekly
+                WHERE {" AND ".join(where_clauses)}
+                GROUP BY city
+                ORDER BY city;
+            """, tuple(params))
+            
+            sum_rows = cur.fetchall()
+            ws_sum = wb.create_sheet(title="Summary")
+            sum_headers = [
+                "City", "Total Allocations", "Real Partner Rows", "Onroad Days",
+                "Uber Earnings", "OLA Revenue", "Gross Revenue", "Net Lease Rental",
+                "Challans", "TDS", "DeadMile Penalty", "Current Week O/S",
+                "Driver Net Payout", "Driver Net To Collect"
+            ]
+            ws_sum.append(sum_headers)
+            for col_idx in range(1, len(sum_headers) + 1):
+                cell = ws_sum.cell(row=1, column=col_idx)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+                
+            for sr in sum_rows:
+                ws_sum.append([float(x) if hasattr(x, '__float__') else str(x) for x in sr])
+                
+            wb.remove(default_sheet)
+            out = io.BytesIO()
+            wb.save(out)
+            xlsx_content = out.getvalue()
+            
+            safe_week = re.sub(r'[^a-zA-Z0-9_\-]', '_', (week_id or "Export").strip())
+            filename = f"Hisaab_{safe_week}.xlsx"
+            
+            return Response(
+                content=xlsx_content,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={
+                    "Content-Disposition": f"attachment; filename=\"{filename}\"",
+                    "Cache-Control": "no-cache"
+                }
+            )
+
+        # 2. CSV Export Fallback
+        res_data = get_hisaab_records(
+            format=format,
+            city=city,
+            week_id=week_id,
+            start_date=start_date,
+            end_date=end_date,
+            search=search,
+            status=None,
+            page=1,
+            limit=10000,
+            authorization=authorization
+        )
+        
+        data = res_data.get("data", [])
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        writer.writerow(["# LetzRyd Operations Hisaab Export"])
+        writer.writerow(["# City:", city or "All Cities"])
+        writer.writerow(["# Settlement Week / Period:", week_id or f"{start_date} to {end_date}" or "All"])
+        writer.writerow(["# Total Records:", len(data)])
+        writer.writerow([])
+        
+        if data:
+            headers = list(data[0].keys())
+            writer.writerow(headers)
+            for row in data:
+                writer.writerow([row.get(h, "") for h in headers])
+                
+        csv_content = output.getvalue()
+        safe_week = re.sub(r'[^a-zA-Z0-9_\-]', '_', (week_id or "Export").strip())
+        filename = f"Hisaab_{safe_week}.csv"
+        
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename=\"{filename}\"",
+                "Cache-Control": "no-cache"
+            }
+        )
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        postgreSQL_pool.putconn(conn)
 
 
 
