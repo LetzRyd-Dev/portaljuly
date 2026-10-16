@@ -583,24 +583,24 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                     <th colSpan={1} className="px-3 py-2 bg-slate-100 text-slate-700 border-r border-slate-200 text-right">
                       Rental & Lease
                     </th>
-                    <th colSpan={2} className="px-3 py-2 bg-slate-100 text-slate-700 border-r border-slate-200 text-right">
+                    <th colSpan={5} className="px-3 py-2 bg-slate-100 text-slate-700 border-r border-slate-200 text-right">
                       OLA Performance
                     </th>
-                    <th colSpan={2} className="px-3 py-2 bg-slate-100 text-slate-700 border-r border-slate-200 text-right">
+                    <th colSpan={5} className="px-3 py-2 bg-slate-100 text-slate-700 border-r border-slate-200 text-right">
                       Uber Performance
                     </th>
-                    <th colSpan={1} className="px-3 py-2 bg-slate-100 text-slate-700 border-r border-slate-200 text-right">
+                    <th colSpan={3} className="px-3 py-2 bg-slate-100 text-slate-700 border-r border-slate-200 text-right">
                       Rapido
                     </th>
-                    <th colSpan={2} className="px-3 py-2 bg-slate-100 text-slate-700 border-r border-slate-200 text-right">
+                    <th colSpan={4} className="px-3 py-2 bg-slate-100 text-slate-700 border-r border-slate-200 text-right">
                       Penalties & Deductions
                     </th>
-                    <th colSpan={2} className="px-3 py-2 bg-slate-100 text-slate-700 text-right">
+                    <th colSpan={3} className="px-3 py-2 bg-slate-100 text-slate-700 text-right">
                       Settlement Outcome
                     </th>
                   </tr>
                   
-                  {/* Level 2: Merged Compact Headers */}
+                  {/* Level 2: Subheaders */}
                   <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 text-[11px] font-semibold">
                     
                     {/* Locked Column 1: Sr. No. */}
@@ -620,7 +620,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                     </th>
 
                     {/* Column 3: Partner Name & Code (Merged) */}
-                    <th className="px-3 py-2 min-w-[170px] text-left">
+                    <th className="px-3 py-2 min-w-[165px] text-left">
                       Partner Details
                     </th>
 
@@ -630,63 +630,88 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                     </th>
 
                     {/* Column 5: Allocation Dates (Merged) */}
-                    <th className="px-3 py-2 text-center min-w-[125px]">
+                    <th className="px-3 py-2 text-center min-w-[110px]">
                       Allocation Period
                     </th>
 
                     {/* Column 6: Days (Onroad / Active Merged) */}
-                    <th className="px-3 py-2 text-center min-w-[90px] border-r border-slate-200">
+                    <th className="px-3 py-2 text-center min-w-[95px] border-r border-slate-200">
                       Days (On / Act)
                     </th>
 
                     {/* Column 7: Rent & Lease Rental (Merged) */}
-                    <th className="px-3 py-2 text-right min-w-[120px] border-r border-slate-200">
+                    <th className="px-3 py-2 text-right min-w-[115px] border-r border-slate-200">
                       Rent & Lease
                     </th>
 
-                    {/* Column 8: OLA Revenue & Trips (Merged) */}
-                    <th className="px-3 py-2 text-right min-w-[115px]">
-                      OLA (Rev / Trips)
+                    {/* OLA Columns (Separate) */}
+                    <th className="px-3 py-2 text-right min-w-[85px]">
+                      OLA Trips
                     </th>
-
-                    {/* Column 9: OLA Cash & O/s (Merged) */}
-                    <th className="px-3 py-2 text-right min-w-[110px] border-r border-slate-200">
-                      OLA (Cash / O/s)
+                    <th className="px-3 py-2 text-right min-w-[105px]">
+                      OLA Revenue
                     </th>
-
-                    {/* Column 10: Uber Revenue & Trips (Merged) */}
-                    <th className="px-3 py-2 text-right min-w-[115px]">
-                      Uber (Rev / Trips)
+                    <th className="px-3 py-2 text-right min-w-[100px]">
+                      OLA Cash
                     </th>
-
-                    {/* Column 11: Uber Cash & O/s (Merged) */}
-                    <th className="px-3 py-2 text-right min-w-[110px] border-r border-slate-200">
-                      Uber (Cash / O/s)
+                    <th className="px-3 py-2 text-right min-w-[100px]">
+                      OLA Incentive
                     </th>
-
-                    {/* Column 12: Rapido Performance (Merged) */}
                     <th className="px-3 py-2 text-right min-w-[105px] border-r border-slate-200">
-                      Rapido
+                      OLA Week O/s
                     </th>
 
-                    {/* Column 13: Challan & Accident (Merged) */}
-                    <th className="px-3 py-2 text-right min-w-[115px]">
-                      Challan & Acc
+                    {/* Uber Columns (Separate) */}
+                    <th className="px-3 py-2 text-right min-w-[85px]">
+                      Uber Trips
                     </th>
-
-                    {/* Column 14: DeadMile & TDS (Merged) */}
+                    <th className="px-3 py-2 text-right min-w-[105px]">
+                      Uber Revenue
+                    </th>
+                    <th className="px-3 py-2 text-right min-w-[100px]">
+                      Uber Cash
+                    </th>
+                    <th className="px-3 py-2 text-right min-w-[100px]">
+                      Uber Incentive
+                    </th>
                     <th className="px-3 py-2 text-right min-w-[105px] border-r border-slate-200">
-                      DeadMile & TDS
+                      Uber Week O/s
                     </th>
 
-                    {/* Column 15: Current Week O/s */}
-                    <th className="px-3 py-2 text-right min-w-[110px]">
-                      Week Position
+                    {/* Rapido Columns (Separate) */}
+                    <th className="px-3 py-2 text-right min-w-[85px]">
+                      Rapido Trips
+                    </th>
+                    <th className="px-3 py-2 text-right min-w-[105px]">
+                      Rapido Revenue
+                    </th>
+                    <th className="px-3 py-2 text-right min-w-[100px] border-r border-slate-200">
+                      Rapido Incentive
                     </th>
 
-                    {/* Column 16: Settlement Outcome (To Pay / Collect) */}
-                    <th className="px-3 py-2 text-right min-w-[135px]">
-                      Settlement Outcome
+                    {/* Deductions Columns (Separate) */}
+                    <th className="px-3 py-2 text-right min-w-[95px]">
+                      Challan
+                    </th>
+                    <th className="px-3 py-2 text-right min-w-[95px]">
+                      Accident
+                    </th>
+                    <th className="px-3 py-2 text-right min-w-[95px]">
+                      DeadMile
+                    </th>
+                    <th className="px-3 py-2 text-right min-w-[95px] border-r border-slate-200">
+                      TDS
+                    </th>
+
+                    {/* Settlement Outcome Columns (Separate) */}
+                    <th className="px-3 py-2 text-right min-w-[105px]">
+                      Week O/s
+                    </th>
+                    <th className="px-3 py-2 text-right min-w-[115px]">
+                      To Pay (Driver)
+                    </th>
+                    <th className="px-3 py-2 text-right min-w-[115px]">
+                      To Collect
                     </th>
                   </tr>
                 </thead>
@@ -695,7 +720,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                 <tbody className="divide-y divide-slate-100">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={16} className="px-4 py-20 text-center text-slate-400">
+                      <td colSpan={27} className="px-4 py-20 text-center text-slate-400">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
                           <span className="text-xs font-semibold">Loading Hisaab settlement matrix...</span>
@@ -704,7 +729,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                     </tr>
                   ) : errorMsg ? (
                     <tr>
-                      <td colSpan={16} className="px-4 py-16 text-center text-rose-500">
+                      <td colSpan={27} className="px-4 py-16 text-center text-rose-500">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <AlertCircle className="h-6 w-6" />
                           <span className="text-xs font-semibold">{errorMsg}</span>
@@ -713,7 +738,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                     </tr>
                   ) : records.length === 0 ? (
                     <tr>
-                      <td colSpan={16} className="px-4 py-20 text-center text-slate-400">
+                      <td colSpan={27} className="px-4 py-20 text-center text-slate-400">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <Info className="h-6 w-6 text-slate-300" />
                           <span className="text-xs font-semibold">No Hisaab records found for active filters.</span>
@@ -728,13 +753,16 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                       const olaRev = Number(r.ola_net_revenue) || 0;
                       const olaTrips = Number(r.ola_trips) || 0;
                       const olaCash = Number(r.ola_cash_collection) || 0;
+                      const olaIncentive = Number(r.ola_incentive) || 0;
                       const olaOs = Number(r.ola_week_os) || 0;
                       const uberRev = Number(r.uber_total_revenue ?? r.uber_total_earnings) || 0;
                       const uberTrips = Number(r.uber_trips) || 0;
                       const uberCash = Number(r.uber_cash_collection) || 0;
+                      const uberIncentive = Number(r.uber_incentive) || 0;
                       const uberOs = Number(r.uber_week_os) || 0;
                       const rapidoRev = Number(r.rapido_net_revenue) || 0;
                       const rapidoTrips = Number(r.rapido_trips) || 0;
+                      const rapidoIncentive = Number(r.rapido_incentive) || 0;
                       const challan = Number(r.challan ?? r.challan_amount) || 0;
                       const accident = Number(r.accident ?? r.accident_deduction) || 0;
                       const deadmile = Number(r.deadmile_penalty ?? r.gps_dead_mile_penalty) || 0;
@@ -745,12 +773,12 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                         <tr
                           key={r.hisaab_id || r.sr_no || idx}
                           onClick={() => setSelectedRecord(r)}
-                          className="hover:bg-slate-50/80 transition-colors cursor-pointer group h-[54px]"
+                          className="hover:bg-slate-50/80 transition-colors cursor-pointer group h-[52px]"
                         >
                           {/* Locked Column 1: Sr. No. */}
                           <td 
                             style={{ width: '44px', minWidth: '44px', maxWidth: '44px', left: 0 }} 
-                            className="sticky left-0 z-20 bg-white group-hover:bg-slate-50 text-center text-slate-400 font-mono text-[11px] border-r border-slate-200 py-2"
+                            className="sticky left-0 z-20 bg-white group-hover:bg-slate-50 text-center text-slate-400 font-mono text-[11px] border-r border-slate-200 py-1.5"
                           >
                             {r.sr_no || (page - 1) * pageSize + idx + 1}
                           </td>
@@ -758,7 +786,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                           {/* Locked Column 2: Vehicle & Model */}
                           <td 
                             style={{ width: '154px', minWidth: '154px', maxWidth: '154px', left: '44px' }} 
-                            className="sticky left-[44px] z-20 bg-white group-hover:bg-slate-50 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.06)] px-3 py-2 text-left"
+                            className="sticky left-[44px] z-20 bg-white group-hover:bg-slate-50 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.06)] px-3 py-1.5 text-left"
                           >
                             <div className="font-mono font-medium text-slate-800 text-xs">
                               {r.vehicle_number}
@@ -769,8 +797,8 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                           </td>
 
                           {/* Column 3: Partner Name & Code */}
-                          <td className="px-3 py-2 text-left">
-                            <div className="font-medium text-slate-800 text-xs truncate max-w-[160px]" title={r.vendor_name || r.partner_name || ''}>
+                          <td className="px-3 py-1.5 text-left">
+                            <div className="font-medium text-slate-800 text-xs truncate max-w-[155px]" title={r.vendor_name || r.partner_name || ''}>
                               {r.vendor_name || r.partner_name || '-'}
                             </div>
                             <div className="text-[11px] font-mono text-slate-400 font-normal">
@@ -779,17 +807,17 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                           </td>
 
                           {/* Column 4: City & Rental Plan */}
-                          <td className="px-3 py-2 text-left">
+                          <td className="px-3 py-1.5 text-left">
                             <div className="text-xs font-medium text-slate-800">
                               {r.city || r.normalized_city || '-'}
                             </div>
-                            <div className="text-[11px] text-slate-400 font-normal truncate max-w-[120px]" title={r.rental_plan || ''}>
+                            <div className="text-[11px] text-slate-400 font-normal truncate max-w-[115px]" title={r.rental_plan || ''}>
                               {r.rental_plan || '-'}
                             </div>
                           </td>
 
                           {/* Column 5: Allocation Dates (Merged) */}
-                          <td className="px-3 py-2 text-center font-mono">
+                          <td className="px-3 py-1.5 text-center font-mono">
                             <div className="text-xs text-slate-800 font-medium">
                               {r.allocation_start ? String(r.allocation_start).slice(5) : '-'}
                             </div>
@@ -799,7 +827,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                           </td>
 
                           {/* Column 6: Days (Onroad / Active Merged) */}
-                          <td className="px-3 py-2 text-center border-r border-slate-200">
+                          <td className="px-3 py-1.5 text-center border-r border-slate-200">
                             <div className="text-xs font-medium text-slate-800">
                               {r.onroad_days ?? 0} <span className="text-[11px] font-normal text-slate-400">onroad</span>
                             </div>
@@ -809,7 +837,7 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                           </td>
 
                           {/* Column 7: Rent & Lease (Merged) */}
-                          <td className="px-3 py-2 text-right border-r border-slate-200 font-mono tabular-nums">
+                          <td className="px-3 py-1.5 text-right border-r border-slate-200 font-mono tabular-nums">
                             <div className="text-xs font-medium text-slate-800">
                               {formatCurrency(r.net_weekly_lease_rental)}
                             </div>
@@ -818,116 +846,74 @@ export default function HisaabDashboard({ user, onBackToSelector, onBack, onLogo
                             </div>
                           </td>
 
-                          {/* Column 8: OLA Revenue & Trips */}
-                          <td className="px-3 py-2 text-right font-mono tabular-nums">
-                            <div className={`text-xs font-medium ${olaRev > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
-                              {olaRev > 0 ? formatCurrency(olaRev) : '-'}
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-normal">
-                              {olaTrips > 0 ? `${olaTrips} trips` : '-'}
-                            </div>
+                          {/* OLA Columns */}
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {olaTrips > 0 ? olaTrips : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {olaRev > 0 ? formatCurrency(olaRev) : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {olaCash > 0 ? formatCurrency(olaCash) : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {olaIncentive > 0 ? formatCurrency(olaIncentive) : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800 border-r border-slate-200">
+                            {olaOs !== 0 ? formatCurrency(olaOs) : <span className="text-slate-300">-</span>}
                           </td>
 
-                          {/* Column 9: OLA Cash & O/s */}
-                          <td className="px-3 py-2 text-right border-r border-slate-200 font-mono tabular-nums">
-                            <div className={`text-xs font-medium ${olaCash > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
-                              {olaCash > 0 ? formatCurrency(olaCash) : '-'}
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-normal">
-                              {olaOs > 0 ? `O/s: ₹${olaOs}` : '-'}
-                            </div>
+                          {/* Uber Columns */}
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {uberTrips > 0 ? uberTrips : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {uberRev > 0 ? formatCurrency(uberRev) : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {uberCash > 0 ? formatCurrency(uberCash) : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {uberIncentive > 0 ? formatCurrency(uberIncentive) : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800 border-r border-slate-200">
+                            {uberOs !== 0 ? formatCurrency(uberOs) : <span className="text-slate-300">-</span>}
                           </td>
 
-                          {/* Column 10: Uber Revenue & Trips */}
-                          <td className="px-3 py-2 text-right font-mono tabular-nums">
-                            <div className={`text-xs font-medium ${uberRev > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
-                              {uberRev > 0 ? formatCurrency(uberRev) : '-'}
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-normal">
-                              {uberTrips > 0 ? `${uberTrips} trips` : '-'}
-                            </div>
+                          {/* Rapido Columns */}
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {rapidoTrips > 0 ? rapidoTrips : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {rapidoRev > 0 ? formatCurrency(rapidoRev) : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800 border-r border-slate-200">
+                            {rapidoIncentive > 0 ? formatCurrency(rapidoIncentive) : <span className="text-slate-300">-</span>}
                           </td>
 
-                          {/* Column 11: Uber Cash & O/s */}
-                          <td className="px-3 py-2 text-right border-r border-slate-200 font-mono tabular-nums">
-                            <div className={`text-xs font-medium ${uberCash > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
-                              {uberCash > 0 ? formatCurrency(uberCash) : '-'}
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-normal">
-                              {uberOs > 0 ? `O/s: ₹${uberOs}` : '-'}
-                            </div>
+                          {/* Deductions Columns */}
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {challan > 0 ? formatCurrency(challan) : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {accident > 0 ? formatCurrency(accident) : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {deadmile > 0 ? formatCurrency(deadmile) : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800 border-r border-slate-200">
+                            {tds > 0 ? formatCurrency(tds) : <span className="text-slate-300">-</span>}
                           </td>
 
-                          {/* Column 12: Rapido (Rev / Trips) */}
-                          <td className="px-3 py-2 text-right border-r border-slate-200 font-mono tabular-nums">
-                            <div className={`text-xs font-medium ${rapidoRev > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
-                              {rapidoRev > 0 ? formatCurrency(rapidoRev) : '-'}
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-normal">
-                              {rapidoTrips > 0 ? `${rapidoTrips} trips` : '-'}
-                            </div>
+                          {/* Settlement Outcome Columns */}
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-medium text-slate-800">
+                            {formatCurrency(weekOs)}
                           </td>
-
-                          {/* Column 13: Challan & Accident */}
-                          <td className="px-3 py-2 text-right font-mono tabular-nums">
-                            <div className={`text-xs font-medium ${challan > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
-                              {challan > 0 ? formatCurrency(challan) : '-'}
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-normal">
-                              {accident > 0 ? `Acc: ${formatCurrency(accident)}` : '-'}
-                            </div>
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-semibold text-emerald-700">
+                            {netPayout > 0 ? formatCurrency(netPayout) : <span className="text-slate-300 font-normal">-</span>}
                           </td>
-
-                          {/* Column 14: DeadMile & TDS */}
-                          <td className="px-3 py-2 text-right border-r border-slate-200 font-mono tabular-nums">
-                            <div className={`text-xs font-medium ${deadmile > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
-                              {deadmile > 0 ? formatCurrency(deadmile) : '-'}
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-normal">
-                              {tds > 0 ? `TDS: ${formatCurrency(tds)}` : '-'}
-                            </div>
-                          </td>
-
-                          {/* Column 15: Week Position */}
-                          <td className="px-3 py-2 text-right font-mono tabular-nums">
-                            <div className="text-xs font-medium text-slate-800">
-                              {formatCurrency(weekOs)}
-                            </div>
-                            <div className="text-[11px] text-slate-400 font-normal">
-                              Week O/s
-                            </div>
-                          </td>
-
-                          {/* Column 16: Settlement Outcome */}
-                          <td className="px-3 py-2 text-right font-mono tabular-nums">
-                            {netPayout > 0 ? (
-                              <div>
-                                <div className="text-xs font-semibold text-emerald-700">
-                                  Pay: {formatCurrency(netPayout)}
-                                </div>
-                                <div className="text-[10px] text-slate-400 font-normal">
-                                  To Pay Driver
-                                </div>
-                              </div>
-                            ) : netCollect > 0 ? (
-                              <div>
-                                <div className="text-xs font-semibold text-rose-700">
-                                  Due: {formatCurrency(netCollect)}
-                                </div>
-                                <div className="text-[10px] text-slate-400 font-normal">
-                                  To Collect
-                                </div>
-                              </div>
-                            ) : (
-                              <div>
-                                <div className="text-xs font-normal text-slate-400">
-                                  -
-                                </div>
-                                <div className="text-[10px] text-slate-400 font-normal">
-                                  Settled
-                                </div>
-                              </div>
-                            )}
+                          <td className="px-3 py-1.5 text-right font-mono tabular-nums text-xs font-semibold text-rose-700">
+                            {netCollect > 0 ? formatCurrency(netCollect) : <span className="text-slate-300 font-normal">-</span>}
                           </td>
 
                         </tr>
